@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_POSTGRE")
+}
+
+model sysuser {
+  rowId        Int          @id @default(autoincrement())
+  email        String       @db.VarChar(60)
+  password     String       @db.VarChar(255)
+  name         String       @db.VarChar(100)
+  userID       String       @db.VarChar(10)
+  Company_Cd   String       @db.VarChar(10)
+  UserLevel    String       @db.VarChar(20)
+  Handphone    String       @db.VarChar(20)
+  Status       String       @db.Char(1)
+  isResetLogin String       @db.Char(1)
+  pict         String?      @db.VarChar(255)
+  audit_user   String       @db.VarChar(10)
+  audit_date   DateTime     @default(now())
+  user_token   user_token[]
+}
+
+model company {
+  id                      Int      @id @default(autoincrement())
+  company_cd              String   @db.VarChar(10)
+  nama_company            String   @db.VarChar(100)
+  client_id               String?  @db.VarChar(255)
+  client_secret           String?  @db.VarChar(255)
+  kuota_email_blast       String?  @db.VarChar(10)
+  kuota_whatsapp_blast    String?  @db.VarChar(10)
+  peruri_account_username String?  @db.VarChar(50)
+  peruri_account_password String?  @db.VarChar(25)
+  audit_user              String   @db.VarChar(10)
+  audit_date              DateTime
+}
+
+model user_token {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      sysuser   @relation(fields: [userId], references: [rowId])
+  token     String?   @db.VarChar(255)
+  lastLogin DateTime  @updatedAt
+  expireOn  DateTime?
+}
+
+model transaction {
+  id             Int       @id @default(autoincrement())
+  transaction_id String
+  amount         Int
+  status         String
+  customer_email String
+  expiry_date    DateTime?
+  paid_date      DateTime?
+  payment_method String?
+}
+
+model balance {
+  id             Int      @id @default(autoincrement())
+  company_cd     String   @db.VarChar(10)
+  nama_company   String   @db.VarChar(100)
+  transaction_id String   @db.VarChar(100)
+  quantity       Int
+  type           String
+  kuota          Int
+  audit_date     DateTime @default(now())
+}
+
+model file {
+  id           Int       @id @default(autoincrement())
+  file_name    String
+  status       String
+  company_cd   String
+  sn           String?
+  token        String?
+  stamp_date   DateTime  @default(now())
+  restamp_date DateTime?
+}

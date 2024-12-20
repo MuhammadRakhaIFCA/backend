@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "sysuser" ALTER COLUMN "audit_date" SET DEFAULT CURRENT_TIMESTAMP;
