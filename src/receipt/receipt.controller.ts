@@ -32,6 +32,14 @@ export class ReceiptController {
   async getStamp(@Param('status') status: string) {
     return this.receiptService.getStamp(status);
   }
+  @Post('stamp')
+  async getStamps(@Body() data: Record<any, any>) {
+    return this.receiptService.getStamps(data)
+  }
+  @Get('generate/:doc_no')
+  async generateReceipt(@Param('doc_no') doc_no: string) {
+    return this.receiptService.generateReceipt(doc_no);
+  }
   @Post('stamp-history')
   //@UseGuards(AuthGuard('jwt'))
   async getStampHistory(

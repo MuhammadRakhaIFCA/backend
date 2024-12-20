@@ -4,9 +4,10 @@ import { ReceiptController } from './receipt.controller';
 import { SqlserverDatabaseModule } from 'src/database/database-sqlserver.module';
 import { HttpModule } from '@nestjs/axios';
 import { DatabaseModule } from 'src/database/database.module';
+import { PdfgenerateModule } from 'src/pdfgenerate/pdfgenerate.module';
 
 @Module({
-  imports: [SqlserverDatabaseModule, HttpModule, DatabaseModule],
+  imports: [SqlserverDatabaseModule, HttpModule, DatabaseModule, PdfgenerateModule],
   controllers: [ReceiptController],
   providers: [ReceiptService],
 })

@@ -156,8 +156,14 @@ export class FjiService {
         }
     }
 
-    async assignType(data: AssignTypeDto) {
+    async assignType(data: Record<any, any>) {
         const { user_id, type_id } = data;
+        if (user_id === undefined || type_id[0] === undefined) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "user_id can't be empty and type_id have to be an array of number"
+            })
+        }
         try {
             await this.tanriseDatabase.$executeRawUnsafe(`
                 DELETE FROM mgr.assign_type_invoice WHERE user_id = ${user_id}
