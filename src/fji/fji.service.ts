@@ -16,6 +16,7 @@ export class FjiService {
         private readonly jwtService: JwtService
     ) { }
 
+
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto
         const findUser = await this.tanriseDatabase.$queryRawUnsafe(`
@@ -79,6 +80,13 @@ export class FjiService {
 
     async createUser(data: createUserDto) {
         const { email, password, name } = data
+        if (this.isEmpty(email), this.isEmpty(password), this.isEmpty(name)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "email, password and name can't be emtpy",
+                data: []
+            })
+        }
         try {
             const encryptedPassword = await bcrypt.hash(("email" + email + "p@ssw0rd" + password), 10)
             const result = await this.tanriseDatabase.$executeRawUnsafe(`
@@ -105,6 +113,13 @@ export class FjiService {
     }
     async editUser(data: EditUserDto) {
         const { email, password, name, pict, user_id, } = data;
+        if (this.isEmpty(user_id)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "user id can't be empty",
+                data: []
+            })
+        }
         const updates: string[] = [];
         try {
             if (email) {
@@ -158,7 +173,7 @@ export class FjiService {
 
     async assignType(data: Record<any, any>) {
         const { user_id, type_id } = data;
-        if (user_id === undefined || type_id[0] === undefined) {
+        if (this.isEmpty(user_id) || type_id[0] === undefined) {
             throw new BadRequestException({
                 statusCode: 400,
                 message: "user_id can't be empty and type_id have to be an array of number"

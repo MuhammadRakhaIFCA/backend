@@ -58,11 +58,14 @@ export class ApiInvoiceController {
   //   return this.apiInvoiceService.getProforma(data);
   // }
 
-  @Get('invoice-schedule-generate/:doc_no')
+  @Get('invoice-schedule-generate')
   async generateSchedule(
-    @Param('doc_no') doc_no: string
+    @Query('doc_no') doc_no: string,
+    @Query('bill_type') bill_type: string,
+    @Query('meter_type') meter_type: string,
+    @Query('doc_amt') doc_amt: string,
   ) {
-    return this.apiInvoiceService.generateSchedule(doc_no);
+    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type);
   }
   @Get('invoice-manual-generate/:doc_no')
   async generateManual(

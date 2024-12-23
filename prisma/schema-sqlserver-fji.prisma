@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client-sqlserver-fji"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL_FJI")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model pbcatcol {
+  pbc_tnam String? @db.Char(30)
+  pbc_tid  Int?
+  pbc_ownr String? @db.Char(30)
+  pbc_cnam String? @db.Char(30)
+  pbc_cid  Int?    @db.SmallInt
+  pbc_labl String? @db.VarChar(254)
+  pbc_lpos Int?    @db.SmallInt
+  pbc_hdr  String? @db.VarChar(254)
+  pbc_hpos Int?    @db.SmallInt
+  pbc_jtfy Int?    @db.SmallInt
+  pbc_mask String? @db.VarChar(31)
+  pbc_case Int?    @db.SmallInt
+  pbc_hght Int?    @db.SmallInt
+  pbc_wdth Int?    @db.SmallInt
+  pbc_ptrn String? @db.VarChar(31)
+  pbc_bmap String? @db.Char(1)
+  pbc_init String? @db.VarChar(254)
+  pbc_cmnt String? @db.VarChar(254)
+  pbc_edit String? @db.VarChar(31)
+  pbc_tag  String? @db.VarChar(254)
+
+  @@unique([pbc_tnam, pbc_ownr, pbc_cnam], map: "pbcatcol_idx")
+  @@ignore
+}
+
+model pbcatedt {
+  pbe_name String  @db.VarChar(30)
+  pbe_edit String? @db.VarChar(254)
+  pbe_type Int     @db.SmallInt
+  pbe_cntr Int?
+  pbe_seqn Int     @db.SmallInt
+  pbe_flag Int?
+  pbe_work String? @db.Char(32)
+
+  @@unique([pbe_name, pbe_seqn], map: "pbcatedt_idx", clustered: true)
+}
+
+model pbcatfmt {
+  pbf_name String @unique(map: "pbcatfmt_idx", clustered: true) @db.VarChar(30)
+  pbf_frmt String @db.VarChar(254)
+  pbf_type Int    @db.SmallInt
+  pbf_cntr Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model pbcattbl {
+  pbt_tnam String? @db.Char(30)
+  pbt_tid  Int?
+  pbt_ownr String? @db.Char(30)
+  pbd_fhgt Int?    @db.SmallInt
+  pbd_fwgt Int?    @db.SmallInt
+  pbd_fitl String? @db.Char(1)
+  pbd_funl String? @db.Char(1)
+  pbd_fchr Int?    @db.SmallInt
+  pbd_fptc Int?    @db.SmallInt
+  pbd_ffce String? @db.Char(32)
+  pbh_fhgt Int?    @db.SmallInt
+  pbh_fwgt Int?    @db.SmallInt
+  pbh_fitl String? @db.Char(1)
+  pbh_funl String? @db.Char(1)
+  pbh_fchr Int?    @db.SmallInt
+  pbh_fptc Int?    @db.SmallInt
+  pbh_ffce String? @db.Char(32)
+  pbl_fhgt Int?    @db.SmallInt
+  pbl_fwgt Int?    @db.SmallInt
+  pbl_fitl String? @db.Char(1)
+  pbl_funl String? @db.Char(1)
+  pbl_fchr Int?    @db.SmallInt
+  pbl_fptc Int?    @db.SmallInt
+  pbl_ffce String? @db.Char(32)
+  pbt_cmnt String? @db.VarChar(254)
+
+  @@unique([pbt_tnam, pbt_ownr], map: "pbcattbl_idx")
+  @@ignore
+}
+
+model pbcatvld {
+  pbv_name String  @unique(map: "pbcatvld_idx", clustered: true) @db.VarChar(30)
+  pbv_vald String  @db.VarChar(254)
+  pbv_type Int     @db.SmallInt
+  pbv_cntr Int?
+  pbv_msg  String? @db.VarChar(254)
+}

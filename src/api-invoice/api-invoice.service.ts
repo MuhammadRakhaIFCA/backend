@@ -7,6 +7,7 @@ import { generateDto } from './dto/generate.dto';
 import * as ftp from 'basic-ftp';
 import * as fs from 'fs';
 import * as path from 'path';
+import { FjiDatabaseService } from 'src/database/database-fji.service';
 
 @Injectable()
 export class ApiInvoiceService {
@@ -14,6 +15,7 @@ export class ApiInvoiceService {
     constructor
         (
             private readonly sqlserver: SqlserverDatabaseService,
+            private readonly fjiDatabase: FjiDatabaseService,
             private readonly httpService: HttpService,
             private readonly pdfService: PdfgenerateService
         ) {
@@ -174,44 +176,59 @@ export class ApiInvoiceService {
         }
     }
 
-    async generateSchedule(doc_no: string) {
-        const result = await this.sqlserver.$queryRawUnsafe(`
-            SELECT TOP (5)* FROM mgr.ar_email_inv_dtl 
-                WHERE doc_no = '${doc_no}'
+    async generateSchedule(doc_no: string, bill_type: string, meter_type: string) {
+        const result = await this.fjiDatabase.$queryRawUnsafe(`
+            select * from mgr.v_ar_ledger_sch_inv_web 
+            where doc_no = '${doc_no}' 
+            and entity_cd = '0001'
             `)
         const pdfBody = {
-            no: `BI${moment(result[0].gen_date).format('YYDDMM')}26`,
-            date: moment(result[0].gen_date).format('DD/MM/YYYY'),
-            receiptFrom: `${result[0].debtor_acct} - ${result[0].debtor_name}`,
-            amount: result[0].doc_amt,
-            forPayment: result[0].doc_no,
-            signedDate: moment(result[0].gen_date).format('DD MMMM YYYY'),
-            city: "jakarta",
-            billType: result[0].bill_type,
+            debtor_acct: result[0].debtor_acct,
+            debtor_name: result[0].debtor_name,
+            address1: result[0].address1,
+            address2: result[0].address2,
+            address3: result[0].address3,
+            post_cd: result[0].post_cd,
+            trx_type: result[0].trx_type,
+            doc_no: result[0].doc_no,
+            doc_date: result[0].doc_date,
+            due_date: result[0].due_date,
+            descs: result[0].descs,
+            descs_lot: result[0]?.descs_lot || "",
+            start_date: result[0].start_date,
+            end_date: result[0].end_date,
+            currency_cd: result[0].currency_cd,
+            base_amt: result[0].base_amt,
+            tax_amt: result[0].tax_amt,
+            tax_scheme: result[0].tax_shceme,
+            tax_rate: result[0].tax_rate,
+            pph_rate: result[0].pph_rate,
+            line1: result[0].line1,
+            signature: result[0].signature,
+            designation: result[0].designation,
+            bank_name_rp: result[0].bank_name_rp,
+            bank_name_usd: result[0].bank_name_usd || "",
+            account_rp: result[0].account_rp,
+            account_usd: result[0]?.account_usd || "",
+            alloc_amt: result[0]?.alloc_amt,
+            notes: result[0].notes,
+            sequence_no: result[0].sequence_no,
+            group_cd: result[0].group_cd,
+            inv_group: result[0].inv_group,
+            bill_type,
+            meter_type,
         };
 
-        await this.pdfService.generatePdfSchedule(pdfBody);
-
         try {
-            await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/pakubuwono_${result[0].doc_no}.pdf`;
-            if (!fs.existsSync(filePath)) {
-                console.error(`Local file does not exist: ${filePath}`);
+            await this.pdfService.generatePdfSchedule(pdfBody);
+            if (bill_type === 'E' && meter_type === 'G') {
+                await this.pdfService.generateReferenceG(result[0].doc_no, result[0].debtor_acct, result[0].doc_date)
             }
-
-            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${result[0].doc_no}.pdf`);
-
+            else if (bill_type === 'V') {
+                await this.pdfService.generateReferenceV(result[0].doc_no, result[0].debtor_acct, result[0].doc_date)
+            }
         } catch (error) {
-            console.log("Error during upload:.", error);
-            throw new BadRequestException({
-                statusCode: 400,
-                message: 'Failed to upload to FTP',
-                data: [error],
-            });
-        } finally {
-            console.log("Disconnecting from FTP servers");
-            await this.disconnect();
+            return error.response
         }
 
         return ({
@@ -223,7 +240,7 @@ export class ApiInvoiceService {
 
     async generateManual(doc_no: string) {
         const result = await this.sqlserver.$queryRawUnsafe(`
-            SELECT TOP (5)* FROM mgr.ar_email_inv_dtl 
+            SELECT  FROM mgr.ar_email_inv_dtl 
                 WHERE doc_no = '${doc_no}'
             `)
         const pdfBody = {
@@ -286,27 +303,28 @@ export class ApiInvoiceService {
 
         await this.pdfService.generatePdfProforma(pdfBody);
 
-        try {
-            await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}proforma/pakubuwono_${result[0].doc_no}.pdf`;
-            if (!fs.existsSync(filePath)) {
-                console.error(`Local file does not exist: ${filePath}`);
-            }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/PROFORMA/${result[0].doc_no}.pdf`);
+        // try {
+        //     await this.connect();
+        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
+        //     const filePath = `${rootFolder}proforma/pakubuwono_${result[0].doc_no}.pdf`;
+        //     if (!fs.existsSync(filePath)) {
+        //         console.error(`Local file does not exist: ${filePath}`);
+        //     }
 
-        } catch (error) {
-            console.log("Error during upload:.", error);
-            throw new BadRequestException({
-                statusCode: 400,
-                message: 'Failed to upload to FTP',
-                data: [error],
-            });
-        } finally {
-            console.log("Disconnecting from FTP servers");
-            await this.disconnect();
-        }
+        //     await this.upload(filePath, `/UNSIGNED/GQCINV/PROFORMA/${result[0].doc_no}.pdf`);
+
+        // } catch (error) {
+        //     console.log("Error during upload:.", error);
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: 'Failed to upload to FTP',
+        //         data: [error],
+        //     });
+        // } finally {
+        //     console.log("Disconnecting from FTP servers");
+        //     await this.disconnect();
+        // }
         return ({
             statusCode: 201,
             message: "pdf generated successfuly",
@@ -318,13 +336,14 @@ export class ApiInvoiceService {
     async getSchedule(data: generateDto) {
         const { startDate, endDate } = data
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT TOP (5)* FROM mgr.ar_email_inv_dtl 
-                WHERE
-                 year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= '${startDate}'
-                AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= '${endDate}'
-                ORDER BY gen_date DESC
-            `)
+            console.log(startDate, endDate)
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * 
+                FROM mgr.v_ar_ledger_gen_bill_sch_web
+                WHERE 
+                 year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
+                AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+            `);
             if (!result || result.length === 0) {
 
                 throw new NotFoundException({
@@ -351,13 +370,12 @@ export class ApiInvoiceService {
     async getManual(data: generateDto) {
         const { startDate, endDate } = data
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT TOP (5)* FROM mgr.ar_email_inv_dtl 
-                WHERE
-                 year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= '${startDate}'
-                AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= '${endDate}'
-                ORDER BY gen_date DESC
-            `)
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                select top(5) * from mgr.v_ar_ledger_gen_inv_manual_web
+                WHERE 
+                 year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
+                AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+                `)
             if (!result || result.length === 0) {
 
                 throw new NotFoundException({
@@ -384,13 +402,12 @@ export class ApiInvoiceService {
     async getProforma(data: generateDto) {
         const { startDate, endDate } = data
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT TOP (5)* FROM mgr.ar_email_inv_dtl 
-                WHERE
-                 year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= '${startDate}'
-                AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= '${endDate}'
-                ORDER BY gen_date DESC
-            `)
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                select top(5) * from mgr.v_ar_ledger_gen_inv_proforma_web
+                WHERE 
+                 year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
+                AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+                `)
             if (!result || result.length === 0) {
 
                 throw new NotFoundException({

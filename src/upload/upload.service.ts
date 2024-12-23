@@ -96,7 +96,7 @@ export class UploadService {
             const fontName = item.fontName;
             const textHeight = Math.round(item.height);
 
-            if (item.str === ' ') continue
+            if (item.str === ' ') continue;
             if (currentY === null || Math.abs(currentY - y) <= 2) {
                 // Check if this item is horizontally close to the previous item
                 if (
@@ -130,21 +130,44 @@ export class UploadService {
         for (const { y, line } of groupedLines) {
             const sortedLine = line.sort((a, b) => a.x - b.x); // Sort items by x-coordinate
             let combinedText = '';
+            let mergedText = '';
+            let startX = null;
 
-            for (const item of sortedLine) {
-                // Add .font() if the font changes
+            for (let i = 0; i < sortedLine.length; i++) {
+                const item = sortedLine[i];
+
+                // Merge text if it's within a small horizontal range
+                if (
+                    i === 0 ||
+                    item.x - (sortedLine[i - 1].x + sortedLine[i - 1].width) <= 3
+                ) {
+                    if (mergedText === '') {
+                        startX = item.x; // Set starting x-coordinate for merged text
+                    }
+                    mergedText += item.text;
+                } else {
+                    // Close merged text and start a new one
+                    combinedText += `.text('${mergedText}', ${startX}, ${y})`;
+                    mergedText = item.text;
+                    startX = item.x;
+                }
+
+                // Update font and size changes
                 if (item.fontName !== previousFontName) {
                     combinedText += `.font('${item.fontName}')`;
                     previousFontName = item.fontName;
                 }
-                // Add .fontSize() if the height changes
                 if (item.textHeight !== previousHeight) {
                     combinedText += `.fontSize(${item.textHeight})`;
                     previousHeight = item.textHeight;
                 }
-                // Append the text
-                combinedText += `.text('${item.text}', ${item.x}, ${y})`;
             }
+
+            // Append any remaining merged text
+            if (mergedText !== '') {
+                combinedText += `.text('${mergedText}', ${startX}, ${y})`;
+            }
+
             coordinates.push(combinedText);
         }
 
@@ -154,6 +177,7 @@ export class UploadService {
             data: coordinates,
         };
     }
+
 
 
 

@@ -4,9 +4,10 @@ import { ApiInvoiceController } from './api-invoice.controller';
 import { SqlserverDatabaseModule } from 'src/database/database-sqlserver.module';
 import { HttpModule } from '@nestjs/axios';
 import { PdfgenerateModule } from 'src/pdfgenerate/pdfgenerate.module';
+import { FjiDatabaseModule } from 'src/database/database-fji.module';
 
 @Module({
-  imports: [SqlserverDatabaseModule, HttpModule, PdfgenerateModule],
+  imports: [SqlserverDatabaseModule, HttpModule, PdfgenerateModule, FjiDatabaseModule],
   controllers: [ApiInvoiceController],
   providers: [ApiInvoiceService],
 })

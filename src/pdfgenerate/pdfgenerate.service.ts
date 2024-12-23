@@ -5,16 +5,66 @@ import { SqlserverDatabaseService } from 'src/database/database-sqlserver.servic
 import * as moment from 'moment'
 import * as ftp from 'basic-ftp';
 import * as path from 'path';
+import { FjiDatabaseService } from 'src/database/database-fji.service';
 
 
 
 @Injectable()
 export class PdfgenerateService {
-
+    private client: ftp.Client;
     constructor(
-        private readonly sqlserver: SqlserverDatabaseService
+        private readonly sqlserver: SqlserverDatabaseService,
+        private readonly fjiDatabase: FjiDatabaseService
     ) {
+        this.client = new ftp.Client();
+        this.client.ftp.verbose = true;
+    }
 
+    async connect(): Promise<void> {
+        console.log(this.client.closed)
+        if (this.client.closed) {
+            console.log('Reconnecting to FTP server...');
+            await this.client.access({
+                host: process.env.FTP_HOST,
+                user: process.env.FTP_USERNAME,
+                password: process.env.FTP_PASSWORD,
+                secure: false,
+                port: 21,
+            });
+        }
+        console.log('Connected to FTP server.');
+    }
+    async download(remoteFilePath: string, localFilePath: string): Promise<void> {
+        try {
+            await this.client.downloadTo(localFilePath, remoteFilePath);
+            console.log('File downloaded successfully');
+        } catch (error) {
+            throw new Error(`Failed to download file: ${error.message}`);
+        }
+    }
+    async upload(localFilePath: string, remoteFilePath: string): Promise<void> {
+        try {
+            if (!fs.existsSync(localFilePath)) {
+                throw new Error(`Local file does not exist: ${localFilePath}`);
+            }
+            const remoteDirPath = path.dirname(remoteFilePath);
+            await this.client.ensureDir(remoteDirPath);
+            await this.client.uploadFrom(localFilePath, remoteFilePath);
+            console.log('File uploaded successfully');
+        } catch (error) {
+            throw new Error(`Failed to upload file: ${error.message}`);
+            throw new BadRequestException(error);
+        }
+    }
+
+    async disconnect() {
+        try {
+            this.client.close();
+            console.log('Disconnected from FTP server');
+        } catch (err) {
+            console.error('Failed to disconnect', err);
+            throw err;
+        }
     }
 
 
@@ -123,65 +173,6 @@ export class PdfgenerateService {
         })
     }
 
-    //in progress
-    async generateFullPage(data: Record<any, any>) {
-        const { startDate, endDate } = data
-        const doc = new PDFDocument({
-            size: 'A4',
-            margin: 0,
-        });
-        try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                    SELECT TOP (5)* FROM mgr.ar_email_inv_dtl 
-                    WHERE
-                     year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= '${startDate}'
-                    AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= '${endDate}'
-                    ORDER BY gen_date DESC
-                `)
-            if (!result || result.length === 0) {
-                console.log(result.length)
-                throw new NotFoundException({
-                    statusCode: 404,
-                    message: 'No data',
-                    data: [],
-                });
-            }
-
-            result.forEach(async (resultItem) => {
-                const pdfBody = {
-                    no: `BI${moment(resultItem.gen_date).format('YYDDMM')}26`,
-                    date: moment(resultItem.gen_date).format('DD/MM/YYYY'),
-                    receiptFrom: `${resultItem.debtor_acct} - ${resultItem.debtor_name}`,
-                    amount: resultItem.doc_amt,
-                    forPayment: resultItem.doc_no,
-                    signedDate: moment(resultItem.gen_date).format('DD MMMM YYYY'),
-                    city: "jakarta"
-                };
-
-                await this.generatePageOne(doc, pdfBody);
-                if (resultItem.billType === 'A') {
-                    doc.newPage()
-                    await this.generatePageTwo(doc)
-                }
-            });
-
-
-
-        } catch (error) {
-            throw new NotFoundException(
-                error.response
-            );
-        }
-
-
-
-
-        return {
-            statusCode: 201,
-            message: 'pdf generated successfully',
-            data: [],
-        };
-    }
 
     async generatePageTwo(doc) {
         doc.addPage()
@@ -194,71 +185,139 @@ export class PdfgenerateService {
             .text('New York, NY, 10025', 200, 80, { align: 'right' })
             .moveDown();
     }
-    //in progress
+
     async generatePageOne(doc, data: Record<any, any>) {
+        const baseAmt = Number(data.base_amt)
+        const taxAmt = Number(data.tax_amt)
+        //header kiri
+        doc.image(`./uploads/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
+            .fontSize(12)
+            .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
+            .fontSize(8).font('Times-Roman')
+            .text("Indonesia Stock Exchange Building Tower 2, 30th floor, SCBD", 60, 46)
+            .text("Jl. Jend. Sudirman Kav. 52-53 Jakarta 12190", 60, 54)
+            .text("Tel. (021) 515 1515 (Hunting) Fax : (021) 515 3008", 60, 62)
 
-        const formattedAmount = Intl.NumberFormat('id-ID').format(data.amount)
-        const amountInWords = this.numberToWords(data.amount);
+        //header tengah
+        doc.image('./uploads/cushman-and-wakefield-logo.png', 280, 44, { width: 100, heigth: 30 })
+            .fontSize(5)
+            .text('Property Management', 280, 35, { width: 100, align: 'center' })
 
-        doc.image('./uploads/pakubuwono-logo.png', 180, 20, { height: 90 });
-        doc.fontSize(16).font('Helvetica-Bold').text('OFFICIAL RECEIPT', 220, 130);
+        //header kanan
+        doc.roundedRect(385, 32, 200, 80, 20).stroke()
+        doc.font('Times-Roman').fontSize(9)
+            .text('TO :', 395, 40, { indent: 20 })
+            .text(data.debtor_name, { width: 190 })
+            .text(data.address1, { width: 190 })
+            //.moveDown()
+            .text(data.address2, { width: 190 })
+            //.moveDown()
+            .text(`${data.address3} ${data.post_cd}`, { width: 190 })
 
-        doc.fontSize(12).font('Helvetica').text(`No:`, 50, 170);
-        doc.text(`:`, 130, 170);
-        doc.text(data.no, 150, 170);
+        doc.font('Times-Bold').fontSize(18).text('DEBIT / CREDIT NOTE', 165, 140)
 
-        doc.text(`Date`, 50, 190);
-        doc.text(`:`, 130, 190);
-        doc.text(data.date, 150, 190);
+        //header table kanan atas
+        doc.fontSize(12).font('Times-Bold')
+            .text('D/C Note Date', 395, 155)
+            .text(':', 493, 155)
 
-        doc.text(`Receipt From`, 50, 220);
-        doc.text(`:`, 130, 220);
-        doc.text(data.receiptFrom, 150, 220);
-
-        doc.text(`Amount`, 50, 250);
-        doc.text(`:`, 130, 250);
-        doc.text(`IDR ${formattedAmount}`, 150, 250);
-
-        doc.text(`Says`, 50, 280);
-        doc.text(`:`, 130, 280);
-        doc.text(`${amountInWords} Rupiah`, 150, 280, { width: 400, align: 'left' });
-
-        doc.text(`For Payment`, 50, 320);
-        doc.text(`:`, 130, 320);
-        doc.text(data.forPayment, 150, 320);
+        //table kanan atas
+        doc.rect(385, 170, 110, 25).stroke()
+        doc.rect(495, 170, 80, 25).stroke()
+        doc.rect(385, 195, 110, 25).stroke()
+        doc.rect(495, 195, 80, 25).stroke()
 
 
-        doc.text(`${data.city}, ${data.signedDate}`, 365, 380, { align: "center", width: 230 });
-        doc.text(`emeterei`, 365, 440, { align: "center", width: 230 });
-        doc.text(`(THIS IS COMPUTER GENERATED)`, 365, 500, { align: "center", width: 230 });
+        //isi table kanan atas
+        doc.fontSize(11).font('Times-Bold')
+            .text('D/C Note No. ', 395, 180)
+            .text('Payment Due Date ', 395, 204)
 
-        doc.fontSize(10).font('Helvetica-Oblique')
-            .text('P.P The Pakubuwono Residence', 50, 720, { align: 'center' })
-            .text('Jl. Pakubuwono VI No. 68 Kebayoran Baru, Jakarta 12120, Indonesia', 50, 740, { align: 'center' });
-        doc.text('Tel : 62 21 2750 5000 Fax : 62 21 2750 5050 Email : bm@pakubuwono-residence.com', 50, 760, { align: 'center' });
-        doc.text('www.pakubuwono-residence.com', 50, 780, { align: 'center' })
+        const docDate = moment(data.doc_date).format('DD/MM/YYYY')
+        const dueDate = moment(data.doc_date).format('DD/MM/YYYY')
+        doc.fontSize(11).font('Times-Roman')
+            .text(docDate, 495, 155, { width: 80, align: 'center' })
+            .text(data.doc_no, 495, 180, { width: 80, align: 'center' })
+            .text(dueDate, 495, 204, { width: 80, align: 'center' })
+
+
+        let tableYStart = 245
+
+        //table tengah
+        doc.fontSize(11).text('We debit/credit your account as follow : ', 30, 220)
+        doc.rect(425, 235, 150, 270).stroke()
+        doc.rect(25, 265, 550, 200).stroke()
+        doc.rect(25, 235, 550, 270).stroke()
+
+        const startDate = moment(data.start_date).format('DD/MM/YYYY')
+        const endDate = moment(data.end_date).format('DD/MM/YYYY')
+        doc.fontSize(12).font('Times-Bold')
+            .text('DESCRIPTION', 25, tableYStart, { width: 400, align: 'center' })
+            .text('AMOUNT', 425, tableYStart, { width: 150, align: 'center' })
+        doc.font('Times-Roman')
+            .text(data.descs, 35, tableYStart + 35)
+            .text(`Unit Number : ${data.descs_lot}`, 35, tableYStart + 50)
+            .text(`Period : ${data.line1}`, 35, tableYStart + 65)
+            .text(data.currency_cd, 435, tableYStart + 35, { width: 130, align: 'left' })
+            .text(baseAmt.toLocaleString('en-CA'), 435, tableYStart + 35, { width: 130, align: 'right' })
+
+        if (data.tax_rate > 0) {
+            doc
+                .text(`VAT ${data.tax_rate}%`, 35, tableYStart + 150)
+                .text(data.currency_cd, 435, tableYStart + 150, { width: 130, align: 'left' })
+                .text((taxAmt).toLocaleString('en-CA'), 435, tableYStart + 150, { width: 130, align: 'right' })
+        }
+        if (data.pph_rate > 0) {
+            doc.text(`PPH ${data.pph_rate}%`, 350, tableYStart + 35)
+        }
+        if (data.alloc_amt > 0) {
+            doc.fontSize(9)
+                .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
+                .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
+        }
+
+        const total = baseAmt + taxAmt
+
+        doc.font('Times-Bold').fontSize(12)
+            .text('Total', 35, tableYStart + 240, { width: 380, align: 'right' })
+            .text(data.currency_cd, 435, tableYStart + 240, { width: 130, align: 'left' })
+            .text((total.toLocaleString('en-CA')), 435, tableYStart + 240, { width: 130, align: 'right' })
+
+        doc.fontSize(11)
+            .text('In Words', 35, tableYStart + 265)
+            .text(':', 200, tableYStart + 265)
+            .text('PAYMENT INSTRUCTION', 35, tableYStart + 280)
+            .text(':', 200, tableYStart + 280)
+
+        doc.fontSize(10).text(this.numberToWords(total), 210, tableYStart + 265)
+            .fontSize(9).font('Times-Roman')
+            .text('- payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
+            .text('or transfer to our acount : ', 39, tableYStart + 305)
+            .text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, tableYStart + 330)
+            .text('- Receipt will be given after payment', 35, tableYStart + 340)
+            .fontSize(10).font('Times-Bold')
+            .text('PT. First Jakarta International', 325, tableYStart + 295)
+            .text(`- ${data.bank_name_rp} `, 140, tableYStart + 305)
+            .text(`- ${data.bank_name_usd} `, 140, tableYStart + 318)
+            .text(`${data.account_rp}`, 350, tableYStart + 305)
+            .text(`${data.account_usd}`, 350, tableYStart + 318)
+            .fontSize(11).font('Times-Roman')
+            .text('Authorized officer', 480, tableYStart + 280)
+            .font('Times-Bold')
+            .text(data.signature, 480, tableYStart + 360)
 
 
 
 
     }
-    async generatePdfSchedule(data: {
-        no: string;
-        date: string;
-        receiptFrom: string;
-        amount: number;
-        forPayment: string;
-        signedDate: string;
-        city: string;
-        billType: string
-    }) {
+    async generatePdfSchedule(data: Record<any, any>) {
         const doc = new PDFDocument({
             size: 'A4',
             margin: 0,
         });
 
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/pakubuwono_${data.forPayment}.pdf`;
+        const filePath = `${rootFolder}schedule/fji_${data.doc_no}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}schedule}`)) {
             fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
@@ -266,15 +325,33 @@ export class PdfgenerateService {
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
-
+        console.log("here")
         await this.generatePageOne(doc, data)
 
-        if (data.billType === 'A') {
-            await this.generatePageTwo(doc)
-        }
 
         doc.end();
 
+        // try {
+        //     await this.connect();
+        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
+        //     const filePath = `${rootFolder}schedule/fji_${data.doc_no}.pdf`;
+        //     if (!fs.existsSync(filePath)) {
+        //         console.error(`Local file does not exist: ${filePath}`);
+        //     }
+
+        //     await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${data.doc_no}.pdf`);
+
+        // } catch (error) {
+        //     console.log("Error during upload:.", error);
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: 'Failed to upload to FTP',
+        //         data: [error],
+        //     });
+        // } finally {
+        //     console.log("Disconnecting from FTP servers");
+        //     await this.disconnect();
+        // }
         return ({
             statusCode: 201,
             message: "invoice created!",
@@ -435,6 +512,153 @@ export class PdfgenerateService {
         })
     }
 
+    async generateReferenceG(doc_no: string, debtor_acct: string, doc_date: Date) {
+        const docDate = moment(doc_date).format('DD MMM YYYY');
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 0,
+        });
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}schedule/fji_reference_g_${doc_no}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}schedule}`)) {
+            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        }
+
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT meter_id, base_amt1, gen_amt1, apportion_percent, * 
+            FROM mgr.v_ar_ref_fcu_web 
+            WHERE debtor_acct = '${debtor_acct}' 
+            AND doc_date = '${docDate}'
+        `);
+
+        console.log(doc_no)
+
+        const pdfBody = {
+            docNo: doc_no,
+            name: result[0]?.name,
+            address1: result[0]?.address1,
+            address2: result[0]?.address2,
+            address3: result[0]?.address1,
+            postCd: result[0]?.post_cd,
+            docDate: result[0]?.read_date,
+            meterId: result.map((item) => item.meter_id),
+            lastRead: result.map((item) => Number(item.last_read)),
+            currRead: result.map((item) => Number(item.curr_read)),
+            capacity: result.map((item) => Number(item.capacity)),
+            multiplier: result.map((item) => Number(item.multiplier)),
+            usageRate: result.map((item) => Number(item.usage_rate1)),
+            apportionPercent: result.map((item) => Number(item.apportion_percent)),
+            billingAmount: result.map((item) =>
+                (item.as_reduction === 'Y' ? Number(item.base_amt1) - 1 : Number(item.base_amt1)) + Number(item.gen_amt1)
+            ),
+            genAmount: result.map((item) => Number(item.gen_amt1)),
+            roundingAmount: result.map((item) =>
+                item.as_reduction === 'Y' ? Number(item.rounding) - 1 : Number(item.rounding)
+            ),
+        };
+
+
+
+
+        await this.generatePdfFirstJakarta2(pdfBody)
+
+        // try {
+        //     await this.connect();
+        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
+        //     const filePath = `${rootFolder}schedule/fji_reference_g_${doc_no}.pdf`;
+        //     if (!fs.existsSync(filePath)) {
+        //         console.error(`Local file does not exist: ${filePath}`);
+        //     }
+
+        //     await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/reference_g_${doc_no}.pdf`);
+
+        // } catch (error) {
+        //     console.log("Error during upload:.", error);
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: 'Failed to upload to FTP',
+        //         data: [error],
+        //     });
+        // } finally {
+        //     console.log("Disconnecting from FTP servers");
+        //     await this.disconnect();
+        // }
+
+    }
+    async generateReferenceV(doc_no: string, debtor_acct: string, doc_date: Date) {
+        const docDate = moment(doc_date).format('DD MMM YYYY');
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 0,
+        });
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}schedule}`)) {
+            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        }
+
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            select * from mgr.v_ar_ref_ot_web 
+            WHERE debtor_acct = '${debtor_acct}' 
+            and bill_date  = '${docDate}'
+        `);
+
+
+
+        const pdfBody = {
+            docNo: doc_no,
+            name: result[0]?.name,
+            address1: result[0]?.address1,
+            address2: result[0]?.address2,
+            address3: result[0]?.address3,
+            postCd: result[0]?.post_cd,
+            remarks: result[0]?.remarks,
+            startDate: result.map((item: any) => item.start_date),
+            endDate: result.map((item: any) => item.end_date),
+            currency: result[0]?.currency_cd,
+            rate: result.map((item: any) => Number(item.rate)),
+            amount: result.map((item: any) => Number(item.trx_amt)),
+            lotNo: result.map((item: any) => String(item.lot_no)),
+            startPeriod: result[0]?.start_period,
+            endPeriod: result[0]?.end_period,
+        };
+        console.log(pdfBody)
+
+        await this.generatePdfFirstJakarta3(pdfBody)
+
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_v_${doc_no}.pdf`);
+
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
+
+    }
+
     async generatePdfFirstJakarta(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
         const filePath = `./invoice/first_jakarta_${data.docNo}.pdf`;
@@ -570,15 +794,18 @@ export class PdfgenerateService {
     }
     async generatePdfFirstJakarta2(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
-        const filePath = `./invoice/first_jakarta_2_${data.docNo}.pdf`;
         const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}schedule/fji_reference_g_${data.docNo}.pdf`;
+        console.log(filePath)
+
+        if (!fs.existsSync(`${rootFolder}schedule}`)) {
+            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        }
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
-
-        if (!fs.existsSync('./invoice')) {
-            fs.mkdirSync('./invoice');
-        }
 
         doc.font('Times-Roman').fontSize(12)
             .text('PT First Jakarta International', 0, 20, { align: 'center' })
@@ -597,7 +824,6 @@ export class PdfgenerateService {
 
         doc.fontSize(12).font('Times-Bold')
             .text('CHILLED WATER FCU CHARGE CALCULATION', 0, 170, { align: 'center', underline: true })
-
         // Calculations
         const totalHours = data.currRead.map((curr, idx) => curr - data.lastRead[idx]);
         const totalTotalHours = totalHours.reduce((sum, hours) => sum + hours, 0).toFixed(2);
@@ -608,10 +834,10 @@ export class PdfgenerateService {
         const totalMultiplier = data.multiplier.reduce((sum, mul) => sum + mul, 0).toFixed(2);
 
         const formattedUsageRate = data.usageRate.map(rate => rate.toLocaleString('id-ID', { minimumFractionDigits: 2 }));
-        const formattedApportionPercent = data.apportionPercent.map(percent => `${(percent * 100).toFixed(2)}%`);
+        const formattedApportionPercent = data.apportionPercent.map(percent => `${percent.toFixed(2)}%`);
 
         const billingTotal = data.billingAmount.reduce((sum, amount) => sum + amount, 0).toLocaleString('id-ID', { minimumFractionDigits: 2 });
-        const roundedTo = data.billingAmount.map(amount => Math.round(amount).toLocaleString('id-ID', { minimumFractionDigits: 2 }));
+        const roundedTo = data.roundingAmount.map(amount => amount.toLocaleString('id-ID', { minimumFractionDigits: 2 }));
         const totalRoundedTo = data.billingAmount.reduce((sum, amount) => sum + Math.round(amount), 0).toLocaleString('id-ID', { minimumFractionDigits: 2 });
         const rawTotalRoundedTo = data.billingAmount.reduce((sum, amount) => sum + Math.round(amount), 0)
 
@@ -619,9 +845,11 @@ export class PdfgenerateService {
         const firstMeterId = data.meterId[0];
         const lastMeterId = data.meterId[data.meterId.length - 1];
 
+        const period = moment(data.docDate).format('MMMM YYYY')
         doc.fontSize(10).font('Times-Roman')
             .text(`Hourly Basis Chilled Water, Fan Coil Unit (FCU) No : ${firstMeterId} tp ${lastMeterId}`, 10, 200)
-            .text(`Period : ${data.month} ${data.year}`)
+            .text(`Period : ${period}`)
+
 
         let tableYStart = 250
         let textYStart = 257
@@ -675,6 +903,7 @@ export class PdfgenerateService {
                 .text(`${data.billingAmount[idx].toLocaleString('id-ID', { minimumFractionDigits: 2 })}`, 385, textYStart, { align: 'right', width: 90 })
                 .text(`RP`, 485, textYStart, { align: 'left', width: 60 })
                 .text(`${roundedTo[idx]}`, 485, textYStart, { align: 'right', width: 60 })
+
             // .moveDown();
             tableYStart += 20
             textYStart += 20
@@ -714,16 +943,17 @@ export class PdfgenerateService {
     }
     async generatePdfFirstJakarta3(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
-        const filePath = `./invoice/first_jakarta_3_${data.docNo}.pdf`;
-        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_3_${data.docNo}.pdf`
-        const moment = require('moment')
+        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}schedule/fji_reference_v_${data.docNno}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}schedule}`)) {
+            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        }
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
-
-        if (!fs.existsSync('./invoice')) {
-            fs.mkdirSync('./invoice');
-        }
 
         doc.font('Times-Roman').fontSize(12)
             .text('PT First Jakarta International', 0, 20, { align: 'center' })
@@ -732,6 +962,7 @@ export class PdfgenerateService {
             .text('Jakarta 12190 - Indonesia', { align: 'center' })
             .text('Tel No : 5151515 Fax No : 5150909', { align: 'center' })
 
+        console.log("3")
         doc.rect(10, 90, 550, 1).stroke()
         doc.fontSize(10)
             .text('TO : ', 42, 110)
@@ -782,7 +1013,7 @@ export class PdfgenerateService {
 
             const rate = data.rate[idx];
             // const amount = (equivalentHour * rate).toLocaleString('id-ID', { minimumFractionDigits: 2 });
-            const amount = equivalentHour * rate;
+            const amount = data.amount[idx];
             totalTimeConsumptionInMinutes += diffInMinutes;
             totalEquivalentHour += equivalentHour;
             totalAmount += amount;
@@ -835,107 +1066,6 @@ export class PdfgenerateService {
             data: filePathPublic
         })
     }
-
-    async generatePdfSantosa(data: Record<any, any>) {
-        const doc = new PDFDocument({ margin: 0 });
-        const filePath = `./invoice/santosa_${data.ORno}.pdf`;
-
-        if (!fs.existsSync('./invoice')) {
-            fs.mkdirSync('./invoice');
-        }
-
-        const writeStream = fs.createWriteStream(filePath);
-        doc.pipe(writeStream);
-
-        doc.image(`./uploads/santosa-logo.png`, 30, 20, { width: 130, height: 70 })
-        doc.font('Times-Bold')
-            .text('PT. Santosa Mitra Kalindo', 150, 30)
-        doc.fontSize(12).font('Times-Roman')
-            .text('Manajemen Mal', 150, 42)
-            .text('Lantai 3, Ayani megamal', 150, 54)
-            .text('Jalan Ahmad Yani, Pontianak 78122, Indonesia', 150, 66)
-            .text('Tel. : +62-561-763888', 150, 78)
-            .text('Fax. : +62-561-763889', 150, 90)
-
-        doc.fontSize(16).font('Times-Bold').text('OFFICIAL RECEIPT', 220, 130);
-
-        doc.fontSize(15).font('Times-Roman')
-            .text(`O/R no.`, 410, 160)
-            .text(`:`, 460, 160)
-            .text(`${data.ORno}`, 480, 160)
-            .text(`Date`, 410, 175)
-            .text(`:`, 460, 175)
-            .text(`${data.date}`, 480, 175)
-
-
-
-        let tableStartY = 200
-
-        const wrapText = (doc, text, x, y, maxWidth, lineHeight) => {
-            const words = text.split(' ');
-            let line = '';
-            let yOffset = 0;
-
-            words.forEach((word, i) => {
-                const testLine = line + word + ' ';
-                const testWidth = doc.widthOfString(testLine);
-
-                if (testWidth > maxWidth && i > 0) {
-                    doc.text(line, x, y + yOffset);
-                    line = word + ' ';
-                    yOffset += lineHeight;
-                    tableStartY += 12
-                } else {
-                    line = testLine;
-                }
-            });
-
-            if (line) {
-                doc.text(line, x, y + yOffset);
-            }
-        };
-
-        doc.rect(50, tableStartY, 500, 30).stroke();
-        doc.rect(50, tableStartY + 30, 500, 30).stroke();
-        doc.fontSize(15).font('Times-Bold')
-            .text(`Diterima dari.`, 60, tableStartY + 10)
-            .text(`:`, 200, tableStartY + 10)
-            .text(`Jumlah.`, 60, tableStartY + 40)
-            .text(`:`, 200, tableStartY + 40)
-            .text(`Terbilang.`, 60, tableStartY + 70)
-            .text(`:`, 200, tableStartY + 70)
-
-
-        doc.fontSize(15).font('Times-Roman')
-            .text(`${data.diterimaDari}`, 220, tableStartY + 10)
-            .text(`Rp. ${data.jumlah}`, 220, tableStartY + 40)
-        wrapText(doc, data.terbilang, 220, tableStartY + 70, 300, 15)
-
-        doc.fontSize(15).font('Times-Bold').text(`Untuk Pembayaran.`, 60, tableStartY + 100)
-            .text(`:`, 200, tableStartY + 100)
-        data.untukPembayaran.forEach((pembayaran, index) => {
-            doc.fontSize(12).font('Times-Roman')
-                .text(pembayaran, 220, tableStartY + 100);
-            tableStartY += 12;
-        });
-
-        doc.fontSize(15).font('Times-Bold').text(`Cara Pembayaran.`, 60, tableStartY + 110)
-            .text(`:`, 200, tableStartY + 110)
-        doc.fontSize(15).font('Times-Roman').text(`${data.caraPembayaran}`, 220, tableStartY + 110)
-
-        doc.fontSize(15).font('Times-Roman')
-            .text(`Authorized Signature`, 350, 600, { align: 'center' })
-            .text(`emeterei`, 350, 650, { align: 'center' })
-            .text(`${data.namaPenerima}`, 350, 700, { align: 'center' })
-        doc.end();
-
-        return ({
-            statusCode: 201,
-            message: "invoice created",
-            data: filePath
-        })
-    }
-
     async generatePdfFirstJakarta4(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
         const filePath = `./invoice/first_jakarta_4_${data.docNo}.pdf`;
@@ -1058,6 +1188,107 @@ export class PdfgenerateService {
             data: filePathPublic
         })
     }
+
+    async generatePdfSantosa(data: Record<any, any>) {
+        const doc = new PDFDocument({ margin: 0 });
+        const filePath = `./invoice/santosa_${data.ORno}.pdf`;
+
+        if (!fs.existsSync('./invoice')) {
+            fs.mkdirSync('./invoice');
+        }
+
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+
+        doc.image(`./uploads/santosa-logo.png`, 30, 20, { width: 130, height: 70 })
+        doc.font('Times-Bold')
+            .text('PT. Santosa Mitra Kalindo', 150, 30)
+        doc.fontSize(12).font('Times-Roman')
+            .text('Manajemen Mal', 150, 42)
+            .text('Lantai 3, Ayani megamal', 150, 54)
+            .text('Jalan Ahmad Yani, Pontianak 78122, Indonesia', 150, 66)
+            .text('Tel. : +62-561-763888', 150, 78)
+            .text('Fax. : +62-561-763889', 150, 90)
+
+        doc.fontSize(16).font('Times-Bold').text('OFFICIAL RECEIPT', 220, 130);
+
+        doc.fontSize(15).font('Times-Roman')
+            .text(`O/R no.`, 410, 160)
+            .text(`:`, 460, 160)
+            .text(`${data.ORno}`, 480, 160)
+            .text(`Date`, 410, 175)
+            .text(`:`, 460, 175)
+            .text(`${data.date}`, 480, 175)
+
+
+
+        let tableStartY = 200
+
+        const wrapText = (doc, text, x, y, maxWidth, lineHeight) => {
+            const words = text.split(' ');
+            let line = '';
+            let yOffset = 0;
+
+            words.forEach((word, i) => {
+                const testLine = line + word + ' ';
+                const testWidth = doc.widthOfString(testLine);
+
+                if (testWidth > maxWidth && i > 0) {
+                    doc.text(line, x, y + yOffset);
+                    line = word + ' ';
+                    yOffset += lineHeight;
+                    tableStartY += 12
+                } else {
+                    line = testLine;
+                }
+            });
+
+            if (line) {
+                doc.text(line, x, y + yOffset);
+            }
+        };
+
+        doc.rect(50, tableStartY, 500, 30).stroke();
+        doc.rect(50, tableStartY + 30, 500, 30).stroke();
+        doc.fontSize(15).font('Times-Bold')
+            .text(`Diterima dari.`, 60, tableStartY + 10)
+            .text(`:`, 200, tableStartY + 10)
+            .text(`Jumlah.`, 60, tableStartY + 40)
+            .text(`:`, 200, tableStartY + 40)
+            .text(`Terbilang.`, 60, tableStartY + 70)
+            .text(`:`, 200, tableStartY + 70)
+
+
+        doc.fontSize(15).font('Times-Roman')
+            .text(`${data.diterimaDari}`, 220, tableStartY + 10)
+            .text(`Rp. ${data.jumlah}`, 220, tableStartY + 40)
+        wrapText(doc, data.terbilang, 220, tableStartY + 70, 300, 15)
+
+        doc.fontSize(15).font('Times-Bold').text(`Untuk Pembayaran.`, 60, tableStartY + 100)
+            .text(`:`, 200, tableStartY + 100)
+        data.untukPembayaran.forEach((pembayaran, index) => {
+            doc.fontSize(12).font('Times-Roman')
+                .text(pembayaran, 220, tableStartY + 100);
+            tableStartY += 12;
+        });
+
+        doc.fontSize(15).font('Times-Bold').text(`Cara Pembayaran.`, 60, tableStartY + 110)
+            .text(`:`, 200, tableStartY + 110)
+        doc.fontSize(15).font('Times-Roman').text(`${data.caraPembayaran}`, 220, tableStartY + 110)
+
+        doc.fontSize(15).font('Times-Roman')
+            .text(`Authorized Signature`, 350, 600, { align: 'center' })
+            .text(`emeterei`, 350, 650, { align: 'center' })
+            .text(`${data.namaPenerima}`, 350, 700, { align: 'center' })
+        doc.end();
+
+        return ({
+            statusCode: 201,
+            message: "invoice created",
+            data: filePath
+        })
+    }
+
     async generatePdfBekasi(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0 });
         const filePath = `./invoice/bekasi_${data.noFaktur}.pdf`;
