@@ -1222,7 +1222,7 @@ export class PdfgenerateService {
         doc.text('payment should be mande in the form of crossed cheque or giro payable to', 30, 510)
             .font('Times-Bold').text('PT. FIRST JAKARTA INTERNATIONAL')
             .font('Times-Roman').text('or transfer to the above account bank', 240, 521)
-            .text('We will send the original debit note after we receiced your paymeny', 30, 545)
+            .text('We will send the original debit note after we receiced your payment', 30, 545)
             .text('Please Call us if you have any question')
 
         doc.font('Times-Bold').fontSize(10)

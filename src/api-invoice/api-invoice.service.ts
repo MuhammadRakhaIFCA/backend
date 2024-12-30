@@ -290,7 +290,7 @@ export class ApiInvoiceService {
                     approval_level: approvalLevel,
                     approval_user: getUser[0].email,
                     approval_status: "P",
-                    approval_remarks: null,
+                    approval_remarks: "",
                     doc_no,
                     process_id,
                     audit_user: name,
@@ -807,5 +807,60 @@ export class ApiInvoiceService {
             message: 'Added to approve log',
             data: [],
         })
+    }
+
+    async getApproval(process_id: string) {
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval
+            WHERE process_id = '${process_id}'
+            `)
+        if (result.length === 0) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: 'No approval data found',
+                data: [],
+            })
+        }
+        return {
+            statusCode: 200,
+            message: 'Approval data found',
+            data: result
+        }
+    }
+    async getApprovalDtl(process_id: string) {
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl
+            WHERE process_id = '${process_id}'
+            `)
+        if (result.length === 0) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: 'No approval detail data found',
+                data: [],
+            })
+        }
+        return {
+            statusCode: 200,
+            message: 'Approval detail data found',
+            data: result
+        }
+    }
+    async getApprovalLog(process_id: string) {
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval_log_msg
+            WHERE process_id = '${process_id}'
+            `)
+        if (result.length === 0) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: 'No approval log data found',
+                data: [],
+            })
+        }
+        return {
+            statusCode: 200,
+            message: 'Approval log data found',
+            data: result
+        }
     }
 }

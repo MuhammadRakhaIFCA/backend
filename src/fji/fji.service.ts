@@ -102,7 +102,8 @@ export class FjiService {
     }
 
     async createUser(data: createUserDto) {
-        const { email, password, name } = data
+        const { email, name } = data
+        const password = "pass1234"
         if (this.isEmpty(email), this.isEmpty(password), this.isEmpty(name)) {
             throw new BadRequestException({
                 statusCode: 400,

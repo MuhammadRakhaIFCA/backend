@@ -93,4 +93,22 @@ export class ApiInvoiceController {
   ) {
     return this.apiInvoiceService.generateProforma(doc_no);
   }
+  @Get('get-approval/:process_id')
+  async getApproval(
+    @Param('process_id') process_id: string
+  ) {
+    return this.apiInvoiceService.getApproval(process_id);
+  }
+  @Get('get-approval-dtl/:process_id')
+  async getApprovalDtl(
+    @Param('process_id') process_id: string
+  ) {
+    return this.apiInvoiceService.getApprovalDtl(process_id);
+  }
+  @Get('get-approval-log/:process_id')
+  async getApprovalLog(
+    @Param('process_id') process_id: string
+  ) {
+    return this.apiInvoiceService.getApprovalLog(process_id);
+  }
 }
