@@ -8,10 +8,12 @@ import * as jwt from 'jsonwebtoken'
 import { LoginDto } from './dto/login.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
 import { EditUserDto } from './dto/edit-user.dto';
+import { FjiDatabaseService } from 'src/database/database-fji.service';
 
 @Injectable()
 export class FjiService {
     constructor(
+        private readonly fjiDatabase: FjiDatabaseService,
         private readonly tanriseDatabase: TanriseDatabaseService,
         private readonly jwtService: JwtService
     ) { }
@@ -19,15 +21,16 @@ export class FjiService {
 
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto
-        const findUser = await this.tanriseDatabase.$queryRawUnsafe(`
+        const findUser = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.m_user WHERE email = '${email}'
             `)
-        //console.log(findUser)
-        if (!findUser) throw new NotFoundException({
-            statusCode: 404,
-            message: "user not found",
-            data: []
-        });
+        if (findUser[0] === undefined) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "user not found",
+                data: []
+            })
+        };
         if (await bcrypt.compare(("email" + email + "p@ssw0rd" + password), findUser[0].password)) {
             const { password, ...user } = findUser[0]
             const tokens = await this.generateToken(findUser[0].user_id, findUser[0].email, findUser[0].name);
@@ -78,6 +81,26 @@ export class FjiService {
         }
     }
 
+    async getUser() {
+
+        try {
+            const result = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_user
+                `)
+            return ({
+                statusCode: 201,
+                message: "user created",
+                data: [result]
+            })
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to create user",
+                data: []
+            })
+        }
+    }
+
     async createUser(data: createUserDto) {
         const { email, password, name } = data
         if (this.isEmpty(email), this.isEmpty(password), this.isEmpty(name)) {
@@ -89,7 +112,7 @@ export class FjiService {
         }
         try {
             const encryptedPassword = await bcrypt.hash(("email" + email + "p@ssw0rd" + password), 10)
-            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
                INSERT into mgr.m_user (email, password, name, created_by, created_at) 
                 VALUES 
                 ('${email}', '${encryptedPassword}', '${name}', 'MGR', GETDATE()) 
@@ -143,7 +166,7 @@ export class FjiService {
                 });
             }
             const updateString = updates.join(', ');
-            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
                 UPDATE mgr.m_user SET ${updateString}, updated_at = GETDATE(), updated_by = 'MGR'
                 WHERE user_id = ${user_id}
             `);
@@ -213,6 +236,24 @@ export class FjiService {
             return true;
         };
         return false;
+    }
+    async getGroup() {
+        try {
+            const result = await this.tanriseDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_group
+                `)
+            return ({
+                statusCode: 201,
+                message: "user created",
+                data: [result]
+            })
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to create user",
+                data: []
+            })
+        }
     }
     async createGroup(data: Record<any, any>) {
         const { group_cd, group_descs, status } = data
@@ -307,7 +348,7 @@ export class FjiService {
 
     async deleteUser(user_id: number) {
         try {
-            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
                 DELETE FROM mgr.m_user WHERE user_id = ${user_id}
                 `)
 
@@ -393,6 +434,190 @@ export class FjiService {
                 message: "Failed to assign types",
                 data: []
             });
+        }
+    }
+
+    async deleteType(type_cd: string) {
+
+        if (this.isEmpty(type_cd)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "type_cd can't be empty",
+                data: []
+            })
+        }
+        try {
+            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+                DELETE FROM mgr.m_type_invoice WHERE type_cd = '${type_cd} 
+                `)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: "Failed to delete types",
+                    data: []
+                });
+            }
+
+            return {
+                statusCode: 201,
+                message: "Types deleted",
+                data: []
+            };
+        } catch (error) {
+            throw new BadRequestException(error.response);
+        }
+    }
+    async getType() {
+
+        try {
+            const result = await this.tanriseDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_type_invoice
+                `)
+            return ({
+                statusCode: 201,
+                message: "user created",
+                data: [result]
+            })
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to create user",
+                data: []
+            })
+        }
+    }
+    async createType(data: Record<any, any>) {
+        const { type_cd, type_descs, status, approval_pic } = data;
+
+        if (this.isEmpty(type_cd) || this.isEmpty(type_descs) || this.isEmpty(status) || this.isEmpty(approval_pic)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "type_cd, type_descs, status and approval_pic can't be empty",
+                data: []
+            })
+        }
+        try {
+            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+                INSERT INTO mgr.m_type_invoice 
+                (type_cd, type_descs, status, approval_pic, created_by, created_at)
+                VALUES
+                ('${type_cd}', '${type_descs}','${status}', ${approval_pic}, 'MGR', GETDATE())
+                `)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: "Failed to create types",
+                    data: []
+                });
+            }
+
+            return {
+                statusCode: 201,
+                message: "Types created",
+                data: []
+            };
+        } catch (error) {
+            throw new BadRequestException(error.response);
+        }
+    }
+
+    async editType(data: Record<any, any>) {
+        const { type_cd, type_descs, status, approval_pic } = data;
+
+        if (this.isEmpty(type_cd)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "type_cd can't be empty",
+                data: []
+            })
+        }
+        const updates: string[] = [];
+        try {
+            if (type_descs) {
+                updates.push(`type_descs = '${type_descs}'`);
+            }
+            if (status) {
+                updates.push(`status = '${status}'`);
+            }
+            if (approval_pic) {
+                updates.push(`approval_pic = '${approval_pic}'`);
+            }
+            if (updates.length === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: "No fields to update",
+                    data: []
+                });
+            }
+            const updateString = updates.join(', ');
+            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+                UPDATE mgr.m_type_invoice SET ${updateString}, updated_at = GETDATE(), updated_by = 'MGR'
+                WHERE type_cd = ${type_cd}
+            `);
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: "Failed to create types",
+                    data: []
+                });
+            }
+
+            return {
+                statusCode: 201,
+                message: "Types edited",
+                data: []
+            };
+        } catch (error) {
+            throw new BadRequestException(error.response);
+        }
+    }
+
+    async assignTypeApproval(data: Record<any, any>) {
+        const { approval_pic, type_id, detail } = data
+        if (this.isEmpty(approval_pic) || this.isEmpty(type_id)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "type_id and approval_pic can't be empty",
+                data: []
+            })
+        }
+        else if (detail[0].user_id === undefined) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "type_id can't be empty and must be an array of num string, detail must contain an array of object containing user_id",
+                data: []
+            })
+        }
+        try {
+            await this.fjiDatabase.$executeRawUnsafe(`
+                DELETE FROM mgr.m_type_invoice_dtl WHERE type_id = '${type_id}'
+                `)
+            const insertQueries = [];
+            for (let index = 0; index < approval_pic; index++) {
+                const query = `
+                    INSERT INTO mgr.m_type_invoice_dtl 
+                    (type_id, user_id, job_task, created_by, created_at)
+                    VALUES
+                    (${type_id}, ${detail[index].user_id}, 'Approval Lvl ${index + 1}', 'MGR', GETDATE())
+                `;
+                const result = await this.fjiDatabase.$executeRawUnsafe(query);
+                if (result === 0) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: "Failed to assign type detail",
+                        data: []
+                    })
+                }
+            }
+
+            return ({
+                statusCode: 201,
+                message: "Type approval assigned successfully",
+                data: []
+            })
+        } catch (error) {
+            console.log(error)
+            throw new BadRequestException(error.response)
         }
     }
 }

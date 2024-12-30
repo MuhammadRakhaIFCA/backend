@@ -63,19 +63,33 @@ export class ApiInvoiceController {
     @Query('doc_no') doc_no: string,
     @Query('bill_type') bill_type: string,
     @Query('meter_type') meter_type: string,
-    @Query('doc_amt') doc_amt: string,
+    @Query('name') name: string,
   ) {
-    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type);
+    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name);
   }
-  @Get('invoice-manual-generate/:doc_no')
+  @Get('invoice-approve')
+  async approve(
+    @Query('doc_no') doc_no: string,
+    @Query('process_id') process_id: string,
+    @Query('approval_user') approval_user: string,
+  ) {
+    return this.apiInvoiceService.approve(doc_no, process_id, approval_user);
+  }
+  @Get('invoice-manual-generate')
   async generateManual(
-    @Param('doc_no') doc_no: string
+    @Query('doc_no') doc_no: string,
   ) {
     return this.apiInvoiceService.generateManual(doc_no);
   }
-  @Get('invoice-proforma-generate/:doc_no')
+  // @Get('invoice-manual-generate/:doc_no')
+  // async generateManual(
+  //   @Param('doc_no') doc_no: string
+  // ) {
+  //   return this.apiInvoiceService.generateManualUnused(doc_no);
+  // }
+  @Get('invoice-proforma-generate')
   async generateProforma(
-    @Body('doc_no') doc_no: string
+    @Query('doc_no') doc_no: string
   ) {
     return this.apiInvoiceService.generateProforma(doc_no);
   }

@@ -189,6 +189,14 @@ export class PdfgenerateService {
     async generatePageOne(doc, data: Record<any, any>) {
         const baseAmt = Number(data.base_amt)
         const taxAmt = Number(data.tax_amt)
+        const pphRate = Number(data.pph_rate)
+        const taxRate = Number(data.tax_rate)
+        const allocAmt = Number(data.alloc_amt)
+        const formattedBaseAmt = baseAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedTaxAmt = taxAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedTaxRate = taxRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedPphRate = pphRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedAllocAmt = allocAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         //header kiri
         doc.image(`./uploads/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
             .fontSize(12)
@@ -256,41 +264,57 @@ export class PdfgenerateService {
             .text('AMOUNT', 425, tableYStart, { width: 150, align: 'center' })
         doc.font('Times-Roman')
             .text(data.descs, 35, tableYStart + 35)
-            .text(`Unit Number : ${data.descs_lot}`, 35, tableYStart + 50)
-            .text(`Period : ${data.line1}`, 35, tableYStart + 65)
-            .text(data.currency_cd, 435, tableYStart + 35, { width: 130, align: 'left' })
-            .text(baseAmt.toLocaleString('en-CA'), 435, tableYStart + 35, { width: 130, align: 'right' })
+        doc.text(data.currency_cd, 435, tableYStart + 35, { width: 130, align: 'left' })
+            .text(formattedBaseAmt, 435, tableYStart + 35, { width: 130, align: 'right' })
+        if (data.descs_lot !== undefined) {
+            doc.text(`Unit Number : ${data.descs_lot}`, 35, tableYStart + 50)
+            tableYStart += 15
+        }
+        doc.text(`Period : ${data.line1}`, 35, tableYStart + 50)
+        if (data.descs_info !== undefined) {
+            tableYStart += 15
+            doc.text(`${data.descs_info}`, 35, tableYStart + 50)
+        }
 
-        if (data.tax_rate > 0) {
+
+        tableYStart -= 15
+        if (taxRate > 0) {
             doc
-                .text(`VAT ${data.tax_rate}%`, 35, tableYStart + 150)
+                .text(`VAT ${formattedTaxRate}%`, 35, tableYStart + 150)
                 .text(data.currency_cd, 435, tableYStart + 150, { width: 130, align: 'left' })
-                .text((taxAmt).toLocaleString('en-CA'), 435, tableYStart + 150, { width: 130, align: 'right' })
+                .text((formattedTaxAmt), 435, tableYStart + 150, { width: 130, align: 'right' })
         }
-        if (data.pph_rate > 0) {
-            doc.text(`PPH ${data.pph_rate}%`, 350, tableYStart + 35)
+
+        if (pphRate > 0) {
+            doc.text(`PPH ${formattedPphRate}%`, 350, tableYStart + 35)
         }
-        if (data.alloc_amt > 0) {
+        if (allocAmt > 0) {
+            doc.fontSize(12)
+                .text(data.currency_cd, 435, tableYStart + 180, { width: 130, align: 'left' })
+                .text(formattedAllocAmt, 435, tableYStart + 180, { width: 130, align: 'right' })
             doc.fontSize(9)
                 .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
                 .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
         }
 
-        const total = baseAmt + taxAmt
+        const total = baseAmt + taxAmt + allocAmt
+        const formattedTotal = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
         doc.font('Times-Bold').fontSize(12)
             .text('Total', 35, tableYStart + 240, { width: 380, align: 'right' })
             .text(data.currency_cd, 435, tableYStart + 240, { width: 130, align: 'left' })
-            .text((total.toLocaleString('en-CA')), 435, tableYStart + 240, { width: 130, align: 'right' })
+            .text(formattedTotal, 435, tableYStart + 240, { width: 130, align: 'right' })
 
         doc.fontSize(11)
             .text('In Words', 35, tableYStart + 265)
             .text(':', 200, tableYStart + 265)
-            .text('PAYMENT INSTRUCTION', 35, tableYStart + 280)
-            .text(':', 200, tableYStart + 280)
+            .text('PAYMENT INSTRUCTION', 35, tableYStart + 290)
+            .text(':', 200, tableYStart + 290)
 
-        doc.fontSize(10).text(this.numberToWords(total), 210, tableYStart + 265)
-            .fontSize(9).font('Times-Roman')
+        doc.fontSize(10).text(this.numberToWords(total), 210, tableYStart + 265, { width: 300 })
+        tableYStart += 10
+        doc.fontSize(9).font('Times-Roman')
             .text('- payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
             .text('or transfer to our acount : ', 39, tableYStart + 305)
             .text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, tableYStart + 330)
@@ -302,13 +326,64 @@ export class PdfgenerateService {
             .text(`${data.account_rp}`, 350, tableYStart + 305)
             .text(`${data.account_usd}`, 350, tableYStart + 318)
             .fontSize(11).font('Times-Roman')
-            .text('Authorized officer', 480, tableYStart + 280)
-            .font('Times-Bold')
-            .text(data.signature, 480, tableYStart + 360)
+            .text('Authorized officer', 480, tableYStart + 280, { width: 90, align: 'center' })
+        if (total >= 5000000) {
+            doc.text('Emeterei', 480, tableYStart + 320, { width: 90, align: 'center' })
+        }
+        doc.font('Times-Bold')
+            .text(data.signature, 480, tableYStart + 360, { width: 90, align: 'center' })
 
 
 
 
+    }
+    async generatePdfManual(data: Record<any, any>) {
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 0,
+        });
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}manual/fji_${data.doc_no}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}manual}`)) {
+            fs.mkdirSync(`${rootFolder}manual`, { recursive: true });
+        }
+
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+        console.log("manual")
+        await this.generatePageOne(doc, data)
+
+
+        doc.end();
+
+        // try {
+        //     await this.connect();
+        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
+        //     const filePath = `${rootFolder}manual/fji_${data.doc_no}.pdf`;
+        //     if (!fs.existsSync(filePath)) {
+        //         console.error(`Local file does not exist: ${filePath}`);
+        //     }
+
+        //     await this.upload(filePath, `/UNSIGNED/GQCINV/MANUAL/${data.doc_no}.pdf`);
+
+        // } catch (error) {
+        //     console.log("Error during upload:.", error);
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: 'Failed to upload to FTP',
+        //         data: [error],
+        //     });
+        // } finally {
+        //     console.log("Disconnecting from FTP servers");
+        //     await this.disconnect();
+        // }
+        return ({
+            statusCode: 201,
+            message: "invoice created!",
+            data: filePath
+        })
     }
     async generatePdfSchedule(data: Record<any, any>) {
         const doc = new PDFDocument({
@@ -325,7 +400,7 @@ export class PdfgenerateService {
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
-        console.log("here")
+        console.log("schedule")
         await this.generatePageOne(doc, data)
 
 
@@ -358,7 +433,7 @@ export class PdfgenerateService {
             data: filePath
         })
     }
-    async generatePdfManual(data: {
+    async generatePdfManualUnsused(data: {
         no: string;
         date: string;
         receiptFrom: string;
@@ -398,45 +473,16 @@ export class PdfgenerateService {
             data: filePath
         })
     }
-    async generatePdfProforma(data: {
-        no: string;
-        date: string;
-        receiptFrom: string;
-        amount: number;
-        forPayment: string;
-        signedDate: string;
-        city: string;
-        billType: string
-    }) {
-        const doc = new PDFDocument({
-            size: 'A4',
-            margin: 0,
-        });
-
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}proforma/pakubuwono_${data.forPayment}.pdf`;
-
-        if (!fs.existsSync(`${rootFolder}proforma}`)) {
-            fs.mkdirSync(`${rootFolder}proforma`, { recursive: true });
+    async generatePdfProforma(data: Record<any, any>) {
+        try {
+            return await this.generatePdfFirstJakarta4(data)
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "Error generate pdf",
+                data: []
+            })
         }
-
-        const writeStream = fs.createWriteStream(filePath);
-        doc.pipe(writeStream);
-
-        await this.generatePageOne(doc, data)
-
-        if (data.billType === 'A') {
-            await this.generatePageTwo(doc)
-        }
-
-        doc.end();
-
-
-        return ({
-            statusCode: 201,
-            message: "invoice created",
-            data: filePath
-        })
     }
 
     async testAutoGenerate(data: Record<any, any>) {
@@ -534,8 +580,6 @@ export class PdfgenerateService {
             WHERE debtor_acct = '${debtor_acct}' 
             AND doc_date = '${docDate}'
         `);
-
-        console.log(doc_no)
 
         const pdfBody = {
             docNo: doc_no,
@@ -635,27 +679,28 @@ export class PdfgenerateService {
 
         await this.generatePdfFirstJakarta3(pdfBody)
 
-        try {
-            await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
-            if (!fs.existsSync(filePath)) {
-                console.error(`Local file does not exist: ${filePath}`);
-            }
+        // try {
+        //     await this.connect();
+        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
+        //     const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
+        //     if (!fs.existsSync(filePath)) {
+        //         console.error(`Local file does not exist: ${filePath}`);
+        //     }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_v_${doc_no}.pdf`);
+        //     await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_v_${doc_no}.pdf`);
 
-        } catch (error) {
-            console.log("Error during upload:.", error);
-            throw new BadRequestException({
-                statusCode: 400,
-                message: 'Failed to upload to FTP',
-                data: [error],
-            });
-        } finally {
-            console.log("Disconnecting from FTP servers");
-            await this.disconnect();
-        }
+        // } catch (error) {
+        //     console.log("Error during upload:.", error);
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: 'Failed to upload to FTP',
+        //         data: [error],
+        //     });
+        // } 
+        // finally {
+        //     console.log("Disconnecting from FTP servers");
+        //     await this.disconnect();
+        // }
 
     }
 
@@ -798,7 +843,7 @@ export class PdfgenerateService {
 
         const rootFolder = process.env.ROOT_PDF_FOLDER
         const filePath = `${rootFolder}schedule/fji_reference_g_${data.docNo}.pdf`;
-        console.log(filePath)
+
 
         if (!fs.existsSync(`${rootFolder}schedule}`)) {
             fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
@@ -1067,16 +1112,20 @@ export class PdfgenerateService {
         })
     }
     async generatePdfFirstJakarta4(data: Record<any, any>) {
-        const doc = new PDFDocument({ margin: 0, size: 'a4' });
-        const filePath = `./invoice/first_jakarta_4_${data.docNo}.pdf`;
-        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_4_${data.docNo}.pdf`
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 0,
+        });
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}proforma/fji_${data.docNo}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}proforma}`)) {
+            fs.mkdirSync(`${rootFolder}proforma`, { recursive: true });
+        }
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
-
-        if (!fs.existsSync('./invoice')) {
-            fs.mkdirSync('./invoice');
-        }
 
         //header kiri
         doc
@@ -1107,10 +1156,12 @@ export class PdfgenerateService {
             .text(data.address2, { width: 280 })
             .text(`${data.address3}`, { width: 200 })
 
+        const docDate = moment(data.docDate).format('DD/MM/YYYY')
+        const dueDate = moment(data.dueDate).format('DD/MM/YYYY')
         doc
-            .text('No', 400, 130, { lineGap: 2 }).text('Date', { lineGap: 2 }).text('DueDate')
+            .text('No', 400, 130, { lineGap: 2 }).text('Date', { lineGap: 2 }).text('Due Date')
             .text(':', 450, 130, { lineGap: 2 }).text(':', { lineGap: 2 }).text(':')
-            .text(data.docNo, 470, 130, { lineGap: 2 }).text(data.docDate, { lineGap: 2 }).text(data.dueDate)
+            .text(data.docNo, 470, 130, { lineGap: 2 }).text(docDate, { lineGap: 2 }).text(dueDate)
 
 
         doc.font('Times-Bold').fontSize(16).text('Proforma Debit Note', 200, 180)
@@ -1128,13 +1179,15 @@ export class PdfgenerateService {
             .stroke()
 
         //isi table
+        const startDate = moment(data.startDate).format('DD/MM/YYYY')
+        const endDate = moment(data.endDate).format('DD/MM/YYYY')
         doc
             .text('Description', 20, 240, { width: 340, align: 'center' })
             .text('Amount', 360, 240, { width: 200, align: 'center' })
             .text(`Charge Name : `, 30, 270).moveDown()
             .text('Period :', { lineGap: 5 }).text('VAT : ')
             .text(data.taxDesc, 100, 270).moveDown()
-            .text(`${data.startDate} - ${data.endDate}`, { lineGap: 2 }).text(`${data.taxRate} %`)
+            .text(`${startDate} - ${endDate}`, { lineGap: 2 }).text(`${data.taxRate} %`)
             .text('Amount Should be paid', 210, 365)
         doc
             .text(data.currencyCd, 368, 270)
@@ -1143,9 +1196,12 @@ export class PdfgenerateService {
             .text(data.currencyCd, 368, 430)
             .text(data.currencyCd, 368, 470)
 
-        const formattedBaseAmount = (data.baseAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
-        const formattedTaxAmount = (data.taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
-        const formattedTotal = (data.baseAmount + data.taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const baseAmount = Number(data.baseAmount)
+        const taxAmount = Number(data.baseAmount)
+        const docAmt = Number(data.docAmount)
+        const formattedBaseAmount = (baseAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const formattedTaxAmount = (taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const formattedTotal = (docAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })
 
         doc.text(formattedBaseAmount, 460, 270)
             .text(formattedTaxAmount, 460, 310)
@@ -1155,11 +1211,11 @@ export class PdfgenerateService {
             .text(formattedTotal, 460, 470)
 
         doc.text('Please Transfer the amount to out account at :', 30, 400, { underline: true })
-            .text(`${data.bankNameRp} (RP)`, 30, 430)
+            .text(`${data.bankNameRp}`, 30, 430)
             .text(`RP ${data.acctRp}`, 190, 430)
             .text(`TOTAL`, 310, 470)
         if (data.bankNameUsd !== "" && data.acctUsd !== "") {
-            doc.text(`${data.bankNameUsd} (USD)`, 30, 470)
+            doc.text(`${data.bankNameUsd}`, 30, 470)
                 .text(`USD ${data.acctUsd}`, 190, 470)
         }
 
@@ -1176,7 +1232,10 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .moveDown()
-            .moveDown()
+        if (data.docAmount >= 5000000) {
+            doc.text('Emeterei', { width: 190, align: 'center' })
+        }
+        doc.moveDown()
             .moveDown()
             .text(data.signature, { width: 190, align: 'center' })
         doc.end();
@@ -1185,7 +1244,7 @@ export class PdfgenerateService {
         return ({
             statusCode: 201,
             message: "invoice created",
-            data: filePathPublic
+            data: filePath
         })
     }
 

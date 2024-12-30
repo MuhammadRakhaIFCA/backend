@@ -25,6 +25,10 @@ export class FjiUserController {
   async assignRole(@Body() data: AssignTypeDto) {
     return await this.fjiService.assignType(data)
   }
+  @Post('user/assign/type-approval')
+  async assignApproval(@Body() data: Record<any, any>) {
+    return await this.fjiService.assignTypeApproval(data)
+  }
   @Post('user/assign/group')
   async assignGroup(@Body() data: Record<any, any>) {
     return await this.fjiService.assignGroup(data)
@@ -44,5 +48,17 @@ export class FjiUserController {
   @Delete('group/delete/:group_cd')
   async deleteGroup(@Param('group_cd') group_cd: string) {
     return await this.fjiService.deleteGroup(group_cd)
+  }
+  @Post('type/create')
+  async createType(@Body() data: Record<any, any>) {
+    return await this.fjiService.createType(data)
+  }
+  @Patch('type/edit')
+  async editType(@Body() data: Record<any, any>) {
+    return await this.fjiService.editType(data)
+  }
+  @Delete('type/delete/:type_cd')
+  async deleteType(@Param('type_cd') type_cd: string) {
+    return await this.fjiService.deleteType(type_cd)
   }
 }

@@ -176,11 +176,11 @@ export class ApiInvoiceService {
         }
     }
 
-    async generateSchedule(doc_no: string, bill_type: string, meter_type: string) {
+    async generateSchedule(doc_no: string, bill_type: string, meter_type: string, name: string) {
         const result = await this.fjiDatabase.$queryRawUnsafe(`
             select * from mgr.v_ar_ledger_sch_inv_web 
             where doc_no = '${doc_no}' 
-            and entity_cd = '0001'
+            and bill_type = '${bill_type}'
             `)
         const pdfBody = {
             debtor_acct: result[0].debtor_acct,
@@ -221,12 +221,186 @@ export class ApiInvoiceService {
 
         try {
             await this.pdfService.generatePdfSchedule(pdfBody);
+            let filenames = `fji_${doc_no}.pdf`
+            let filenames2 = ''
             if (bill_type === 'E' && meter_type === 'G') {
                 await this.pdfService.generateReferenceG(result[0].doc_no, result[0].debtor_acct, result[0].doc_date)
+                filenames2 = `fji_reference_g_${doc_no}.pdf`
             }
             else if (bill_type === 'V') {
                 await this.pdfService.generateReferenceV(result[0].doc_no, result[0].debtor_acct, result[0].doc_date)
+                filenames2 = `fji_reference_v_${doc_no}.pdf`
+
             }
+            const process_id = Array(6)
+                .fill(null)
+                .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+                .join('');
+            const approvalBody = {
+                entity_cd: result[0].entity_cd,
+                entity_name: name,
+                project_no: result[0].project_no,
+                project_name: "FJI",
+                debtor_acct: result[0].debtor_acct,
+                debtor_name: result[0].debtor_name,
+                email_addr: "m.rakha@ifca.co.id",
+                bill_type,
+                doc_no,
+                doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
+                descs: result[0].descs,
+                doc_amt: result[0].base_amt,
+                filenames,
+                filenames2,
+                process_id,
+                audit_user: name
+            }
+            const approve = await this.addToApproval(approvalBody)
+            if (approve.statusCode == 400) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to add to approve',
+                    data: [],
+                })
+            }
+            const related_class = 'AC'
+            const getType = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.m_type_invoice WHERE type_cd = '${related_class}'
+                `)
+            const getTypeDtl: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                    SELECT * FROM mgr.m_type_invoice_dtl WHERE type_id = ${getType[0].type_id} AND job_task LIKE '%Approval Lvl%'
+                `);
+
+            for (const row of getTypeDtl) {
+                // Extract approval level from "Approval Lvl X"
+                const approvalLevelMatch = row.job_task.match(/Approval Lvl (\d+)/);
+                const approvalLevel = approvalLevelMatch ? parseInt(approvalLevelMatch[1], 10) : null;
+
+                const getUser = await this.fjiDatabase.$queryRawUnsafe(`
+                        SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
+                    `);
+
+
+                const approvalDtlBody = {
+                    entity_cd: result[0].entity_cd,
+                    entity_name: name,
+                    project_no: result[0].project_no,
+                    project_name: "FJI",
+                    debtor_acct: result[0].debtor_acct,
+                    debtor_name: result[0].debtor_name,
+                    approval_level: approvalLevel,
+                    approval_user: getUser[0].email,
+                    approval_status: "P",
+                    approval_remarks: null,
+                    doc_no,
+                    process_id,
+                    audit_user: name,
+                };
+
+                const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
+                if (approvalDtl.statusCode == 400) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: 'Failed to add to approvals',
+                        data: [],
+                    });
+                }
+
+                if (approvalLevel === 1) {
+                    const approvalLogBody = {
+                        entity_cd: result[0].entity_cd,
+                        entity_name: name,
+                        project_no: result[0].project_no,
+                        project_name: "FJI",
+                        debtor_acct: result[0].debtor_acct,
+                        debtor_name: result[0].debtor_name,
+                        email_addr: getUser[0].email,
+                        status_code: 200,
+                        response_message: "email sent successfully",
+                        send_date: moment().format('DD MMM YYYY'),
+                        doc_no,
+                        process_id,
+                        audit_user: name,
+                    };
+
+                    const approvalLog = await this.addToApprovalLog(approvalLogBody);
+                    if (approvalLog.statusCode == 400) {
+                        throw new BadRequestException({
+                            statusCode: 400,
+                            message: 'Failed to add to approval log',
+                            data: [],
+                        });
+                    }
+                }
+            }
+
+
+
+        } catch (error) {
+            return error.response
+        } finally {
+            // await this.fjiDatabase.$executeRawUnsafe(`
+            //     INSERT INTO mgr.ar_blast_inv
+            //     (entity_cd, entity_name, project_no, project_name, debtor_acct, email_addr, gen_date, 
+            //      bill_type, doc_no, doc_date, descs, doc_amt, tax_invoice_no, filenames, filenames2,
+            //      filenames3, filenames4, file_names_sign, file_token, file_serial_number, file_status,
+            //      gen_flag, send_status, send_date, audit_user, audit_date)
+            //      VALUES
+            //     ('${result[0].entity_cd}', '${entity_name}', '${result[0].project_no}', '${project_name}', '${result[0].debtor_acct}',
+            //       '${result[0].email_addr}', GETDATE(), '${bill_type}', '${result[0].doc_no}', '${result[0].doc_date}', '${result[0].descs}',
+            //       '${result[0].doc_amt}', '${tax_invoice_no}', '${result[0].doc_no}.pdf', null, null, null, null, null, null, 'pending',
+            //       null, null, null, mgr, null
+            //     )
+            //     `)
+        }
+
+        return ({
+            statusCode: 201,
+            message: "pdf generated successfuly",
+            data: [{ path: `/UNSIGNED/GQCINV/SCHEDULE/${result[0].doc_no}.pdf` }]
+        })
+    }
+
+    async generateManual(doc_no: string) {
+        const result = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_ar_inv_entry_post_manual_web
+            WHERE doc_no = '${doc_no}' 
+            `)
+        const pdfBody = {
+            debtor_name: result[0].debtor_name,
+            address1: result[0].address1,
+            address2: result[0].address2,
+            address3: result[0].address3,
+            post_cd: result[0].post_cd,
+            trx_type: result[0].trx_type,
+            doc_no: result[0].doc_no,
+            doc_date: result[0].doc_date,
+            due_date: result[0].due_date,
+            descs: result[0].descs,
+            descs_info: result[0]?.descs_info || "",
+            start_date: result[0].start_date,
+            end_date: result[0].end_date,
+            currency_cd: result[0].currency_cd,
+            base_amt: result[0].base_amt,
+            tax_amt: result[0].tax_amt,
+            tax_scheme: result[0].tax_shceme,
+            tax_rate: result[0].tax_rate,
+            pph_rate: result[0].pph_rate,
+            line1: result[0]?.line1 || "-",
+            signature: result[0].signature,
+            designation: result[0].designation,
+            bank_name_rp: result[0].bank_name_rp,
+            bank_name_usd: result[0].bank_name_usd || "",
+            account_rp: result[0].account_rp,
+            account_usd: result[0]?.account_usd || "",
+            alloc_amt: result[0]?.alloc_amt,
+            notes: result[0].notes,
+            sequence_no: result[0].sequence_no,
+            group_cd: result[0].group_cd,
+            inv_group: result[0].inv_group,
+        };
+
+        try {
+            await this.pdfService.generatePdfManual(pdfBody);
         } catch (error) {
             return error.response
         }
@@ -238,7 +412,7 @@ export class ApiInvoiceService {
         })
     }
 
-    async generateManual(doc_no: string) {
+    async generateManualUnused(doc_no: string) {
         const result = await this.sqlserver.$queryRawUnsafe(`
             SELECT  FROM mgr.ar_email_inv_dtl 
                 WHERE doc_no = '${doc_no}'
@@ -286,20 +460,33 @@ export class ApiInvoiceService {
     }
 
     async generateProforma(doc_no: string) {
-        const result = await this.sqlserver.$queryRawUnsafe(`
-            SELECT * FROM mgr.ar_email_inv_dtl 
-                WHERE doc_no = '${doc_no}'
+        const result = await this.fjiDatabase.$queryRawUnsafe(`
+           SELECT * FROM mgr.v_ar_inv_proforma_web
+            WHERE doc_no = '${doc_no}'
             `)
+
         const pdfBody = {
-            no: `BI${moment(result[0].gen_date).format('YYDDMM')}26`,
-            date: moment(result[0].gen_date).format('DD/MM/YYYY'),
-            receiptFrom: `${result[0].debtor_acct} - ${result[0].debtor_name}`,
-            amount: result[0].doc_amt,
-            forPayment: result[0].doc_no,
-            signedDate: moment(result[0].gen_date).format('DD MMMM YYYY'),
-            city: "jakarta",
-            billType: result[0].bill_type,
-        };
+            tradeName: result[0].trade_name,
+            address1: result[0].address1,
+            address2: result[0].address2,
+            address3: result[0].address3,
+            docNo: result[0].doc_no,
+            docDate: result[0].doc_date,
+            dueDate: result[0].due_date,
+            taxDesc: result[0].tax_descs,
+            taxRate: result[0].tax_rate,
+            startDate: result[0].start_date,
+            endDate: result[0].end_date,
+            currencyCd: result[0].currency_cd,
+            baseAmount: result[0].fbase_amt,
+            taxAmount: result[0].ftax_amt,
+            docAmount: result[0].fdoc_amt,
+            bankNameRp: result[0]?.bank_name_rp || '',
+            bankNameUsd: result[0]?.bank_name_usd || '',
+            acctRp: result[0]?.account_rp || '',
+            acctUsd: result[0]?.account_usd || '',
+            signature: result[0].signature
+        }
 
         await this.pdfService.generatePdfProforma(pdfBody);
 
@@ -431,4 +618,194 @@ export class ApiInvoiceService {
         }
     }
 
+    async approve(doc_no: string, process_id: string, approval_user: string) {
+
+        try {
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
+                UPDATE mgr.ar_blast_inv_approval_dtl
+                SET approval_status = 'A', approval_date = GETDATE()
+                WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' 
+                AND approval_user = '${approval_user}'
+                AND approval_status != 'A'
+                `)
+            if (result === 0) {
+                throw new NotFoundException({
+                    statusCode: 400,
+                    message: 'you already approved this document',
+                    data: [],
+                })
+            }
+            const log = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.ar_blast_inv_approval_log_msg 
+                WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' 
+                `)
+            const getNextApproveUser: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                    SELECT approval_user FROM mgr.ar_blast_inv_approval_dtl
+                    WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' AND approval_status = 'P' 
+                    ORDER BY approval_level ASC 
+                    `);
+            if (getNextApproveUser.length === 0) {
+                return ({
+                    statusCode: 200,
+                    message: 'Approval successful',
+                    data: [],
+                })
+            }
+            const nextEmail = getNextApproveUser[0].approval_user
+            const approvalLogBody = {
+                entity_cd: log[0].entity_cd,
+                entity_name: log[0].entity_name,
+                project_no: log[0].project_no,
+                project_name: "FJI",
+                debtor_acct: log[0].debtor_acct,
+                debtor_name: log[0].debtor_name,
+                email_addr: nextEmail,
+                status_code: 200,
+                response_message: "email sent successuly",
+                send_date: moment().format('DD MMM YYYY'),
+                doc_no,
+                process_id,
+                audit_user: log[0].audit_user
+            }
+            console.log(approvalLogBody)
+            const approvalLog = await this.addToApprovalLog(approvalLogBody)
+            if (approvalLog.statusCode == 400) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to add to approval log',
+                    data: [],
+                })
+            }
+        } catch (error) {
+            throw new BadRequestException(error.response)
+        }
+
+        return ({
+            statusCode: 200,
+            message: 'Approval successful',
+            data: [],
+        })
+    }
+
+    async addToApproval(data: Record<any, any>) {
+        const {
+            entity_cd, entity_name, project_no, project_name, debtor_acct, debtor_name, email_addr, bill_type,
+            doc_no, doc_date, descs, doc_amt, filenames, filenames2, process_id, audit_user
+        } = data
+
+        try {
+            // const existingFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            //     SELECT * FROM mgr.ar_blast_inv_approval 
+            //     WHERE doc_no = '${doc_no}'
+            //     `)
+            // if (existingFile.length > 0) {
+            //     return
+            // }
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
+                INSERT INTO mgr.ar_blast_inv_approval 
+                (entity_cd, entity_name, project_no, project_name, debtor_acct, debtor_name, email_addr, 
+                gen_date, bill_type, doc_no, doc_date, descs, doc_amt, filenames, filenames2, gen_flag, process_id, 
+                audit_user, audit_date)
+                VALUES 
+                ('${entity_cd}', '${entity_name}', '${project_no}', '${project_name}', '${debtor_acct}', '${debtor_name}', '${email_addr}', 
+                GETDATE(), '${bill_type}', '${doc_no}', '${doc_date}', '${descs}', ${doc_amt}, '${filenames}', '${filenames2}', 'Y', 
+                '${process_id}', '${audit_user}', GETDATE())
+                `)
+            console.log(result)
+        } catch (error) {
+            return ({
+                statusCode: 400,
+                message: 'Failed to add to approve',
+                data: [],
+            })
+        }
+
+        return ({
+            statusCode: 200,
+            message: 'Added to approve',
+            data: [],
+        })
+    }
+
+    async addToApprovalDtl(data: Record<any, any>) {
+
+        const {
+            entity_cd, entity_name, project_no, project_name, debtor_acct, debtor_name, approval_level,
+            approval_user, approval_status, approval_remarks, doc_no, process_id, audit_user
+        } = data
+
+        try {
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
+                INSERT INTO mgr.ar_blast_inv_approval_dtl 
+                (entity_cd, entity_name, project_no, project_name, debtor_acct, debtor_name, 
+                doc_no, process_id, approval_level, approval_user, approval_status, approval_remarks,
+                audit_user)
+                VALUES 
+                ('${entity_cd}', '${entity_name}', '${project_no}', '${project_name}', '${debtor_acct}', '${debtor_name}', 
+                '${doc_no}', '${process_id}', '${approval_level}', '${approval_user}', '${approval_status}', '${approval_remarks}',
+                '${audit_user}')
+                `)
+            console.log(result)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to add to approve dtl',
+                    data: [],
+                })
+            }
+        } catch (error) {
+            return ({
+                statusCode: 400,
+                message: 'Failed to add to approve dtl',
+                data: [],
+            })
+        }
+
+        return ({
+            statusCode: 200,
+            message: 'Added to approve dtl',
+            data: [],
+        })
+    }
+
+    async addToApprovalLog(data: Record<any, any>) {
+
+        const {
+            entity_cd, entity_name, project_no, project_name, debtor_acct, debtor_name,
+            email_addr, status_code, response_message, send_date, doc_no, process_id, audit_user
+        } = data
+
+        try {
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
+                INSERT INTO mgr.ar_blast_inv_approval_log_msg  
+                (entity_cd, entity_name, project_no, project_name, debtor_acct, debtor_name, email_addr,
+                doc_no, status_code, response_message, send_date, process_id, 
+                audit_user, audit_date)
+                VALUES 
+                ('${entity_cd}', '${entity_name}', '${project_no}', '${project_name}', '${debtor_acct}', '${debtor_name}', 
+                '${email_addr}', '${doc_no}', '${status_code}', '${response_message}', '${send_date}', '${process_id}',
+                '${audit_user}', GETDATE())
+                `)
+            console.log(result)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to add to approve log',
+                    data: [],
+                })
+            }
+        } catch (error) {
+            return ({
+                statusCode: 400,
+                message: 'Failed to add to approve log',
+                data: [],
+            })
+        }
+
+        return ({
+            statusCode: 200,
+            message: 'Added to approve log',
+            data: [],
+        })
+    }
 }
