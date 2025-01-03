@@ -64,8 +64,9 @@ export class ApiInvoiceController {
     @Query('bill_type') bill_type: string,
     @Query('meter_type') meter_type: string,
     @Query('name') name: string,
+    @Query('related_class') related_class: string,
   ) {
-    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name);
+    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name, related_class);
   }
   @Get('invoice-approve')
   async approve(
@@ -75,29 +76,41 @@ export class ApiInvoiceController {
   ) {
     return this.apiInvoiceService.approve(doc_no, process_id, approval_user);
   }
+  @Get('invoice-reject')
+  async reject(
+    @Query('doc_no') doc_no: string,
+    @Query('process_id') process_id: string,
+    @Query('approval_user') approval_user: string,
+  ) {
+    return this.apiInvoiceService.reject(doc_no, process_id, approval_user);
+  }
   @Get('invoice-manual-generate')
   async generateManual(
     @Query('doc_no') doc_no: string,
+    @Query('related_class') related_class: string,
+    @Query('name') name: string,
   ) {
-    return this.apiInvoiceService.generateManual(doc_no);
+    return this.apiInvoiceService.generateManual(doc_no, name, related_class);
   }
-  // @Get('invoice-manual-generate/:doc_no')
-  // async generateManual(
-  //   @Param('doc_no') doc_no: string
-  // ) {
-  //   return this.apiInvoiceService.generateManualUnused(doc_no);
-  // }
   @Get('invoice-proforma-generate')
   async generateProforma(
-    @Query('doc_no') doc_no: string
+    @Query('doc_no') doc_no: string,
+    @Query('related_class') related_class: string,
+    @Query('name') name: string,
   ) {
-    return this.apiInvoiceService.generateProforma(doc_no);
+    return this.apiInvoiceService.generateProforma(doc_no, name, related_class);
   }
   @Get('get-approval/:process_id')
   async getApproval(
     @Param('process_id') process_id: string
   ) {
     return this.apiInvoiceService.getApproval(process_id);
+  }
+  @Get('get-approval-user/:approval_user')
+  async getApprovalByUser(
+    @Param('approval_user') approval_user: string
+  ) {
+    return this.apiInvoiceService.getApprovalByUser(approval_user);
   }
   @Get('get-approval-dtl/:process_id')
   async getApprovalDtl(

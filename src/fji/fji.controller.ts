@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { FjiService } from './fji.service';
 import { createUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
@@ -9,6 +9,24 @@ import { AssignTypeDto } from './dto/assign-type.dto';
 export class FjiUserController {
   constructor(private readonly fjiService: FjiService) { }
 
+  @Get('user/get')
+  async getUser() {
+    return await this.fjiService.getUser()
+  }
+  @Get('type/get')
+  async getType() {
+    return await this.fjiService.getType()
+  }
+  @Get('user/get/:user_id')
+  async getUserById(@Param('user_id') user_id: string) {
+    return await this.fjiService.getUserById(+user_id)
+  }
+  @Get('type/get/:type_id')
+  async getTypeById(@Param('type_id') type_id: string) {
+    return await this.fjiService.getTypeById(+type_id)
+  }
+
+
   @Post('user/create')
   async createUser(@Body() data: createUserDto) {
     return await this.fjiService.createUser(data)
@@ -17,7 +35,7 @@ export class FjiUserController {
   async login(@Body() data: LoginDto) {
     return await this.fjiService.login(data)
   }
-  @Patch('user/edit')
+  @Put('user/edit')
   async editUser(@Body() data: EditUserDto) {
     return await this.fjiService.editUser(data)
   }
@@ -41,7 +59,7 @@ export class FjiUserController {
   async createGroup(@Body() data: Record<any, any>) {
     return await this.fjiService.createGroup(data)
   }
-  @Patch('group/edit')
+  @Put('group/edit')
   async editGroup(@Body() data: Record<any, any>) {
     return await this.fjiService.editGroup(data)
   }
@@ -53,12 +71,12 @@ export class FjiUserController {
   async createType(@Body() data: Record<any, any>) {
     return await this.fjiService.createType(data)
   }
-  @Patch('type/edit')
+  @Put('type/edit')
   async editType(@Body() data: Record<any, any>) {
     return await this.fjiService.editType(data)
   }
-  @Delete('type/delete/:type_cd')
-  async deleteType(@Param('type_cd') type_cd: string) {
-    return await this.fjiService.deleteType(type_cd)
+  @Delete('type/delete/:type_id')
+  async deleteType(@Param('type_id') type_id: string) {
+    return await this.fjiService.deleteType(+type_id)
   }
 }

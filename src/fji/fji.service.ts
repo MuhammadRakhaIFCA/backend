@@ -89,13 +89,32 @@ export class FjiService {
                 `)
             return ({
                 statusCode: 201,
-                message: "user created",
-                data: [result]
+                message: "user get",
+                data: result
             })
         } catch (error) {
-            throw new BadRequestException({
-                statusCode: 400,
-                message: "fail to create user",
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "failed to get user",
+                data: []
+            })
+        }
+    }
+    async getUserById(user_id: number) {
+
+        try {
+            const result = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_user WHERE user_id = ${user_id}
+                `)
+            return ({
+                statusCode: 201,
+                message: "user get",
+                data: result
+            })
+        } catch (error) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "user not found",
                 data: []
             })
         }
@@ -204,17 +223,16 @@ export class FjiService {
             })
         }
         try {
-            await this.tanriseDatabase.$executeRawUnsafe(`
+            await this.fjiDatabase.$executeRawUnsafe(`
                 DELETE FROM mgr.assign_type_invoice WHERE user_id = ${user_id}
             `);
-            const insertPromises = type_id.map(id => {
-                return this.tanriseDatabase.$executeRaw`
+
+            for (const id of type_id) {
+                await this.fjiDatabase.$executeRaw`
                     INSERT INTO mgr.assign_type_invoice (user_id, type_id, created_by, created_at)
                     VALUES (${user_id}, ${id}, 'MGR', GETDATE())
                 `;
-            });
-
-            await Promise.all(insertPromises);
+            }
 
             return {
                 statusCode: 201,
@@ -231,6 +249,7 @@ export class FjiService {
                 data: []
             });
         }
+
     }
     private isEmpty(value: any): boolean {
         if (value === undefined || value === null || value === '') {
@@ -438,18 +457,18 @@ export class FjiService {
         }
     }
 
-    async deleteType(type_cd: string) {
+    async deleteType(type_id: number) {
 
-        if (this.isEmpty(type_cd)) {
+        if (this.isEmpty(type_id)) {
             throw new BadRequestException({
                 statusCode: 400,
-                message: "type_cd can't be empty",
+                message: "type_id can't be empty",
                 data: []
             })
         }
         try {
-            const result = await this.tanriseDatabase.$executeRawUnsafe(`
-                DELETE FROM mgr.m_type_invoice WHERE type_cd = '${type_cd} 
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
+                DELETE FROM mgr.m_type_invoice WHERE type_id = ${type_id} 
                 `)
             if (result === 0) {
                 throw new BadRequestException({
@@ -471,18 +490,37 @@ export class FjiService {
     async getType() {
 
         try {
-            const result = await this.tanriseDatabase.$queryRawUnsafe(`
+            const result = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.m_type_invoice
                 `)
             return ({
-                statusCode: 201,
-                message: "user created",
-                data: [result]
+                statusCode: 200,
+                message: "type get",
+                data: result
             })
         } catch (error) {
-            throw new BadRequestException({
-                statusCode: 400,
-                message: "fail to create user",
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "fail to get type",
+                data: []
+            })
+        }
+    }
+    async getTypeById(type_id: number) {
+
+        try {
+            const result = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_type_invoice WHERE type_id = ${type_id}
+                `)
+            return ({
+                statusCode: 200,
+                message: "type get",
+                data: result
+            })
+        } catch (error) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "type not found",
                 data: []
             })
         }
@@ -498,7 +536,7 @@ export class FjiService {
             })
         }
         try {
-            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
                 INSERT INTO mgr.m_type_invoice 
                 (type_cd, type_descs, status, approval_pic, created_by, created_at)
                 VALUES
@@ -523,12 +561,12 @@ export class FjiService {
     }
 
     async editType(data: Record<any, any>) {
-        const { type_cd, type_descs, status, approval_pic } = data;
+        const { type_id, type_cd, type_descs, status, approval_pic } = data;
 
-        if (this.isEmpty(type_cd)) {
+        if (this.isEmpty(type_id)) {
             throw new BadRequestException({
                 statusCode: 400,
-                message: "type_cd can't be empty",
+                message: "type_id can't be empty",
                 data: []
             })
         }
@@ -536,6 +574,9 @@ export class FjiService {
         try {
             if (type_descs) {
                 updates.push(`type_descs = '${type_descs}'`);
+            }
+            if (type_descs) {
+                updates.push(`type_cd = '${type_cd}'`);
             }
             if (status) {
                 updates.push(`status = '${status}'`);
@@ -551,9 +592,9 @@ export class FjiService {
                 });
             }
             const updateString = updates.join(', ');
-            const result = await this.tanriseDatabase.$executeRawUnsafe(`
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
                 UPDATE mgr.m_type_invoice SET ${updateString}, updated_at = GETDATE(), updated_by = 'MGR'
-                WHERE type_cd = ${type_cd}
+                WHERE type_id = ${type_id}
             `);
             if (result === 0) {
                 throw new BadRequestException({
@@ -564,7 +605,7 @@ export class FjiService {
             }
 
             return {
-                statusCode: 201,
+                statusCode: 200,
                 message: "Types edited",
                 data: []
             };
@@ -574,18 +615,18 @@ export class FjiService {
     }
 
     async assignTypeApproval(data: Record<any, any>) {
-        const { approval_pic, type_id, detail } = data
-        if (this.isEmpty(approval_pic) || this.isEmpty(type_id)) {
+        const { type_id, detail } = data
+        if (this.isEmpty(type_id)) {
             throw new BadRequestException({
                 statusCode: 400,
-                message: "type_id and approval_pic can't be empty",
+                message: "type_id can't be empty",
                 data: []
             })
         }
-        else if (detail[0].user_id === undefined) {
+        else if (detail[0].user_id === undefined || detail[0].role === null) {
             throw new BadRequestException({
                 statusCode: 400,
-                message: "type_id can't be empty and must be an array of num string, detail must contain an array of object containing user_id",
+                message: "user_id and role can't be empty",
                 data: []
             })
         }
@@ -593,13 +634,12 @@ export class FjiService {
             await this.fjiDatabase.$executeRawUnsafe(`
                 DELETE FROM mgr.m_type_invoice_dtl WHERE type_id = '${type_id}'
                 `)
-            const insertQueries = [];
-            for (let index = 0; index < approval_pic; index++) {
+            for (let index = 0; index < detail.length; index++) {
                 const query = `
                     INSERT INTO mgr.m_type_invoice_dtl 
                     (type_id, user_id, job_task, created_by, created_at)
                     VALUES
-                    (${type_id}, ${detail[index].user_id}, 'Approval Lvl ${index + 1}', 'MGR', GETDATE())
+                    (${type_id}, ${detail[index].user_id}, '${detail[index].role}', 'MGR', GETDATE())
                 `;
                 const result = await this.fjiDatabase.$executeRawUnsafe(query);
                 if (result === 0) {

@@ -333,6 +333,10 @@ export class PdfgenerateService {
         doc.font('Times-Bold')
             .text(data.signature, 480, tableYStart + 360, { width: 90, align: 'center' })
 
+        doc.fontSize(8)
+            .text('Disclaimer : ', 225, tableYStart + 400)
+            .font('Times-Italic')
+            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, tableYStart + 400)
 
 
 
@@ -344,7 +348,7 @@ export class PdfgenerateService {
         });
 
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}manual/fji_${data.doc_no}.pdf`;
+        const filePath = `${rootFolder}manual/${data.doc_no}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}manual}`)) {
             fs.mkdirSync(`${rootFolder}manual`, { recursive: true });
@@ -358,27 +362,27 @@ export class PdfgenerateService {
 
         doc.end();
 
-        // try {
-        //     await this.connect();
-        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
-        //     const filePath = `${rootFolder}manual/fji_${data.doc_no}.pdf`;
-        //     if (!fs.existsSync(filePath)) {
-        //         console.error(`Local file does not exist: ${filePath}`);
-        //     }
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}manual/${data.doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
 
-        //     await this.upload(filePath, `/UNSIGNED/GQCINV/MANUAL/${data.doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/MANUAL/${data.doc_no}.pdf`);
 
-        // } catch (error) {
-        //     console.log("Error during upload:.", error);
-        //     throw new BadRequestException({
-        //         statusCode: 400,
-        //         message: 'Failed to upload to FTP',
-        //         data: [error],
-        //     });
-        // } finally {
-        //     console.log("Disconnecting from FTP servers");
-        //     await this.disconnect();
-        // }
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
         return ({
             statusCode: 201,
             message: "invoice created!",
@@ -392,7 +396,7 @@ export class PdfgenerateService {
         });
 
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_${data.doc_no}.pdf`;
+        const filePath = `${rootFolder}schedule/${data.doc_no}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}schedule}`)) {
             fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
@@ -406,27 +410,27 @@ export class PdfgenerateService {
 
         doc.end();
 
-        // try {
-        //     await this.connect();
-        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
-        //     const filePath = `${rootFolder}schedule/fji_${data.doc_no}.pdf`;
-        //     if (!fs.existsSync(filePath)) {
-        //         console.error(`Local file does not exist: ${filePath}`);
-        //     }
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}schedule/${data.doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
 
-        //     await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${data.doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${data.doc_no}.pdf`);
 
-        // } catch (error) {
-        //     console.log("Error during upload:.", error);
-        //     throw new BadRequestException({
-        //         statusCode: 400,
-        //         message: 'Failed to upload to FTP',
-        //         data: [error],
-        //     });
-        // } finally {
-        //     console.log("Disconnecting from FTP servers");
-        //     await this.disconnect();
-        // }
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
         return ({
             statusCode: 201,
             message: "invoice created!",
@@ -475,13 +479,35 @@ export class PdfgenerateService {
     }
     async generatePdfProforma(data: Record<any, any>) {
         try {
-            return await this.generatePdfFirstJakarta4(data)
+            await this.generatePdfFirstJakarta4(data)
         } catch (error) {
             throw new BadRequestException({
                 statusCode: 400,
                 message: "Error generate pdf",
                 data: []
             })
+        }
+
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}proforma/${data.docNo}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/PROFORMA/${data.docNo}.pdf`);
+
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
         }
     }
 
@@ -610,27 +636,104 @@ export class PdfgenerateService {
 
         await this.generatePdfFirstJakarta2(pdfBody)
 
-        // try {
-        //     await this.connect();
-        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
-        //     const filePath = `${rootFolder}schedule/fji_reference_g_${doc_no}.pdf`;
-        //     if (!fs.existsSync(filePath)) {
-        //         console.error(`Local file does not exist: ${filePath}`);
-        //     }
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}schedule/fji_reference_g_${doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
 
-        //     await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/reference_g_${doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/reference_g_${doc_no}.pdf`);
 
-        // } catch (error) {
-        //     console.log("Error during upload:.", error);
-        //     throw new BadRequestException({
-        //         statusCode: 400,
-        //         message: 'Failed to upload to FTP',
-        //         data: [error],
-        //     });
-        // } finally {
-        //     console.log("Disconnecting from FTP servers");
-        //     await this.disconnect();
-        // }
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
+
+    }
+    async generateReferenceW(doc_no: string, debtor_acct: string, doc_date: Date) {
+        const docDate = moment(doc_date).format('DD MMM YYYY');
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_ar_ref_water_web
+            WHERE debtor_acct = '${debtor_acct}' 
+            and doc_date  = '${docDate}'
+        `);
+
+        const pdfBody = {
+            docNo: doc_no,
+            name: result[0]?.name,
+            address1: result[0]?.address1,
+            address2: result[0]?.address2,
+            address3: result[0]?.address3,
+            postCd: result[0]?.post_cd,
+            docDate: moment(result[0]?.doc_date).format('DD/MM/YYYY'),
+            readDate: moment(result[0]?.read_date).format('DD/MM/YYYY'),
+            startDate: moment(result[0]?.start_date).format('DD/MM/YYYY'),
+            endDate: moment(result[0]?.end_date).format('DD/MM/YYYY'),
+            currency: result[0]?.currency_cd,
+            descs: result[0]?.descs,
+            trxType: result[0]?.trx_type,
+            categoryCd: result[0]?.category_cd,
+            meterId: result[0]?.meter_id,
+            calculationMethod: result[0]?.calculation_method,
+            capacity: result[0]?.capacity,
+            capacityRate: result[0]?.capacity_rate,
+            currRead: result[0]?.curr_read,
+            lastRead: result[0]?.last_read,
+            multiplier: result[0]?.multiplier,
+            usage: result[0]?.usage,
+            usageRate1: result[0]?.usage_rate1,
+            usage11: result[0]?.usage_11,
+            currReadHigh: result[0]?.curr_read_high,
+            lastReadHigh: result[0]?.last_read_high,
+            highMultiplier: result[0]?.high_multiplier,
+            usageHigh: result[0]?.usage_high,
+            usageRate2: result[0]?.usage_rate2,
+            usage21: result[0]?.usage_21,
+            minimumUsage: result[0]?.minimum_usage,
+            baseAmt1: result[0]?.base_amt1,
+            genRate: result[0]?.gen_rate,
+            genAmt1: result[0]?.gen_amt1,
+            deductMarkupP: result[0]?.deduct_markup_p,
+            deductMarkupN: result[0]?.deduct_markup_n,
+            apportionPercent: result[0]?.apportion_percent,
+            asReduction: result[0]?.as_reduction,
+            trxAmt: result[0]?.trx_amt,
+            rounding: result[0]?.rounding
+        };
+
+        await this.generatePdfFirstJakarta5(pdfBody)
+
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}schedule/fji_reference_w_${doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_w_${doc_no}.pdf`);
+
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
 
     }
     async generateReferenceV(doc_no: string, debtor_acct: string, doc_date: Date) {
@@ -701,6 +804,90 @@ export class PdfgenerateService {
         //     console.log("Disconnecting from FTP servers");
         //     await this.disconnect();
         // }
+
+    }
+
+    async generateReferenceE(doc_no: string, debtor_acct: string, doc_date: Date) {
+        const docDate = moment(doc_date).format('DD MMM YYYY');
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_ar_ref_elec_web
+            WHERE debtor_acct = '${debtor_acct}' 
+            and doc_date  = '${docDate}'
+        `);
+
+        const pdfBody = {
+            docNo: doc_no,
+            name: result[0]?.name,
+            address1: result[0]?.address1,
+            address2: result[0]?.address2,
+            address3: result[0]?.address3,
+            postCd: result[0]?.post_cd,
+            docDate: moment(result[0]?.doc_date).format('DD/MM/YYYY'),
+            readDate: moment(result[0]?.read_date).format('DD/MM/YYYY'),
+            startDate: moment(result[0]?.start_date).format('DD/MM/YYYY'),
+            endDate: moment(result[0]?.end_date).format('DD/MM/YYYY'),
+            currency: result[0]?.currency_cd,
+            descs: result[0]?.descs,
+            trxType: result[0]?.trx_type,
+            categoryCd: result[0]?.category_cd,
+            meterId: result[0]?.meter_id,
+            calculationMethod: result[0]?.calculation_method,
+            capacity: result[0]?.capacity,
+            capacityRate: result[0]?.capacity_rate,
+            currRead: result[0]?.curr_read,
+            lastRead: result[0]?.last_read,
+            multiplier: result[0]?.multiplier,
+            usage: result[0]?.usage,
+            usageRate1: result[0]?.usage_rate1,
+            usage11: result[0]?.usage_11,
+            currReadHigh: result[0]?.curr_read_high,
+            lastReadHigh: result[0]?.last_read_high,
+            highMultiplier: result[0]?.high_multiplier,
+            usageHigh: result[0]?.usage_high,
+            usageRate2: result[0]?.usage_rate2,
+            usage21: result[0]?.usage_21,
+            minimumUsage: result[0]?.minimum_usage,
+            baseAmt1: result[0]?.base_amt1,
+            genRate: result[0]?.gen_rate,
+            genAmt1: result[0]?.gen_amt1,
+            deductMarkupP: result[0]?.deduct_markup_p,
+            deductMarkupN: result[0]?.deduct_markup_n,
+            apportionPercent: result[0]?.apportion_percent,
+            asReduction: result[0]?.as_reduction,
+            trxAmt: result[0]?.trx_amt,
+            flashHours: result[0]?.flash_hours,
+            kwh: result[0]?.kwh,
+            usageKwh11: result[0]?.usage_kwh_11,
+            usageKwh21: result[0]?.usage_kwh_21,
+            minUsageHour: result[0]?.min_usage_hour,
+            rounding: result[0]?.rounding
+        };
+        console.log(pdfBody)
+
+        await this.generatePdfFirstJakarta6(pdfBody)
+
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}schedule/fji_reference_e_${doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_e_${doc_no}.pdf`);
+
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
 
     }
 
@@ -977,6 +1164,11 @@ export class PdfgenerateService {
             .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 650, { width: 550, align: 'right' })
             .fontSize(9)
             .text('Note : This letter is an explanation of the Chilled Water, FCU calculation for Debit/Credit Note', 10, tableYStart + 85)
+
+        doc.fontSize(8).font('Times-Bold')
+            .text('Disclaimer : ', 225, tableYStart + 150)
+            .font('Times-Italic')
+            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, tableYStart + 150)
         doc.end();
 
 
@@ -1101,6 +1293,11 @@ export class PdfgenerateService {
 
             .text('FJI-FIN-FR-001-006/REV.0.0/27.02.2023', 0, 650, { width: 550, align: 'right' })
             .fontSize(9)
+
+        doc.fontSize(8).font('Times-Bold')
+            .text('Disclaimer : ', 225, tableYStart + 120)
+            .font('Times-Italic')
+            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, tableYStart + 120)
         doc.end();
 
         console.log(totalAmount)
@@ -1118,7 +1315,7 @@ export class PdfgenerateService {
         });
 
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}proforma/fji_${data.docNo}.pdf`;
+        const filePath = `${rootFolder}proforma/${data.docNo}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}proforma}`)) {
             fs.mkdirSync(`${rootFolder}proforma`, { recursive: true });
@@ -1238,6 +1435,12 @@ export class PdfgenerateService {
         doc.moveDown()
             .moveDown()
             .text(data.signature, { width: 190, align: 'center' })
+
+
+        doc.fontSize(8).font('Times-Bold')
+            .text('Disclaimer : ', 225, 700)
+            .font('Times-Italic')
+            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, 700)
         doc.end();
 
 
@@ -1245,6 +1448,304 @@ export class PdfgenerateService {
             statusCode: 201,
             message: "invoice created",
             data: filePath
+        })
+    }
+
+    async generatePdfFirstJakarta5(data: Record<any, any>) {
+        const doc = new PDFDocument({ margin: 0, size: 'a4' });
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}schedule/fji_reference_w_${data.docNo}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}schedule}`)) {
+            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        }
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+        doc.font('Times-Roman').fontSize(12)
+            .text('PT First Jakarta International', 0, 20, { align: 'center' })
+            .text('Indonesia Stock Exchange Building, Lot 2 (SCBD)', { align: 'center' })
+            .text('Jl. Jend Sudirman kav 52-53', { align: 'center' })
+            .text('Jakarta 12190 - Indonesia', { align: 'center' })
+            .text('Tel No : 5151515 Fax No : 5150909', { align: 'center' })
+
+        console.log("5")
+        doc.rect(20, 90, 550, 1).stroke()
+        doc.fontSize(10)
+            .text('TO : ', 42, 110)
+            .text(`${data.name}`, 42, 110, { indent: 29 })
+            .text(`${data.address1}`, { indent: 29 })
+            .text(`${data.address2}`, { indent: 29 })
+            .text(`${data.address3} ${data.postCd}`, { indent: 29 })
+
+        doc.fontSize(11)
+            .text('CALCULATION OF WATER', 20, 180, { align: 'left', width: 550 })
+
+        doc.rect(20, 200, 550, 1).stroke()
+            .fontSize(9)
+            .text(`Reference No : ${data.meterId}`, 20, 210)
+            .text(`${data.descs}`, 20, 250)
+
+
+            .text(`Doc Date`, 350, 210)
+            .text(`:`, 450, 210)
+            .text(`${data.docDate}`, 470, 210)
+            .text(`Meter Read Date`, 350, 230)
+            .text(`:`, 450, 230)
+            .text(`${data.readDate}`, 470, 230)
+            .text(`Periode`, 350, 250)
+            .text(`:`, 450, 250)
+            .text(`${data.startDate} - ${data.endDate}`, 470, 250)
+
+        doc.rect(20, 270, 550, 1).stroke()
+
+
+
+        const currRead = Number(data.currRead).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const lastRead = Number(data.lastRead).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const currReadHigh = Number(data.currReadHigh).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const lastReadHigh = Number(data.lastReadHigh).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const multiplier = Number(data.multiplier).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const rate = Number(data.usageRate1).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const rate2 = Number(data.usageRate2).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        let reduction = 0
+        if (data.asReduction === 'Y') {
+            reduction = 1
+        }
+        const rawSubtotal = data.usage11 + data.usage21 - reduction
+        const subtotal = (rawSubtotal).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const rawSubTotalTimesApportion = rawSubtotal * data.apportionPercent / 100
+        const subTotalTimesApportion = (rawSubTotalTimesApportion).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const rounding = (Number(data.rounding)).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const apportionPercent = data.apportionPercent.toFixed(2)
+        const rawRoundingReduction = data.rounding - rawSubTotalTimesApportion
+        const roundingReduction = rawRoundingReduction.toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const inWords = this.numberToWords(Number(data.rounding))
+        if (data.calculationMethod === 3) {
+            doc
+                .text('Consumption Charge 2', 20, 320)
+                .text('=', 100, 320)
+                .text('(Final Position LWBP - Starting Position LWBP) x Multiplier x Rate', 120, 290)
+                .text(`(${currRead} - ${lastRead}) x ${multiplier} x RP ${rate}`, 120, 300)
+                .text('(Final Position WBP - Starting Position WBP) x Multiplier x Rate', 120, 320)
+                .text(`(${currReadHigh} - ${lastReadHigh}) x ${multiplier} x RP ${rate2}`, 120, 330)
+
+        } else {
+            doc.text('(Final Position - Starting Position) x Multiplier x Rate', 120, 290)
+        }
+        doc.text('Consumption Charge', 20, 290)
+            .text('=', 100, 290)
+            .text('Proportion Billing', 20, 350)
+            .text('Rounding', 20, 365)
+            .text('=', 100, 350)
+            .text(`(${currRead} - ${lastRead}) x ${multiplier} x RP ${rate}`, 120, 300)
+            .text(` =  RP`, 400, 300)
+            .text(`${subtotal}`, 400, 300, { width: 170, align: 'right' })
+            .rect(390, 320, 180, 1).stroke()
+            .text(` =  RP`, 400, 330)
+            .text(`${subtotal}`, 400, 330, { width: 170, align: 'right' })
+            .text(` =  RP`, 400, 350)
+            .text(`${subTotalTimesApportion}`, 400, 350, { width: 170, align: 'right' })
+            .text(` =  RP`, 400, 365)
+            .text(`${roundingReduction}`, 400, 365, { width: 170, align: 'right' })
+            .rect(390, 378, 180, 1).stroke()
+            .text(` =  RP`, 400, 385)
+            .text(`${rounding}`, 400, 385, { width: 170, align: 'right' })
+            .text('Subtotal', 300, 330, { align: 'right', width: 80 })
+            .text(`${apportionPercent}%`, 300, 350, { align: 'right', width: 80 })
+            .text('Total', 300, 385, { align: 'right', width: 80 })
+
+
+            .rect(20, 450, 550, 1).stroke()
+            .text('In Words : ', 20, 460)
+            .text(`Indoneisan Rupiah ${inWords}`, 50, 475)
+            .rect(20, 500, 550, 1).stroke()
+            .text('Note : This letter is an explanation of the water calculation for Debit/Credit Note',
+                20, 515)
+        doc.fontSize(8).font('Times-Bold')
+            .text('Disclaimer : ', 225, 540)
+            .font('Times-Italic')
+            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, 540)
+        doc.end();
+
+        return ({
+            statusCode: 201,
+            message: "invoice created",
+        })
+    }
+    async generatePdfFirstJakarta6(data: Record<any, any>) {
+        const doc = new PDFDocument({ margin: 0, size: 'a4' });
+
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}schedule/fji_reference_e_${data.docNo}.pdf`;
+
+        if (!fs.existsSync(`${rootFolder}schedule}`)) {
+            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        }
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+        doc.font('Times-Roman').fontSize(12)
+            .text('PT First Jakarta International', 0, 20, { align: 'center' })
+            .text('Indonesia Stock Exchange Building, Lot 2 (SCBD)', { align: 'center' })
+            .text('Jl. Jend Sudirman kav 52-53', { align: 'center' })
+            .text('Jakarta 12190 - Indonesia', { align: 'center' })
+            .text('Tel No : 5151515 Fax No : 5150909', { align: 'center' })
+
+        console.log("5")
+        doc.rect(20, 90, 550, 1).stroke()
+        doc.fontSize(10)
+            .text('TO : ', 42, 110)
+            .text(`${data.name}`, 42, 110, { indent: 29 })
+            .text(`${data.address1}`, { indent: 29 })
+            .text(`${data.address2}`, { indent: 29 })
+            .text(`${data.address3} ${data.postCd}`, { indent: 29 })
+
+        doc.fontSize(11)
+            .text('ELECTRICITY CALCULATION', 20, 180, { align: 'left', width: 550 })
+
+        doc.rect(20, 200, 550, 1).stroke()
+            .fontSize(9)
+            .text(`Reference No`, 20, 210)
+            .text(`Doc/Meter No : ${data.meterId}`, 20, 225)
+            .text(`${data.descs}`, 20, 250)
+
+
+            .text(`Doc Date`, 350, 210)
+            .text(`:`, 450, 210)
+            .text(`${data.docDate}`, 470, 210)
+            .text(`Meter Read Date`, 350, 230)
+            .text(`:`, 450, 230)
+            .text(`${data.readDate}`, 470, 230)
+            .text(`Periode`, 350, 250)
+            .text(`:`, 450, 250)
+            .text(`${data.startDate} - ${data.endDate}`, 470, 250)
+
+
+
+        doc.rect(20, 265, 550, 1).stroke()
+
+        let reduction = 0
+        if (data.asReduction === 'Y') {
+            reduction = 1
+        }
+
+        const capacity = Number(data.capacity).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const multiplier = Number(data.multiplier).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const currRead = Number(data.currRead).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const lastRead = Number(data.lastRead).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usage = Number(data.usage).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const currReadHigh = Number(data.currReadHigh).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const lastReadHigh = Number(data.lastReadHigh).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usageHigh = Number(data.usageHigh).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const flashHours = Number(data.flashHours).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const minUsageHour = Number(data.minUsageHour)
+        const usage11 = Number(data.usage11).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usage21 = Number(data.usage21).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usageRate1 = Number(data.usageRate1).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usageRate2 = Number(data.usageRate2).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const kwh = Number(data.kwh).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usageKwh11 = Number(data.usageKwh11).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const usageKwh21 = Number(data.usageKwh21).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const genRate = Number(data.genRate).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const genAmt1 = Number(data.genAmt1).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const apportionPercent = data.apportionPercent.toFixed(2)
+        const rawSubtotal = Number(data.usage11) + Number(data.usage21) + Number(data.genAmt1)
+        const subtotal = (rawSubtotal).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const rawSubTotalTimesApportion = rawSubtotal * Number(data.apportionPercent) / 100
+        const subTotalTimesApportion = (rawSubTotalTimesApportion).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const trxAmt = (Number(data.trxAmt)).toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const roundingAmount = (data.trxAmt - rawSubTotalTimesApportion).toLocaleString('en-US', { minimumFractionDigits: 2 })
+
+        doc.text('Load Capacity', 20, 280).text('=', 130, 280).text(`${capacity} KVA`, 140, 280)
+            .text('Load Factor', 20, 295).text('=', 130, 295).text(`${multiplier}`, 140, 295)
+
+        if (data.calculationMethod === 5) {
+            doc.text('Usage 1', 20, 310).text('=', 130, 310)
+                .text(`( ${currRead} - ${lastRead} ) x ${multiplier} = ${usage} Kwh`, 140, 310)
+                .text('Usage 2', 20, 325).text('=', 130, 325)
+                .text(`( ${currReadHigh} - ${lastReadHigh} ) x ${multiplier} = ${usageHigh} Kwh`, 140, 325)
+        }
+        else {
+            doc.text('Usage', 20, 310).text('=', 130, 310)
+                .text(`( ${currRead} - ${lastRead} ) x ${multiplier} = ${usage} Kwh`, 140, 310)
+        }
+
+        doc.text('Usage Hours', 20, 340).text('=', 130, 340)
+            .text(`${usage} / ${capacity} = ${flashHours} h`, 140, 340)
+
+            .text('Consumption Charge', 20, 355).text('=', 130, 355)
+            .text('Minimum Charge 40 hours', 140, 355)
+            .text(`40 x...(KVA) x... (Tarif Blok 1)...`)
+
+            .text('Blok 1', 20, 380, { width: 100, align: 'left' })
+            .text('=', 130, 380)
+            .text(`( 60h x ${capacity} KVA ) X Rp. ${usageRate1}`, 140, 380)
+        if (Number(data.flashHours) > 40) {
+            if (data.usageKwh11 > 0 && data.usageKwh21 === 0) {
+                doc.text(`${usage} Kwh X Rp. ${usageRate1}`, 140, 390)
+            } else {
+                doc.text(`${kwh} Kwh X Rp. ${usageRate1}`, 140, 390)
+            }
+        }
+
+        doc.text('Blok 2', 20, 410, { width: 100, align: 'left' })
+            .text('=', 130, 410)
+        if (data.calculationMethod === 5 && Number(data.usageRate2) > 0) {
+            doc.text(`CC ${usage} Kwh ${usageHigh} Kwh X Rp. ${usageRate2}`, 140, 410)
+        }
+        if (Number(data.flashHours) > minUsageHour) {
+            if (data.calculationMethod === 5 && data.usageRate2 > 0) {
+                doc.text(`${usageKwh11} Kwh - ${usageKwh21} Kwh X Rp. ${usageRate2}`, 140, 420)
+            }
+            else if (data.usageRate2 > 0) {
+                doc.text(`${usage} Kwh ${kwh} Kwh RP. ${usageRate2}`, 140, 420)
+                console.log('if else if')
+            }
+        }
+        doc.text('=', 130, 435)
+            .text('Retribution Charge', 20, 435)
+            .text(`( PPJ / RPJU ${data.genRate}% )`)
+            .text(`${genRate} % X ( Rp. ${usage11} + Rp. ${usage21} )`, 140, 435)
+            .text('Proportion Billing', 20, 470)
+            .text('=', 130, 470)
+            .text('Rounding', 20, 485)
+
+        if (data.flashHours > data.minUsageHour) {
+            doc.text('= RP', 400, 365).text(`${usage11}`, 400, 360, { width: 170, align: 'right' })
+                .text('= RP', 400, 390).text(`0.00`, 400, 390, { width: 170, align: 'right' })
+        } else {
+            doc.text('= RP', 400, 365).text(`0.00`, 400, 360, { width: 170, align: 'right' })
+                .text('= RP', 400, 390).text(`${usage11}`, 400, 390, { width: 170, align: 'right' })
+        }
+        doc.text('= RP', 400, 420).text(`${usage21}`, 400, 420, { width: 170, align: 'right' })
+            .text('= RP', 400, 435).text(`${genAmt1}`, 400, 435, { width: 170, align: 'right' })
+            .text('= RP', 400, 465).text(`${subtotal}`, 400, 465, { width: 170, align: 'right' })
+            .text('= RP', 400, 480).text(`${subTotalTimesApportion}`, 400, 480, { width: 170, align: 'right' })
+            .text('= RP', 400, 495).text(`${roundingAmount}`, 400, 495, { width: 170, align: 'right' })
+            .text('= RP', 400, 515).text(`${trxAmt}`, 400, 515, { width: 170, align: 'right' })
+
+            .text('Subtotal', 300, 465, { align: 'right', width: 80 })
+            .text(`${apportionPercent}%`, 300, 480, { align: 'right', width: 80 })
+            .text('Total', 300, 515, { align: 'right', width: 80 })
+            .rect(390, 458, 180, 1).stroke()
+            .rect(390, 508, 180, 1).stroke()
+
+        const inWords = this.numberToWords(data.trxAmt)
+        doc.rect(20, 550, 550, 1).stroke()
+            .text('In Words : ', 20, 560)
+            .text(`Indoneisan Rupiah ${inWords}`, 50, 575)
+            .rect(20, 600, 550, 1).stroke()
+            .text('Note : This letter is an explanation of the electricity calculation for Debit/Credit Note',
+                20, 615)
+        doc.fontSize(8).font('Times-Bold')
+            .text('Disclaimer : ', 225, 640)
+            .font('Times-Italic')
+            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, 640)
+        doc.end();
+
+        return ({
+            statusCode: 201,
+            message: "invoice created",
         })
     }
 
