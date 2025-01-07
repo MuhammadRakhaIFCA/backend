@@ -1,7 +1,6 @@
 import { HttpService } from '@nestjs/axios';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SqlserverDatabaseService } from 'src/database/database-sqlserver.service';
-import { DatabaseService } from 'src/database/database.service';
 import * as moment from 'moment';
 import * as fs from 'fs';
 import { PdfgenerateService } from 'src/pdfgenerate/pdfgenerate.service';
@@ -14,7 +13,6 @@ export class ReceiptService {
     private client: ftp.Client;
     constructor(
         private readonly sqlserver: SqlserverDatabaseService,
-        private readonly postgre: DatabaseService,
         private readonly fjiDatabase: FjiDatabaseService,
         private readonly pdfService: PdfgenerateService
     ) {

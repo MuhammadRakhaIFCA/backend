@@ -9,6 +9,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
 import { Prisma } from '@prisma/client';
+import AdmZip from 'adm-zip';
+import axios from 'axios';
 
 @Injectable()
 export class ApiInvoiceService {
@@ -1312,5 +1314,46 @@ export class ApiInvoiceService {
                 error.response
             );
         }
+    }
+
+    async downloadStampedInvoice(start_date: string, end_date: string) {
+        try {
+            const result: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+               SELECT * FROM mgr.ar_blast_inv
+               WHERE year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= ${start_date}
+               AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= ${end_date}
+                `)
+
+            if (!result.length) {
+                throw new NotFoundException({
+                    statusCode: 404,
+                    message: 'No stamped invoice yet',
+                    data: [],
+                })
+            }
+            const zip = new AdmZip()
+
+            for (const record of result) {
+                const filenames = `${record.filenames.slice(0, -4)}_signed.pdf`
+                const invoice_tipe = record.invoice_tipe.toUpperCase()
+                const fileUrl = `https://nfsdev.property365.co.id:4422/UNSIGNED/GQCINV/${invoice_tipe}/${filenames}`;
+                console.log(filenames)
+                console.log(invoice_tipe)
+                try {
+                    // Download the PDF file
+                    const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+                    // Add to ZIP
+                    zip.addFile(filenames, Buffer.from(response.data));
+                } catch (error) {
+                    continue
+                    console.error(`Failed to download file ${filenames}:`, error.message);
+                }
+            }
+            return zip.toBuffer();
+        }
+        catch (error) {
+            throw new BadRequestException(error.response)
+        }
+
     }
 }

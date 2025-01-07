@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SysusersModule } from './sysusers/sysusers.module';
-import { AuthModule } from './auth/auth.module';
-import { DatabaseModule } from './database/database.module';
-import { FinpayModule } from './finpay/finpay.module';
+
 import { PeruriModule } from './peruri/peruri.module';
 import { UploadModule } from './upload/upload.module';
 import { MailModule } from './mail/mail.module';
@@ -15,7 +12,7 @@ import { ReceiptModule } from './receipt/receipt.module';
 import { FjiUserModule } from './fji/fji.module';
 
 @Module({
-  imports: [SysusersModule, AuthModule, DatabaseModule, FinpayModule, PeruriModule, UploadModule, MailModule,
+  imports: [PeruriModule, UploadModule, MailModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),

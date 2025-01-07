@@ -1,7 +1,6 @@
 import { HttpService } from '@nestjs/axios';
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
-import { DatabaseService } from 'src/database/database.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UploadService } from 'src/upload/upload.service';
@@ -16,7 +15,7 @@ const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImlmY2FfZW1ldEB5
 @Injectable()
 export class PeruriService {
     private client: ftp.Client;
-    constructor(private readonly httpService: HttpService, private databaseService: DatabaseService,
+    constructor(private readonly httpService: HttpService,
         private readonly fjiDatabase: FjiDatabaseService
     ) {
         this.client = new ftp.Client();
@@ -67,6 +66,20 @@ export class PeruriService {
         const { company_cd, file_name, file_type } = body
         const rootFolder = process.env.ROOT_PDF_FOLDER
         const upper_file_type = file_type.toUpperCase()
+        const doc_no = file_name.slice(0, -4)
+
+        const approved_file = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT * FROM mgr.ar_blast_inv WHERE doc_no = ${doc_no}
+        `)
+
+        if (!approved_file[0]) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "file doesn't exist",
+                data: []
+            })
+        }
+
         //1. ambil data dari peruri account usesrname dan password
 
         const loginBody = {
@@ -270,6 +283,12 @@ export class PeruriService {
             WHERE file_name_sign = '${file_name}'
             `)
 
+        await this.fjiDatabase.$executeRawUnsafe(`
+            UPDATE mgr.ar_blast_inv SET
+            file_status_Sign = 'S', file_name_sign = '${signedFileName}',
+            file_token_sign = '${token}', file_sn_sign = '${sn}'
+            WHERE doc_no = '${doc_no}'
+            `)
         return {
             statusCode: 201,
             message: "stamping successful",

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiInvoiceService } from './api-invoice.service';
 import { AuthGuard } from '@nestjs/passport';
 import { generateDto } from './dto/generate.dto';
+import { Response } from 'express';
 
 @Controller('api')
 export class ApiInvoiceController {
@@ -135,5 +136,38 @@ export class ApiInvoiceController {
     @Param('process_id') process_id: string
   ) {
     return this.apiInvoiceService.getApprovalLog(process_id);
+  }
+
+  @Get('download')
+  async downloadPdfsAsZip(
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+    @Res() res: Response,
+  ) {
+    try {
+      // Generate the ZIP file buffer
+      const zipBuffer = await this.apiInvoiceService.downloadStampedInvoice(start_date, end_date);
+
+      // Set response headers for ZIP download
+      res.set({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename=pdfs_${Date.now()}.zip`,
+        'Content-Length': zipBuffer.length,
+      });
+
+      // Send the ZIP file
+      res.send(zipBuffer);
+      return {
+        statusCode: 200,
+        message: 'PDFs downloaded successfully. ',
+        data: []
+      }
+    } catch (error) {
+      console.error('Error:', error.message);
+      throw new HttpException(
+        { message: 'Failed to generate ZIP', details: error },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
