@@ -71,7 +71,17 @@ export class ApiInvoiceService {
     }
     async getInvoice() {
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`select * from mgr.ar_email_inv`);
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+                WHERE doc_amt <= 5000000
+                AND file_status_sign IS NULL
+                AND send_id IS NULL
+                OR (doc_amt >= 5000000 AND status_process_sign = 'N')
+                `);
             if (!result || result.length === 0) {
 
                 throw new NotFoundException({
@@ -95,9 +105,14 @@ export class ApiInvoiceService {
 
     async getInvoiceDetail(doc_no: string) {
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_inv_dtl
-                WHERE doc_no = '${doc_no}'
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+                WHERE send_id IS NULL
+                AND doc_no = '${doc_no}'
             `)
             if (!result || result.length === 0) {
 
@@ -123,8 +138,12 @@ export class ApiInvoiceService {
         const { startDate, endDate, status } = data
         try {
             const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_inv 
-                WHERE process_id != '0' 
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+                WHERE send_id IS NOT NULL 
                 AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
                 AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
                 AND send_status = '${status}'
@@ -152,8 +171,12 @@ export class ApiInvoiceService {
 
     async getHistoryDetail(email_addr: string, doc_no: string) {
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_inv_dtl
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
                 WHERE doc_no = '${doc_no}'
                 AND email_addr LIKE '%${email_addr}%'
             `)
@@ -275,7 +298,8 @@ export class ApiInvoiceService {
                 filenames2,
                 process_id,
                 audit_user: name,
-                invoice_tipe: "schedule"
+                invoice_tipe: "schedule",
+                currency_cd: result[0].currency_cd
             }
             const approve = await this.addToApproval(approvalBody)
             if (approve.statusCode == 400) {
@@ -444,16 +468,17 @@ export class ApiInvoiceService {
             project_no: result[0].project_no,
             debtor_acct: result[0].debtor_acct,
             email_addr: "m.rakha@ifca.co.id",
-            bill_type: '',
+            bill_type: null,
             doc_no,
             doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
             descs: result[0].descs,
             doc_amt: result[0].base_amt,
             filenames: `${doc_no}.pdf`,
-            filenames2: '',
+            filenames2: null,
             process_id,
             audit_user: name,
-            invoice_tipe: "manual"
+            invoice_tipe: "manual",
+            currency_cd: result[0].currency_cd
         }
         const approve = await this.addToApproval(approvalBody)
         if (approve.statusCode == 400) {
@@ -595,17 +620,19 @@ export class ApiInvoiceService {
             project_no: result[0].project_no,
             debtor_acct: result[0].debtor_acct,
             email_addr: "m.rakha@ifca.co.id",
-            bill_type: '',
+            bill_type: null,
             doc_no,
             doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
             descs: result[0].descs,
-            doc_amt: result[0].base_amt,
+            doc_amt: result[0].fdoc_amt,
             filenames: `${doc_no}.pdf`,
-            filenames2: '',
+            filenames2: null,
             process_id,
             audit_user: name,
-            invoice_tipe: "proforma"
+            invoice_tipe: "proforma",
+            currency_cd: result[0].currency_cd
         }
+        console.log("currency cd = " + result[0].currency_cd);
         const approve = await this.addToApproval(approvalBody)
         if (approve.statusCode == 400) {
             throw new BadRequestException({
@@ -697,6 +724,7 @@ export class ApiInvoiceService {
                 WHERE 
                  year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
                 AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+                AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )  
             `);
             if (!result || result.length === 0) {
 
@@ -729,6 +757,7 @@ export class ApiInvoiceService {
                 WHERE 
                  year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
                 AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+                AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )  
                 `)
             if (!result || result.length === 0) {
 
@@ -761,6 +790,7 @@ export class ApiInvoiceService {
                 WHERE 
                  year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
                 AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+                AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )  
                 `)
             if (!result || result.length === 0) {
 
@@ -785,12 +815,39 @@ export class ApiInvoiceService {
         }
     }
 
-    async approve(doc_no: string, process_id: string, approval_user: string) {
-
+    async approve(
+        doc_no: string,
+        process_id: string,
+        approval_user: string,
+        approval_remarks: string,
+        approval_status: string,
+    ) {
+        if (
+            this.isEmpty(doc_no) ||
+            this.isEmpty(process_id) ||
+            this.isEmpty(approval_user) ||
+            (approval_status !== 'A' && approval_status !== 'R')
+        ) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "doc_no and process_id can't be empty, approval status must be A or R",
+                data: [],
+            });
+        }
+        let approval_remark = null
+        if (!this.isEmpty(approval_remarks)) {
+            approval_remark = "'" + approval_remarks + "'"
+        }
+        console.log('approval remark = ' + approval_remark)
+        const approvalTable = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval
+            WHERE process_id = '${process_id}' AND doc_no = '${doc_no}'
+            `)
         try {
             const result = await this.fjiDatabase.$executeRawUnsafe(`
                 UPDATE mgr.ar_blast_inv_approval_dtl
-                SET approval_status = 'A', approval_date = GETDATE()
+                SET approval_status = '${approval_status}', approval_date = GETDATE(), 
+                approval_remarks = ${approval_remark}
                 WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' 
                 AND approval_user = '${approval_user}'
                 
@@ -802,6 +859,25 @@ export class ApiInvoiceService {
                     data: [],
                 })
             }
+            if (approval_status === 'R') {
+                try {
+                    await this.fjiDatabase.$executeRawUnsafe(`
+                        UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
+                        WHERE process_id = '${process_id}' 
+                        `)
+                } catch (error) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: 'fail to update database to R',
+                        data: [],
+                    })
+                }
+                return {
+                    statusCode: 200,
+                    message: 'document rejected',
+                    data: [],
+                }
+            }
             const log = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.ar_blast_inv_approval_log_msg 
                 WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' 
@@ -812,11 +888,27 @@ export class ApiInvoiceService {
                     ORDER BY approval_level ASC 
                     `);
             if (getNextApproveUser.length === 0) {
+                console.log("insert to ar blast inv")
                 const result = await this.fjiDatabase.$executeRawUnsafe(`
-                    UPDATE mgr.ar_blast_inv_approval SET status_approve = 'A'
+                    UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
                     WHERE process_id = '${process_id}' 
                     `)
-                if (result === 0) {
+                const insert = await this.fjiDatabase.$executeRaw(
+                    Prisma.sql
+                        `
+                    INSERT INTO mgr.ar_blast_inv
+                    (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
+                    doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
+                    filenames2, process_id, audit_user, audit_date)
+                    VALUES
+                    (${approvalTable[0].entity_cd}, ${approvalTable[0].project_no}, ${approvalTable[0].debtor_acct},
+                    ${approvalTable[0].email_addr}, ${approvalTable[0].gen_date}, ${approvalTable[0].bill_type},
+                    ${doc_no}, ${approvalTable[0].doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
+                    ${approvalTable[0].doc_amt}, '', ${approvalTable[0].invoice_tipe},
+                    ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${process_id},
+                    ${approvalTable[0].audit_user}, ${approvalTable[0].audit_date})
+                    `)
+                if (result === 0 || insert === 0) {
                     throw new BadRequestException({
                         statusCode: 400,
                         message: 'failed to update database',
@@ -843,28 +935,28 @@ export class ApiInvoiceService {
                     data: []
                 })
             }
-            const nextEmail = getNextApproveUser[0].approval_user
-            const approvalLogBody = {
-                entity_cd: log[0].entity_cd,
-                project_no: log[0].project_no,
-                debtor_acct: log[0].debtor_acct,
-                email_addr: nextEmail,
-                status_code: 200,
-                response_message: "email sent successuly",
-                send_date: moment().format('DD MMM YYYY'),
-                doc_no,
-                process_id,
-                audit_user: log[0].audit_user
-            }
-            console.log(approvalLogBody)
-            const approvalLog = await this.addToApprovalLog(approvalLogBody)
-            if (approvalLog.statusCode == 400) {
-                throw new BadRequestException({
-                    statusCode: 400,
-                    message: 'Failed to add to approval log',
-                    data: [],
-                })
-            }
+            // const nextEmail = getNextApproveUser[0].approval_user
+            // const approvalLogBody = {
+            //     entity_cd: log[0].entity_cd,
+            //     project_no: log[0].project_no,
+            //     debtor_acct: log[0].debtor_acct,
+            //     email_addr: nextEmail,
+            //     status_code: 200,
+            //     response_message: "email sent successuly",
+            //     send_date: moment().format('DD MMM YYYY'),
+            //     doc_no,
+            //     process_id,
+            //     audit_user: log[0].audit_user
+            // }
+            // console.log(approvalLogBody)
+            // const approvalLog = await this.addToApprovalLog(approvalLogBody)
+            // if (approvalLog.statusCode == 400) {
+            //     throw new BadRequestException({
+            //         statusCode: 400,
+            //         message: 'Failed to add to approval log',
+            //         data: [],
+            //     })
+            // }
         } catch (error) {
             throw new BadRequestException(error.response)
         }
@@ -918,7 +1010,7 @@ export class ApiInvoiceService {
         const {
             entity_cd, project_no, debtor_acct, email_addr, bill_type,
             doc_no, doc_date, descs, doc_amt, filenames, filenames2, process_id, audit_user,
-            invoice_tipe
+            invoice_tipe, currency_cd
         } = data
 
         try {
@@ -927,11 +1019,12 @@ export class ApiInvoiceService {
                     INSERT INTO mgr.ar_blast_inv_approval 
                     (entity_cd, project_no, debtor_acct, email_addr, 
                     gen_date, bill_type, doc_no, doc_date, descs, doc_amt, filenames, filenames2, gen_flag, process_id, 
-                    audit_user, audit_date, invoice_tipe, status_approve, progress_approval)
+                    audit_user, audit_date, invoice_tipe, status_approve, progress_approval, currency_cd)
                     VALUES 
                     (${entity_cd}, ${project_no}, ${debtor_acct}, ${email_addr}, GETDATE(), 
                     ${bill_type}, ${doc_no}, ${doc_date}, ${descs}, ${doc_amt}, ${filenames}, 
-                    ${filenames2}, 'Y', ${process_id}, ${audit_user}, GETDATE(), ${invoice_tipe}, 'P', 1)
+                    ${filenames2}, 'Y', ${process_id}, ${audit_user}, GETDATE(), ${invoice_tipe},
+                    'P', 1, ${currency_cd})
                 `
             );
 
@@ -1042,7 +1135,35 @@ export class ApiInvoiceService {
 
     async getApproval(process_id: string) {
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT * FROM mgr.ar_blast_inv_approval
+            SELECT mgr.ar_blast_inv_approval.rowID,
+                mgr.ar_blast_inv_approval.entity_cd,
+                mgr.cf_entity.entity_name,
+                mgr.ar_blast_inv_approval.project_no,
+                project_name = mgr.pl_project.descs,
+                mgr.ar_blast_inv_approval.debtor_acct,
+                debtor_name = mgr.ar_debtor.name,
+                mgr.ar_blast_inv_approval.email_addr,
+                mgr.ar_blast_inv_approval.gen_date,
+                mgr.ar_blast_inv_approval.doc_no,
+                mgr.ar_blast_inv_approval.doc_date,
+                mgr.ar_blast_inv_approval.descs,
+                mgr.ar_blast_inv_approval.currency_cd,
+                mgr.ar_blast_inv_approval.doc_amt,
+                mgr.ar_blast_inv_approval.filenames,
+                mgr.ar_blast_inv_approval.filenames2,
+                mgr.ar_blast_inv_approval.filenames3,
+                mgr.ar_blast_inv_approval.filenames4,
+                mgr.ar_blast_inv_approval.invoice_tipe,
+                mgr.ar_blast_inv_approval.audit_user FROM mgr.ar_blast_inv_approval 
+            INNER JOIN mgr.cf_entity  
+                ON mgr.ar_blast_inv_approval.entity_cd = mgr.cf_entity.entity_cd  
+            INNER JOIN mgr.pl_project  
+                ON mgr.ar_blast_inv_approval.entity_cd = mgr.pl_project.entity_cd
+                AND mgr.ar_blast_inv_approval.project_no = mgr.pl_project.project_no
+            INNER JOIN mgr.ar_debtor  
+                ON mgr.ar_blast_inv_approval.entity_cd = mgr.ar_debtor.entity_cd  
+                AND mgr.ar_blast_inv_approval.project_no = mgr.ar_debtor.project_no  
+                AND mgr.ar_blast_inv_approval.debtor_acct = mgr.ar_debtor.debtor_acct 
             WHERE process_id = '${process_id}'
             `)
         if (result.length === 0) {
@@ -1111,6 +1232,85 @@ export class ApiInvoiceService {
             statusCode: 200,
             message: 'Approval log data found',
             data: result
+        }
+    }
+
+    async getStamp(status: string) {
+        let file_status = ''
+        if (status === "S") {
+            file_status = "IS NULL AND send_id IS NULL"
+        } else if (status === "F") {
+            file_status = "IN ('P', 'A', 'F')"
+        } else {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Invalid Status. Status must be either S or F',
+                data: [],
+            });
+        }
+        try {
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+                WHERE doc_amt >= 5000000 
+                AND file_status_sign ${file_status}
+            `)
+            if (!result || result.length === 0) {
+                console.log(result.length)
+                throw new NotFoundException({
+                    statusCode: 404,
+                    message: 'No stamp yet ',
+                    data: [],
+                });
+            }
+            return {
+                statusCode: 200,
+                message: 'stamp retrieved successfully',
+                data: result,
+            };
+        } catch (error) {
+            throw new NotFoundException(
+                error.response
+            );
+        }
+    }
+
+    async getStampHistory(data: Record<any, any>) {
+        const { company_cd, startDate, endDate } = data
+        if (this.isEmpty(company_cd) && this.isEmpty(startDate) && this.isEmpty(endDate)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Company CD, Start Date and End Date are required',
+                data: [],
+            })
+        }
+        try {
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.peruri_stamp_file_log WHERE company_cd = '${company_cd}' 
+                AND file_type = 'invoice'
+                AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= '${startDate}' 
+                AND year(audit_date)*10000+month(audit_date)*100+day(audi_date) <= '${endDate}'
+            `)
+            if (!result || result.length === 0) {
+                console.log(result.length)
+                throw new NotFoundException({
+                    statusCode: 404,
+                    message: 'No stamp history yet',
+                    data: [],
+                });
+            }
+            return {
+                statusCode: 200,
+                message: 'stamp history retrieved successfully',
+                data: result,
+            };
+        } catch (error) {
+            throw new NotFoundException(
+                error.response
+            );
         }
     }
 }

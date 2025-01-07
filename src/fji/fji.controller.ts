@@ -25,6 +25,10 @@ export class FjiUserController {
   async getTypeById(@Param('type_id') type_id: string) {
     return await this.fjiService.getTypeById(+type_id)
   }
+  @Get('type-dtl/get/:type_id')
+  async getTypeDtlById(@Param('type_id') type_id: string) {
+    return await this.fjiService.getTypeDtlById(+type_id)
+  }
 
 
   @Post('user/create')

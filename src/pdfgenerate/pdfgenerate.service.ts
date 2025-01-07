@@ -198,7 +198,8 @@ export class PdfgenerateService {
         const formattedPphRate = pphRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formattedAllocAmt = allocAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         //header kiri
-        doc.image(`./uploads/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
             .fontSize(12)
             .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
             .fontSize(8).font('Times-Roman')
@@ -207,14 +208,15 @@ export class PdfgenerateService {
             .text("Tel. (021) 515 1515 (Hunting) Fax : (021) 515 3008", 60, 62)
 
         //header tengah
-        doc.image('./uploads/cushman-and-wakefield-logo.png', 280, 44, { width: 100, heigth: 30 })
+
+        doc.image(`${rootFolder}images/cushman-and-wakefield-logo.png`, 280, 44, { width: 100, heigth: 30 })
             .fontSize(5)
             .text('Property Management', 280, 35, { width: 100, align: 'center' })
 
         //header kanan
         doc.roundedRect(385, 32, 200, 80, 20).stroke()
         doc.font('Times-Roman').fontSize(9)
-            .text('TO :', 395, 40, { indent: 20 })
+            .text('TO :', 395, 40)
             .text(data.debtor_name, { width: 190 })
             .text(data.address1, { width: 190 })
             //.moveDown()
@@ -312,12 +314,12 @@ export class PdfgenerateService {
             .text('PAYMENT INSTRUCTION', 35, tableYStart + 290)
             .text(':', 200, tableYStart + 290)
 
-        doc.fontSize(10).text(this.numberToWords(total), 210, tableYStart + 265, { width: 300 })
+        doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)}`, 210, tableYStart + 265, { width: 300 })
         tableYStart += 10
         doc.fontSize(9).font('Times-Roman')
-            .text('- payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
+            .text('- Payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
             .text('or transfer to our acount : ', 39, tableYStart + 305)
-            .text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, tableYStart + 330)
+            // .text('- Please attach the PAYMENT ADVICE SLIP together with your payment and sent to the Building Management Office', 35, tableYStart + 330)
             .text('- Receipt will be given after payment', 35, tableYStart + 340)
             .fontSize(10).font('Times-Bold')
             .text('PT. First Jakarta International', 325, tableYStart + 295)
@@ -331,12 +333,12 @@ export class PdfgenerateService {
             doc.text('Emeterei', 480, tableYStart + 320, { width: 90, align: 'center' })
         }
         doc.font('Times-Bold')
-            .text(data.signature, 480, tableYStart + 360, { width: 90, align: 'center' })
+            .text(data.signature, 480, tableYStart + 380, { width: 90, align: 'center' })
 
         doc.fontSize(8)
             .text('Disclaimer : ', 225, tableYStart + 400)
             .font('Times-Italic')
-            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, tableYStart + 400)
+            .text('This document does not need to be signed', 270, tableYStart + 400)
 
 
 
@@ -562,7 +564,7 @@ export class PdfgenerateService {
             .text('PAYMENT INSTRUCTION', 35, 522)
             .text(':', 200, 522)
             .fontSize(10).text('forty six thousand six hundred twenty', 210, 507)
-            .fontSize(9).text('- payment should be made to the form of the crossed cheque (Giro) payable to', 35, 537)
+            .fontSize(9).text('- Payment should be made to the form of the crossed cheque (Giro) payable to', 35, 537)
             .text('or transfer to our acount : ', 39, 547)
             .text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, 572)
             .text('- Receipt will be given after payment', 35, 582)
@@ -904,7 +906,8 @@ export class PdfgenerateService {
         }
 
         //header kiri
-        doc.image(`./uploads/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
             .fontSize(12)
             .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
             .fontSize(8).font('Times-Roman')
@@ -913,14 +916,14 @@ export class PdfgenerateService {
             .text("Tel. (021) 515 1515 (Hunting) Fax : (021) 515 3008", 60, 62)
 
         //header tengah
-        doc.image('./uploads/cushman-and-wakefield-logo.png', 280, 44, { width: 100, heigth: 30 })
+        doc.image(`${rootFolder}images/cushman-and-wakefield-logo.png`, 280, 44, { width: 100, heigth: 30 })
             .fontSize(5)
             .text('Property Management', 280, 35, { width: 100, align: 'center' })
 
         //header kanan
         doc.roundedRect(385, 32, 200, 80, 20).stroke()
         doc.font('Times-Roman').fontSize(9)
-            .text('TO :', 395, 40, { indent: 20 })
+            .text('TO :', 395, 40)
             .text(data.address1, { width: 200 })
             //.moveDown()
             .text(data.address2, { width: 200 })
@@ -997,11 +1000,11 @@ export class PdfgenerateService {
             .text('PAYMENT INSTRUCTION', 35, tableYStart + 280)
             .text(':', 200, tableYStart + 280)
 
-        doc.fontSize(10).text(this.numberToWords(total), 210, tableYStart + 265)
+        doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)}`, 210, tableYStart + 265)
             .fontSize(9).font('Times-Roman')
-            .text('- payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
+            .text('- Payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
             .text('or transfer to our acount : ', 39, tableYStart + 305)
-            .text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, tableYStart + 330)
+            //.text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, tableYStart + 330)
             .text('- Receipt will be given after payment', 35, tableYStart + 340)
             .fontSize(10).font('Times-Bold')
             .text('PT. First Jakarta International', 325, tableYStart + 295)
@@ -1161,14 +1164,14 @@ export class PdfgenerateService {
             .text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)}`, { indent: 15 })
 
         doc.rect(10, tableYStart + 70, 550, 1).stroke()
-            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 650, { width: 550, align: 'right' })
+            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
             .fontSize(9)
             .text('Note : This letter is an explanation of the Chilled Water, FCU calculation for Debit/Credit Note', 10, tableYStart + 85)
 
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, tableYStart + 150)
             .font('Times-Italic')
-            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, tableYStart + 150)
+            .text('This document does not need to be signed', 270, tableYStart + 150)
         doc.end();
 
 
@@ -1286,18 +1289,18 @@ export class PdfgenerateService {
 
         doc.fontSize(10)
             .text(`Periode Date ${moment(data.startPeriod).format('DD/MM/YYYY')} to ${moment(data.startPeriod).format('DD/MM/YYYY')}`, 20, textYStart + 20)
-            .text(`In Words : ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))}`, 20, textYStart + 40)
+            .text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))}`, 20, textYStart + 40)
             // .text(`In Words : ${this.numberToWords(Math.round(totalAmount))}`, 20, textYStart + 40)
 
 
 
-            .text('FJI-FIN-FR-001-006/REV.0.0/27.02.2023', 0, 650, { width: 550, align: 'right' })
+            .text('FJI-FIN-FR-001-006/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
             .fontSize(9)
 
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, tableYStart + 120)
             .font('Times-Italic')
-            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, tableYStart + 120)
+            .text('This document does not need to be signed', 270, tableYStart + 120)
         doc.end();
 
         console.log(totalAmount)
@@ -1325,32 +1328,40 @@ export class PdfgenerateService {
         doc.pipe(writeStream);
 
         //header kiri
-        doc
-            .fontSize(10)
-            .font('Times-Bold').text("PT. FIRST JAKARTA INTERNATIONAL", 20, 30)
-            .moveDown()
-            .fontSize(9).font('Times-Roman')
-            .text("Sudirman Central Business District", 20)
-            .text("Jl. Jend. Sudirman Kav. 52-53 Jakarta 12190", 20)
-            .text("Jakarta 12190, Indonesia", 20)
-            .text("Telp. (021) 515 1515  Fax : (021) 515 3008", 20)
+        // doc
+        //     .fontSize(10)
+        //     .font('Times-Bold').text("PT. FIRST JAKARTA INTERNATIONAL", 20, 30)
+        //     .moveDown()
+        //     .fontSize(9).font('Times-Roman')
+        //     .text("Sudirman Central Business District", 20)
+        //     .text("Jl. Jend. Sudirman Kav. 52-53 Jakarta 12190", 20)
+        //     .text("Jakarta 12190, Indonesia", 20)
+        //     .text("Telp. (021) 515 1515  Fax : (021) 515 3008", 20)
+
+        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
+            .fontSize(12)
+            .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
+            .fontSize(8).font('Times-Roman')
+            .text("Indonesia Stock Exchange Building Tower 2, 30th floor, SCBD", 60, 46)
+            .text("Jl. Jend. Sudirman Kav. 52-53 Jakarta 12190", 60, 54)
+            .text("Tel. (021) 515 1515 (Hunting) Fax : (021) 515 3008", 60, 62)
 
 
 
         //header kanan
-        doc.rect(280, 30, 280, 80).stroke()
+        doc.rect(300, 30, 260, 80).stroke()
         doc.font('Times-Roman').fontSize(10)
-            .text('TO :', 285, 40)
+            .text('TO :', 305, 40)
         if (data.tradeName !== "") {
-            doc.font('Times-Bold').text(data.tradeName, { width: 280 })
+            doc.font('Times-Bold').text(data.tradeName, { width: 260 })
         }
         else {
-            doc.text(data.debtorName, { width: 280 })
+            doc.text(data.debtorName, { width: 260 })
         }
         doc.moveDown()
             .font('Times-Roman')
-            .text(data.address1, { width: 280 })
-            .text(data.address2, { width: 280 })
+            .text(data.address1, { width: 260 })
+            .text(data.address2, { width: 260 })
             .text(`${data.address3}`, { width: 200 })
 
         const docDate = moment(data.docDate).format('DD/MM/YYYY')
@@ -1394,7 +1405,7 @@ export class PdfgenerateService {
             .text(data.currencyCd, 368, 470)
 
         const baseAmount = Number(data.baseAmount)
-        const taxAmount = Number(data.baseAmount)
+        const taxAmount = Number(data.taxAmount)
         const docAmt = Number(data.docAmount)
         const formattedBaseAmount = (baseAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
         const formattedTaxAmount = (taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
@@ -1407,20 +1418,20 @@ export class PdfgenerateService {
             .text(formattedTotal, 460, 430)
             .text(formattedTotal, 460, 470)
 
-        doc.text('Please Transfer the amount to out account at :', 30, 400, { underline: true })
+        doc.text('Please Transfer the amount to our account at :', 30, 400, { underline: true })
             .text(`${data.bankNameRp}`, 30, 430)
-            .text(`RP ${data.acctRp}`, 190, 430)
+            .text(`${data.acctRp}`, 190, 430)
             .text(`TOTAL`, 310, 470)
         if (data.bankNameUsd !== "" && data.acctUsd !== "") {
             doc.text(`${data.bankNameUsd}`, 30, 470)
-                .text(`USD ${data.acctUsd}`, 190, 470)
+                .text(`${data.acctUsd}`, 190, 470)
         }
 
-        doc.text('payment should be mande in the form of crossed cheque or giro payable to', 30, 510)
+        doc.text('Payment should be made to the form of crossed cheque or giro payable to', 30, 510)
             .font('Times-Bold').text('PT. FIRST JAKARTA INTERNATIONAL')
             .font('Times-Roman').text('or transfer to the above account bank', 240, 521)
-            .text('We will send the original debit note after we receiced your payment', 30, 545)
-            .text('Please Call us if you have any question')
+            .text('We will send the original debit note after we received your payment', 30, 545)
+            .text('Please call us if you have any question')
 
         doc.font('Times-Bold').fontSize(10)
             .text('PT. FIRST JAKARTA INTERNATIONAL', 370, 590)
@@ -1434,13 +1445,16 @@ export class PdfgenerateService {
         }
         doc.moveDown()
             .moveDown()
+            .moveDown()
+            .moveDown()
             .text(data.signature, { width: 190, align: 'center' })
+            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
 
 
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, 700)
             .font('Times-Italic')
-            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, 700)
+            .text('This document does not need to be signed', 270, 700)
         doc.end();
 
 
@@ -1556,6 +1570,7 @@ export class PdfgenerateService {
             .text('Total', 300, 385, { align: 'right', width: 80 })
 
 
+            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
             .rect(20, 450, 550, 1).stroke()
             .text('In Words : ', 20, 460)
             .text(`Indoneisan Rupiah ${inWords}`, 50, 475)
@@ -1565,7 +1580,7 @@ export class PdfgenerateService {
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, 540)
             .font('Times-Italic')
-            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, 540)
+            .text('This document does not need to be signed', 270, 540)
         doc.end();
 
         return ({
@@ -1675,9 +1690,14 @@ export class PdfgenerateService {
 
             .text('Consumption Charge', 20, 355).text('=', 130, 355)
             .text('Minimum Charge 40 hours', 140, 355)
-            .text(`40 x...(KVA) x... (Tarif Blok 1)...`)
 
-            .text('Blok 1', 20, 380, { width: 100, align: 'left' })
+        if (data.flashHours > 40) {
+            doc.text(`40 x...(KVA) x... (Tarif Blok 1)...`)
+        } else {
+            doc.text(`${minUsageHour} h x ${capacity} KVA x Rp. ${usageRate1}`)
+        }
+
+        doc.text('Blok 1', 20, 380, { width: 100, align: 'left' })
             .text('=', 130, 380)
             .text(`( 60h x ${capacity} KVA ) X Rp. ${usageRate1}`, 140, 380)
         if (Number(data.flashHours) > 40) {
@@ -1740,7 +1760,7 @@ export class PdfgenerateService {
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, 640)
             .font('Times-Italic')
-            .text('Dokumen ini tidak perlu dibubuhi tanda tangan', 270, 640)
+            .text('This document does not need to be signed', 270, 640)
         doc.end();
 
         return ({
@@ -1839,7 +1859,7 @@ export class PdfgenerateService {
         doc.fontSize(15).font('Times-Roman')
             .text(`Authorized Signature`, 350, 600, { align: 'center' })
             .text(`emeterei`, 350, 650, { align: 'center' })
-            .text(`${data.namaPenerima}`, 350, 700, { align: 'center' })
+            .text(`${data.namaPenerima}`, 350, 730, { align: 'center' })
         doc.end();
 
         return ({

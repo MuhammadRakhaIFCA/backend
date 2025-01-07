@@ -7,6 +7,16 @@ import { generateDto } from './dto/generate.dto';
 export class ApiInvoiceController {
   constructor(private readonly apiInvoiceService: ApiInvoiceService) { }
 
+  @Get('invoice/stamp/:status')
+  async getStamp(@Param('status') status: string) {
+    return this.apiInvoiceService.getStamp(status)
+  }
+
+  @Get('invoice/stamp-history')
+  async getStampHistory() {
+
+  }
+
   @Get('invoice/email')
   //@UseGuards(AuthGuard('jwt'))
   async getInvoice() {
@@ -73,8 +83,10 @@ export class ApiInvoiceController {
     @Query('doc_no') doc_no: string,
     @Query('process_id') process_id: string,
     @Query('approval_user') approval_user: string,
+    @Query('approval_remarks') approval_remarks: string,
+    @Query('approval_status') approval_status: string,
   ) {
-    return this.apiInvoiceService.approve(doc_no, process_id, approval_user);
+    return this.apiInvoiceService.approve(doc_no, process_id, approval_user, approval_remarks, approval_status);
   }
   @Get('invoice-reject')
   async reject(

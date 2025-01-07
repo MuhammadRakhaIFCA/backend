@@ -11,15 +11,9 @@ import * as path from 'path';
 export class PeruriController {
   constructor(private readonly peruriService: PeruriService, private readonly uploadService: UploadService) { }
 
-  @Post('generatesn')
-  generateSn(@Body() dto: Record<any, any>) {
-    return this.peruriService.generateSn(dto)
-  }
-
   @Post('stamp')
-  async stamp(@Body() dto: StampDto) {
-    //const coordinates = await this.uploadService.getCoordinates
-    const sn = await this.peruriService.stamp(dto)
+  async stamp(@Body() body: Record<any, any>) {
+    return await this.peruriService.stamping(body)
   }
 
   @Post('manual-stamp')

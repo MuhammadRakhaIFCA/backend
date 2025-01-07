@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import { PdfgenerateService } from 'src/pdfgenerate/pdfgenerate.service';
 import * as ftp from 'basic-ftp';
 import * as path from 'path';
+import { FjiDatabaseService } from 'src/database/database-fji.service';
 
 @Injectable()
 export class ReceiptService {
@@ -14,7 +15,7 @@ export class ReceiptService {
     constructor(
         private readonly sqlserver: SqlserverDatabaseService,
         private readonly postgre: DatabaseService,
-        private readonly httpService: HttpService,
+        private readonly fjiDatabase: FjiDatabaseService,
         private readonly pdfService: PdfgenerateService
     ) {
         this.client = new ftp.Client();
@@ -77,22 +78,11 @@ export class ReceiptService {
 
     async getReceipt() {
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT doc_no,file_status,* FROM mgr.ar_email_or_dtl
-                WHERE doc_amt < 5000000 
-                    AND file_status IS NULL 
-                    AND process_id = '0'
-                    OR (doc_amt >= 5000000 AND file_status IN ('S', 'N'))
-                    AND NOT EXISTS (
-                        SELECT * FROM mgr.ar_email_or
-                            WHERE mgr.ar_email_or.entity_cd = mgr.ar_email_or_dtl.entity_cd
-                            AND mgr.ar_email_or.project_no = mgr.ar_email_or_dtl.project_no
-                            AND mgr.ar_email_or.debtor_acct = mgr.ar_email_or_dtl.debtor_acct
-                            AND mgr.ar_email_or.gen_date = mgr.ar_email_or_dtl.gen_date
-                            AND mgr.ar_email_or.process_id = mgr.ar_email_or_dtl.process_id
-                            AND mgr.ar_email_or.send_status IN ('S', 'F')
-                        )
-                ORDER BY rowid DESC
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.ar_blast_or WHERE doc_amt <= 5000000
+                AND file_status_sign IS NULL
+                AND status_process_sign = 'N'
+                AND send_id IS NULL
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -115,9 +105,10 @@ export class ReceiptService {
     }
     async getReceiptDetail(doc_no: string) {
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_or_dtl
-                WHERE doc_no = '${doc_no}'
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.ar_blast_or
+                WHERE send_id IS NULL
+                AND doc_no = '${doc_no}'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -143,11 +134,11 @@ export class ReceiptService {
         const { startDate, endDate, status } = data
         try {
             const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_or 
-                WHERE process_id != '0' 
-                        AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-                        AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-                        AND send_status = '${status}'
+                SELECT * FROM mgr.ar_blast_or 
+                WHERE send_id IS NOT NULL 
+                    AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+                    AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+                    AND send_status = '${status}'
                     ORDER BY send_date DESC
             `)
             if (!result || result.length === 0) {
@@ -169,11 +160,12 @@ export class ReceiptService {
             );
         }
     }
-    async getHistoryDetail(process_id: string) {
+    async getHistoryDetail(email_addr: string, doc_no: string) {
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_or_dtl
-                WHERE process_id = '${process_id}'
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.ar_blast_or
+                WHERE doc_no = '${doc_no}'
+                AND email_addr LIKE '%${email_addr}%'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -198,7 +190,7 @@ export class ReceiptService {
     async getStamp(status: string) {
         let file_status = ''
         if (status === "S") {
-            file_status = "IS NULL AND process_id = '0'"
+            file_status = "IS NULL AND send_id IS NULL"
         } else if (status === "F") {
             file_status = "IN ('P', 'A', 'F')"
         } else {
@@ -209,8 +201,8 @@ export class ReceiptService {
             });
         }
         try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_email_or_dtl 
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM  mgr.ar_blast_or
                 WHERE doc_amt >= 5000000 
                 AND file_status ${file_status}
             `)
@@ -316,12 +308,11 @@ export class ReceiptService {
             })
         }
         try {
-            const result: Array<any> = await this.postgre.$queryRawUnsafe(`
-                SELECT * FROM file 
-                WHERE company_cd = '${company_cd}' 
-                AND TO_CHAR(stamp_date, 'YYYYMMDD') >= '${startDate}'
-                AND TO_CHAR(stamp_date, 'YYYYMMDD') <= '${endDate}'
-                ORDER BY id ASC
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.peruri_stamp_file_log WHERE company_cd = '${company_cd}' 
+                AND file_type = 'receipt'
+                AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= '${startDate}' 
+                AND year(audit_date)*10000+month(audit_date)*100+day(audi_date) <= '${endDate}'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)

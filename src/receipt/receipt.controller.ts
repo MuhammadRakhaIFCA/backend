@@ -22,9 +22,12 @@ export class ReceiptController {
   async getHistory(@Body() data: Record<any, any>) {
     return this.receiptService.getHistory(data);
   }
-  @Get('email-history-detail/:process_id')
-  async getHistoryDetail(@Param('process_id') process_id: string) {
-    return this.receiptService.getHistoryDetail(process_id);
+  @Get('email-history-detail/:email_addr/:doc_no')
+  async getHistoryDetail(
+    @Param('email_addr') email_addr: string,
+    @Param('doc_no') doc_no: string,
+  ) {
+    return this.receiptService.getHistoryDetail(email_addr, doc_no);
   }
 
   @Get('stamp/:status')

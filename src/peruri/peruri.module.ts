@@ -6,9 +6,10 @@ import { HttpModule } from '@nestjs/axios';
 import { UploadModule } from 'src/upload/upload.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { FjiDatabaseModule } from 'src/database/database-fji.module';
 
 @Module({
-  imports: [HttpModule, DatabaseModule, UploadModule,
+  imports: [HttpModule, DatabaseModule, UploadModule, FjiDatabaseModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads',

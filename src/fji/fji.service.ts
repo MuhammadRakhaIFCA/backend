@@ -511,6 +511,26 @@ export class FjiService {
         try {
             const result = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.m_type_invoice WHERE type_id = ${type_id}
+               
+                `)
+            return ({
+                statusCode: 200,
+                message: "type get",
+                data: result
+            })
+        } catch (error) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "type not found",
+                data: []
+            })
+        }
+    }
+    async getTypeDtlById(type_id: number) {
+
+        try {
+            const result = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_type_invoice_dtl WHERE type_id = ${type_id}
                 `)
             return ({
                 statusCode: 200,
