@@ -197,7 +197,8 @@ export class PdfgenerateService {
         const formattedAllocAmt = allocAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         //header kiri
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
+        const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
+        doc.image(`${imagePath}`, 15, 25, { width: 40, height: 45 })
             .fontSize(12)
             .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
             .fontSize(8).font('Times-Roman')
@@ -206,8 +207,8 @@ export class PdfgenerateService {
             .text("Tel. (021) 515 1515 (Hunting) Fax : (021) 515 3008", 60, 62)
 
         //header tengah
-
-        doc.image(`${rootFolder}images/cushman-and-wakefield-logo.png`, 280, 44, { width: 100, heigth: 30 })
+        const cushmanPath = path.resolve(__dirname, '../../public/images/cushman-and-wakefield-logo.png');
+        doc.image(cushmanPath, 280, 44, { width: 100, heigth: 30 })
             .fontSize(5)
             .text('Property Management', 280, 35, { width: 100, align: 'center' })
 
@@ -905,8 +906,9 @@ export class PdfgenerateService {
 
         //header kiri
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
-            .fontSize(12)
+        const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
+        doc.image(imagePath, 15, 25, { width: 40, height: 45 })
+        doc.fontSize(12)
             .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
             .fontSize(8).font('Times-Roman')
             .text("Indonesia Stock Exchange Building Tower 2, 30th floor, SCBD", 60, 46)
@@ -914,8 +916,10 @@ export class PdfgenerateService {
             .text("Tel. (021) 515 1515 (Hunting) Fax : (021) 515 3008", 60, 62)
 
         //header tengah
-        doc.image(`${rootFolder}images/cushman-and-wakefield-logo.png`, 280, 44, { width: 100, heigth: 30 })
-            .fontSize(5)
+
+        const cushmanPath = path.resolve(__dirname, '../../public/images/cushman-and-wakefield.png');
+        doc.image(`images/cushman-and-wakefield-logo.png`, 280, 44, { width: 100, heigth: 30 })
+        doc.fontSize(5)
             .text('Property Management', 280, 35, { width: 100, align: 'center' })
 
         //header kanan
@@ -1336,8 +1340,9 @@ export class PdfgenerateService {
         //     .text("Jakarta 12190, Indonesia", 20)
         //     .text("Telp. (021) 515 1515  Fax : (021) 515 3008", 20)
 
-        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
-            .fontSize(12)
+        const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
+        doc.image(imagePath, 15, 25, { width: 40, height: 45 })
+        doc.fontSize(12)
             .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
             .fontSize(8).font('Times-Roman')
             .text("Indonesia Stock Exchange Building Tower 2, 30th floor, SCBD", 60, 46)
@@ -1781,8 +1786,9 @@ export class PdfgenerateService {
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
         //header kiri
-        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
-            .fontSize(12)
+        const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
+        doc.image(imagePath, 15, 25, { width: 40, height: 45 })
+        doc.fontSize(12)
             .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
             .fontSize(8).font('Times-Roman')
             .text("Indonesia Stock Exchange Building Tower 2, 30th floor, SCBD", 60, 46)
@@ -1790,7 +1796,8 @@ export class PdfgenerateService {
             .text("Tel. (021) 515 1515 Fax : (021) 515 3006", 60, 62)
 
 
-        doc.image(`${rootFolder}images/cushman-and-wakefield-logo.png`, 400, 45, { width: 150, heigth: 30 })
+        const cushmanPath = path.resolve(__dirname, '../../public/images/cushman-and-wakefield-logo.png');
+        doc.image(cushmanPath, 400, 45, { width: 150, heigth: 30 })
             .fontSize(10)
             .text('Property Management : ', 400, 32, { width: 150, align: 'center' })
 
