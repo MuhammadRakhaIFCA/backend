@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as moment from 'moment';
-import { SqlserverDatabaseService } from 'src/database/database-sqlserver.service';
+// import { SqlserverDatabaseService } from 'src/database/database-sqlserver.service';
 import { PdfgenerateService } from 'src/pdfgenerate/pdfgenerate.service';
 import { generateDto } from './dto/generate.dto';
 import * as ftp from 'basic-ftp';
@@ -13,14 +13,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
 import { Prisma } from '@prisma/client';
-import AdmZip from 'adm-zip';
 import axios from 'axios';
+import * as AdmZip from 'adm-zip';
+import { firstValueFrom } from 'rxjs';
+import { UnknownErrorException } from 'pdfjs-dist/types/shared/util';
 
 @Injectable()
 export class ApiInvoiceService {
   private client: ftp.Client;
   constructor(
-    private readonly sqlserver: SqlserverDatabaseService,
+    //private readonly sqlserver: SqlserverDatabaseService,
     private readonly fjiDatabase: FjiDatabaseService,
     private readonly httpService: HttpService,
     private readonly pdfService: PdfgenerateService,
@@ -133,37 +135,37 @@ export class ApiInvoiceService {
     }
   }
 
-  async getHistory(data: Record<any, any>) {
-    const { startDate, endDate, status } = data;
-    try {
-      const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
-                INNER JOIN mgr.ar_debtor ad 
-                ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-                WHERE send_id IS NOT NULL 
-                AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-                AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-                AND send_status = '${status}'
-                ORDER BY send_date DESC
-            `);
-      if (!result || result.length === 0) {
-        throw new NotFoundException({
-          statusCode: 404,
-          message: 'No history yet',
-          data: [],
-        });
-      }
-      return {
-        statusCode: 200,
-        message: 'history retrieved successfully',
-        data: result,
-      };
-    } catch (error) {
-      throw new NotFoundException(error.response);
-    }
-  }
+  // async getHistory(data: Record<any, any>) {
+  //   const { startDate, endDate, status } = data;
+  //   try {
+  //     const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
+  //               SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+  //               INNER JOIN mgr.ar_debtor ad 
+  //               ON abia.debtor_acct = ad.debtor_acct
+  //               AND abia.entity_cd = ad.entity_cd
+  //               AND abia.project_no = ad.project_no
+  //               WHERE send_id IS NOT NULL 
+  //               AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+  //               AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+  //               AND send_status = '${status}'
+  //               ORDER BY send_date DESC
+  //           `);
+  //     if (!result || result.length === 0) {
+  //       throw new NotFoundException({
+  //         statusCode: 404,
+  //         message: 'No history yet',
+  //         data: [],
+  //       });
+  //     }
+  //     return {
+  //       statusCode: 200,
+  //       message: 'history retrieved successfully',
+  //       data: result,
+  //     };
+  //   } catch (error) {
+  //     throw new NotFoundException(error.response);
+  //   }
+  // }
 
   async getHistoryDetail(email_addr: string, doc_no: string) {
     try {
@@ -1028,7 +1030,7 @@ export class ApiInvoiceService {
     } = data;
 
     try {
-      const result = await this.fjiDatabase.$executeRawUnsafe(`
+      const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                     INSERT INTO mgr.ar_blast_inv_approval 
                     (entity_cd, project_no, debtor_acct, email_addr, 
                     gen_date, bill_type, doc_no, doc_date, descs, doc_amt, filenames, filenames2, gen_flag, process_id, 
@@ -1340,42 +1342,75 @@ export class ApiInvoiceService {
   }
 
   async downloadStampedInvoice(start_date: string, end_date: string) {
+    const rootFolder = process.env.ROOT_PDF_FOLDER
+    const ftpBaseUrl = process.env.FTP_BASE_URL
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.ar_blast_inv
                WHERE year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= ${start_date}
                AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= ${end_date}
                 `);
-
-      if (!result.length) {
+      if (result.length === 0) {
         throw new NotFoundException({
           statusCode: 404,
           message: 'No stamped invoice yet',
           data: [],
         });
       }
-      const zip = new AdmZip();
 
-      for (const record of result) {
-        const filenames = `${record.filenames.slice(0, -4)}_signed.pdf`;
-        const invoice_tipe = record.invoice_tipe.toUpperCase();
-        const fileUrl = `https://nfsdev.property365.co.id:4422/UNSIGNED/GQCINV/${invoice_tipe}/${filenames}`;
-        console.log(filenames);
-        console.log(invoice_tipe);
+      const zip = new AdmZip();
+      for (let i = 0; i < result.length; i++) {
+        const filenames = `${result[i].filenames.slice(0, -4)}_signed.pdf`;
+        const invoice_tipe = result[i].invoice_tipe.toUpperCase();
+        const fileUrl = `${ftpBaseUrl}SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
         try {
           // Download the PDF file
-          const response = await axios.get(fileUrl, {
-            responseType: 'arraybuffer',
-          });
-          // Add to ZIP
+          const response = await firstValueFrom(this.httpService.get(fileUrl, { responseType: 'arraybuffer' }));
+          console.log("in try : " + fileUrl)
           zip.addFile(filenames, Buffer.from(response.data));
         } catch (error) {
+          console.log("in catch : " + fileUrl)
           continue;
-          console.error(`Failed to download file ${filenames}:`, error.message);
         }
       }
-      return zip.toBuffer();
+
+      const localFolderPath = `${rootFolder}download/`;
+      const zipFileName = `stamped_${start_date}_to_${end_date}.zip`;
+      const zipFilePath = `${localFolderPath}${zipFileName}`;
+      const remoteFolderPath = `/SIGNED/GQCINV/DOWNLOAD/`;
+      const remoteZipPath = `${remoteFolderPath}${zipFileName}`;
+      console.log("ftp zip path : " + remoteZipPath)
+      await this.connect();
+
+      if (!fs.existsSync(localFolderPath)) {
+        fs.mkdirSync(localFolderPath, { recursive: true });
+      }
+      zip.writeZip(zipFilePath);
+
+      await this.client.ensureDir(remoteFolderPath);
+
+      try {
+
+        await this.client.ensureDir(remoteFolderPath);
+        await this.upload(zipFilePath, remoteZipPath);
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Failed to upload file',
+          data: [],
+        })
+      } finally {
+        await this.disconnect();
+      }
+      return ({
+        statusCode: 200,
+        message: 'Stamped invoice downloaded successfully',
+        data: [{
+          url: `${ftpBaseUrl}${remoteZipPath}`
+        }]
+      })
     } catch (error) {
+      console.log(error)
       throw new BadRequestException(error.response);
     }
   }

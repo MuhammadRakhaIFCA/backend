@@ -30,6 +30,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.11",
     "@prisma/client": "^5.22.0",
+    "@types/adm-zip": "^0.5.7",
     "adm-zip": "^0.5.16",
     "axios": "^1.7.7",
     "basic-ftp": "^5.0.5",

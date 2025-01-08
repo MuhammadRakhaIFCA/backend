@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client-sqlserver-fji';
+import { PrismaClient } from '@prisma/client';
+
 
 @Injectable()
 export class FjiDatabaseService extends PrismaClient implements OnModuleInit {

@@ -237,7 +237,7 @@ export class PeruriService {
 
     //7. hit api untuk dapat coordinate llx, lly, urx dan ury
     const pdfpath = `${rootFolder}${file_type}/${file_name}`;
-    const coordinates = await this.getCoordinates(pdfpath, 'Emeterei', 1);
+    const coordinates = await this.getCoordinates(pdfpath, 'E-meterai', 1);
 
     // console.log("pdf path : " + pdfpath)
     // console.log("coordinates : " + coordinates.data[0])

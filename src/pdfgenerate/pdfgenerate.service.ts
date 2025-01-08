@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import { SqlserverDatabaseService } from 'src/database/database-sqlserver.service';
 import * as moment from 'moment'
 import * as ftp from 'basic-ftp';
 import * as path from 'path';
@@ -13,7 +12,6 @@ import { FjiDatabaseService } from 'src/database/database-fji.service';
 export class PdfgenerateService {
     private client: ftp.Client;
     constructor(
-        private readonly sqlserver: SqlserverDatabaseService,
         private readonly fjiDatabase: FjiDatabaseService
     ) {
         this.client = new ftp.Client();
@@ -330,7 +328,7 @@ export class PdfgenerateService {
             .fontSize(11).font('Times-Roman')
             .text('Authorized officer', 480, tableYStart + 280, { width: 90, align: 'center' })
         if (total >= 5000000) {
-            doc.text('Emeterei', 480, tableYStart + 320, { width: 90, align: 'center' })
+            doc.text('E-meterai', 480, tableYStart + 320, { width: 90, align: 'center' })
         }
         doc.font('Times-Bold')
             .text(data.signature, 480, tableYStart + 380, { width: 90, align: 'center' })
@@ -1441,7 +1439,7 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
         if (data.docAmount >= 5000000) {
-            doc.text('Emeterei', { width: 190, align: 'center' })
+            doc.text('E-meterai', { width: 190, align: 'center' })
         }
         doc.moveDown()
             .moveDown()
@@ -1766,6 +1764,124 @@ export class PdfgenerateService {
         return ({
             statusCode: 201,
             message: "invoice created",
+        })
+    }
+
+    async generateOR(data: Record<any, any>) {
+        const doc = new PDFDocument({ margin: 0, size: 'a4' });
+        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const filePath = `${rootFolder}or/${data.doc_no}.pdf`;
+        const raw_fdoc_amt = Number(data.fdoc_amt)
+        const fdoc_amt = raw_fdoc_amt.toLocaleString('en-US', { minimumFractionDigits: 2 })
+        const doc_date = moment(data.doc_date).format('DD/MM/YYYY')
+
+        if (!fs.existsSync(`${rootFolder}or}`)) {
+            fs.mkdirSync(`${rootFolder}or`, { recursive: true });
+        }
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+        //header kiri
+        doc.image(`${rootFolder}images/first-jakarta-logo.png`, 15, 25, { width: 40, height: 45 })
+            .fontSize(12)
+            .font('Times-Bold').text("PT FIRST JAKARTA INTERNATIONAL", 60, 32)
+            .fontSize(8).font('Times-Roman')
+            .text("Indonesia Stock Exchange Building Tower 2, 30th floor, SCBD", 60, 46)
+            .text("Jl. Jend. Sudirman Kav. 52-53 Jakarta 12190, Indonesia", 60, 54)
+            .text("Tel. (021) 515 1515 Fax : (021) 515 3006", 60, 62)
+
+
+        doc.image(`${rootFolder}images/cushman-and-wakefield-logo.png`, 400, 45, { width: 150, heigth: 30 })
+            .fontSize(10)
+            .text('Property Management : ', 400, 32, { width: 150, align: 'center' })
+
+            .fontSize(16).font('Times-Bold')
+            .text('OFFICIAL RECEIPT', 0, 130, { align: 'center' })
+
+            .rect(350, 160, 200, 15).stroke()
+            .rect(350, 175, 200, 15).stroke()
+            .rect(450, 160, 100, 30).stroke()
+            .fontSize(10)
+            .text('O/R No. ', 360, 164)
+            .text('Date ', 360, 179)
+            .font('Times-Roman')
+            .text(':', 440, 164)
+            .text(':', 440, 179)
+            .text(`${data.doc_no}`, 450, 164, { width: 100, align: 'center' })
+            .text(`${doc_date}`, 450, 179, { width: 100, align: 'center' })
+
+            .rect(20, 205, 150, 25).stroke()
+            .rect(20, 205, 530, 25).stroke()
+
+            .rect(20, 240, 150, 25).stroke()
+            .rect(20, 240, 300, 25).stroke()
+
+            .fontSize(12).font('Times-Bold')
+            .text('RECEIVED FROM', 30, 215)
+            .text('AMOUNT', 30, 250)
+            .font('Times-Roman')
+            .text(`${data.name}`, 190, 215)
+            .text(`${data.currency_cd} ${fdoc_amt}`, 190, 250)
+
+        doc.font('Times-Bold').fontSize(10)
+            .text('In Words', 20, 300)
+            .text('In Payment of', 20, 350)
+            .text('Paid By', 20, 370)
+            .text('Authorized Signature', 450, 350, { width: 100, align: 'center' })
+            .font('Times-Roman')
+            .text(':', 170, 300)
+            .text(':', 170, 350)
+            .text(':', 170, 370)
+            .text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)}`, 190, 300, { width: 365 })
+            .text(`${data.descs}`, 190, 350)
+        if (raw_fdoc_amt >= 5000000) {
+            doc.text('E-Meterei', 450, 400, { width: 100, align: 'center' })
+        }
+        if (data.or_paid_by === 'C') {
+            doc.text('Cash', 190, 370)
+        }
+        else if (data.or_paid_by === 'B') {
+            doc.text('Bank', 190, 370)
+        }
+        else if (data.or_paid_by === 'T') {
+            doc.text('Transfer', 190, 370)
+        }
+        else if (data.or_paid_by === 'Q') {
+            doc.text('Cheque', 190, 370)
+        }
+        else if (data.or_paid_by === 'G') {
+            doc.text('Giro / Cheque', 190, 370)
+                .text('Giro No : ______________')
+        }
+        doc.fontSize(8)
+            .text('The Official Receipt is valid only after the cheque (s) / Giro', 20, 400)
+            .text('has been cleared')
+        doc.end()
+
+        // try {
+        //     await this.connect();
+        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
+        //     const filePath = `${rootFolder}or/${data.doc_no}.pdf`;
+        //     if (!fs.existsSync(filePath)) {
+        //         console.error(`Local file does not exist: ${filePath}`);
+        //     }
+
+        //     await this.upload(filePath, `/UNSIGNED/GQCINV/OR/${data.doc_no}.pdf`);
+
+        // } catch (error) {
+        //     console.log("Error during upload:.", error);
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: 'Failed to upload to FTP',
+        //         data: [error],
+        //     });
+        // } finally {
+        //     console.log("Disconnecting from FTP servers");
+        //     await this.disconnect();
+        // }
+        return ({
+            statusCode: 201,
+            message: "invoice created!",
+            data: filePath
         })
     }
 

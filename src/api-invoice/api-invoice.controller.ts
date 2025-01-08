@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiInvoiceService } from './api-invoice.service';
 import { AuthGuard } from '@nestjs/passport';
 import { generateDto } from './dto/generate.dto';
@@ -28,11 +28,11 @@ export class ApiInvoiceController {
   async getInvoiceDetail(@Param('doc_no') doc_no: string) {
     return this.apiInvoiceService.getInvoiceDetail(doc_no);
   }
-  @Post('invoice/email-history')
-  //@UseGuards(AuthGuard('jwt'))
-  async getHistory(@Body() data: Record<any, any>) {
-    return this.apiInvoiceService.getHistory(data);
-  }
+  // @Post('invoice/email-history')
+  // //@UseGuards(AuthGuard('jwt'))
+  // async getHistory(@Body() data: Record<any, any>) {
+  //   return this.apiInvoiceService.getHistory(data);
+  // }
   @Get('invoice/email-history-detail/:email_addr/:doc_no')
   //@UseGuards(AuthGuard('jwt'))
   async getHistoryDetail(
@@ -142,32 +142,7 @@ export class ApiInvoiceController {
   async downloadPdfsAsZip(
     @Query('start_date') start_date: string,
     @Query('end_date') end_date: string,
-    @Res() res: Response,
   ) {
-    try {
-      // Generate the ZIP file buffer
-      const zipBuffer = await this.apiInvoiceService.downloadStampedInvoice(start_date, end_date);
-
-      // Set response headers for ZIP download
-      res.set({
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename=pdfs_${Date.now()}.zip`,
-        'Content-Length': zipBuffer.length,
-      });
-
-      // Send the ZIP file
-      res.send(zipBuffer);
-      return {
-        statusCode: 200,
-        message: 'PDFs downloaded successfully. ',
-        data: []
-      }
-    } catch (error) {
-      console.error('Error:', error.message);
-      throw new HttpException(
-        { message: 'Failed to generate ZIP', details: error },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+    return await this.apiInvoiceService.downloadStampedInvoice(start_date, end_date)
   }
 }

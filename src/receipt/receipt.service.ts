@@ -1,6 +1,5 @@
 import { HttpService } from '@nestjs/axios';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { SqlserverDatabaseService } from 'src/database/database-sqlserver.service';
 import * as moment from 'moment';
 import * as fs from 'fs';
 import { PdfgenerateService } from 'src/pdfgenerate/pdfgenerate.service';
@@ -12,9 +11,8 @@ import { FjiDatabaseService } from 'src/database/database-fji.service';
 export class ReceiptService {
     private client: ftp.Client;
     constructor(
-        private readonly sqlserver: SqlserverDatabaseService,
         private readonly fjiDatabase: FjiDatabaseService,
-        private readonly pdfService: PdfgenerateService
+        private readonly pdfgenerateService: PdfgenerateService
     ) {
         this.client = new ftp.Client();
         this.client.ftp.verbose = true;
@@ -128,36 +126,36 @@ export class ReceiptService {
         }
     }
 
-    async getHistory(data: Record<any, any>) {
-        const { startDate, endDate, status } = data
-        try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_blast_or 
-                WHERE send_id IS NOT NULL 
-                    AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-                    AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-                    AND send_status = '${status}'
-                    ORDER BY send_date DESC
-            `)
-            if (!result || result.length === 0) {
-                console.log(result.length)
-                throw new NotFoundException({
-                    statusCode: 404,
-                    message: 'No history yet',
-                    data: [],
-                });
-            }
-            return {
-                statusCode: 200,
-                message: 'history retrieved successfully',
-                data: result,
-            };
-        } catch (error) {
-            throw new NotFoundException(
-                error.response
-            );
-        }
-    }
+    // async getHistory(data: Record<any, any>) {
+    //     const { startDate, endDate, status } = data
+    //     try {
+    //         const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
+    //             SELECT * FROM mgr.ar_blast_or 
+    //             WHERE send_id IS NOT NULL 
+    //                 AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+    //                 AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+    //                 AND send_status = '${status}'
+    //                 ORDER BY send_date DESC
+    //         `)
+    //         if (!result || result.length === 0) {
+    //             console.log(result.length)
+    //             throw new NotFoundException({
+    //                 statusCode: 404,
+    //                 message: 'No history yet',
+    //                 data: [],
+    //             });
+    //         }
+    //         return {
+    //             statusCode: 200,
+    //             message: 'history retrieved successfully',
+    //             data: result,
+    //         };
+    //     } catch (error) {
+    //         throw new NotFoundException(
+    //             error.response
+    //         );
+    //     }
+    // }
     async getHistoryDetail(email_addr: string, doc_no: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -223,79 +221,79 @@ export class ReceiptService {
             );
         }
     }
-    async getStamps(data: Record<any, any>) {
-        const { startDate, endDate } = data
-        try {
-            const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-                SELECT TOP(5) * FROM mgr.ar_email_or_dtl 
-                WHERE doc_amt >= 5000000 
-                AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= '${startDate}'
-                AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= '${endDate}'
-            `)
-            if (!result || result.length === 0) {
-                console.log(result.length)
-                throw new NotFoundException({
-                    statusCode: 404,
-                    message: 'No stamp yet',
-                    data: [],
-                });
-            }
-            return {
-                statusCode: 200,
-                message: 'stamp retrieved successfully',
-                data: result,
-            };
-        } catch (error) {
-            throw new NotFoundException(
-                error.response
-            );
-        }
-    }
-    async generateReceipt(doc_no: string) {
-        const result = await this.sqlserver.$queryRawUnsafe(`
-            SELECT * FROM mgr.ar_email_or_dtl  
-                WHERE doc_no = '${doc_no}'
-            `)
-        const pdfBody = {
-            no: `BI${moment(result[0]?.gen_date).format('YYDDMM')}26` || null,
-            date: moment(result[0]?.gen_date).format('DD/MM/YYYY') || null,
-            receiptFrom: `${result[0]?.debtor_acct} - ${result[0]?.debtor_name}` || null,
-            amount: result[0]?.doc_amt || 10000,
-            forPayment: result[0]?.doc_no || null,
-            signedDate: moment(result[0]?.gen_date).format('DD MMMM YYYY') || null,
-            city: "jakarta",
-            billType: result[0]?.bill_type || null,
-        };
+    // async getStamps(data: Record<any, any>) {
+    //     const { startDate, endDate } = data
+    //     try {
+    //         const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
+    //             SELECT TOP(5) * FROM mgr.ar_email_or_dtl 
+    //             WHERE doc_amt >= 5000000 
+    //             AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= '${startDate}'
+    //             AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= '${endDate}'
+    //         `)
+    //         if (!result || result.length === 0) {
+    //             console.log(result.length)
+    //             throw new NotFoundException({
+    //                 statusCode: 404,
+    //                 message: 'No stamp yet',
+    //                 data: [],
+    //             });
+    //         }
+    //         return {
+    //             statusCode: 200,
+    //             message: 'stamp retrieved successfully',
+    //             data: result,
+    //         };
+    //     } catch (error) {
+    //         throw new NotFoundException(
+    //             error.response
+    //         );
+    //     }
+    // }
+    // async generateReceipt(doc_no: string) {
+    //     const result = await this.sqlserver.$queryRawUnsafe(`
+    //         SELECT * FROM mgr.ar_email_or_dtl  
+    //             WHERE doc_no = '${doc_no}'
+    //         `)
+    //     const pdfBody = {
+    //         no: `BI${moment(result[0]?.gen_date).format('YYDDMM')}26` || null,
+    //         date: moment(result[0]?.gen_date).format('DD/MM/YYYY') || null,
+    //         receiptFrom: `${result[0]?.debtor_acct} - ${result[0]?.debtor_name}` || null,
+    //         amount: result[0]?.doc_amt || 10000,
+    //         forPayment: result[0]?.doc_no || null,
+    //         signedDate: moment(result[0]?.gen_date).format('DD MMMM YYYY') || null,
+    //         city: "jakarta",
+    //         billType: result[0]?.bill_type || null,
+    //     };
 
-        await this.pdfService.generatePdfProforma(pdfBody);
+    //     await this.pdfService.generatePdfProforma(pdfBody);
 
-        try {
-            await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}proforma/pakubuwono_${result[0].doc_no}.pdf`;
-            if (!fs.existsSync(filePath)) {
-                console.error(`Local file does not exist: ${filePath}`);
-            }
+    //     try {
+    //         await this.connect();
+    //         const rootFolder = process.env.ROOT_PDF_FOLDER;
+    //         const filePath = `${rootFolder}proforma/pakubuwono_${result[0].doc_no}.pdf`;
+    //         if (!fs.existsSync(filePath)) {
+    //             console.error(`Local file does not exist: ${filePath}`);
+    //         }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/RECEIPT/${result[0].doc_no}.pdf`);
+    //         await this.upload(filePath, `/UNSIGNED/GQCINV/RECEIPT/${result[0].doc_no}.pdf`);
 
-        } catch (error) {
-            console.log("Error during upload:.", error);
-            throw new BadRequestException({
-                statusCode: 400,
-                message: 'Failed to upload to FTP',
-                data: [error],
-            });
-        } finally {
-            console.log("Disconnecting from FTP servers");
-            await this.disconnect();
-        }
-        return ({
-            statusCode: 201,
-            message: "pdf generated successfuly",
-            data: [{ path: `/UNSIGNED/GQCINV/RECEIPT/${result[0].doc_no}.pdf` }]
-        })
-    }
+    //     } catch (error) {
+    //         console.log("Error during upload:.", error);
+    //         throw new BadRequestException({
+    //             statusCode: 400,
+    //             message: 'Failed to upload to FTP',
+    //             data: [error],
+    //         });
+    //     } finally {
+    //         console.log("Disconnecting from FTP servers");
+    //         await this.disconnect();
+    //     }
+    //     return ({
+    //         statusCode: 201,
+    //         message: "pdf generated successfuly",
+    //         data: [{ path: `/UNSIGNED/GQCINV/RECEIPT/${result[0].doc_no}.pdf` }]
+    //     })
+    // }
     async getStampHistory(data: Record<any, any>) {
         const { company_cd, startDate, endDate } = data
         if (this.isEmptyString(company_cd) && this.isEmptyString(startDate) && this.isEmptyString(endDate)) {
@@ -330,5 +328,90 @@ export class ReceiptService {
                 error.response
             );
         }
+    }
+
+    async getOR(start_date: string, end_date: string) {
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_ar_or_web
+            WHERE
+            year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${start_date}' 
+            AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${end_date}' 
+            `)
+        if (result.length === 0) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: 'No OR data yet',
+                data: [],
+            })
+        }
+
+        return {
+            statusCode: 200,
+            message: 'successfully get OR data',
+            data: result
+        }
+    }
+
+    async generateOR(doc_no: string) {
+        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_ar_ledger_gen_or_web
+            WHERE doc_no = '${doc_no}'
+        `)
+        if (result.length === 0) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: 'No OR with this doc no',
+                data: [],
+            })
+        }
+        const pdfBody = {
+            doc_no: result[0].doc_no,
+            doc_date: result[0].doc_date,
+            currency_cd: result[0].currency_cd,
+            fdoc_amt: result[0].fdoc_amt,
+            name: result[0].name,
+            descs: result[0].descs,
+            or_paid_by: result[0].or_paid_by,
+        }
+
+        try {
+            await this.pdfgenerateService.generateOR(pdfBody)
+        } catch (error) {
+            throw new BadRequestException(error.response)
+        }
+
+        const body = {
+            entity_cd: result[0].entity_cd,
+            project_no: result[0].project_no,
+            debtor_acct: result[0].debtor_acct,
+            email_addr: result[0].email_addr,
+            doc_no: result[0].doc_no,
+            doc_date: result[0].doc_date,
+            currency_cd: result[0].currency_cd,
+            doc_amt: result[0].fdoc_amt,
+        }
+
+        try {
+            await this.addToORTable(body)
+        } catch (error) {
+            throw new BadRequestException(error.response)
+        }
+
+        return {
+            statusCode: 201,
+            message: 'OR generated successfully',
+            data: []
+        }
+    }
+
+    async addToORTable(data: Record<any, any>) {
+        const result = await this.fjiDatabase.$executeRawUnsafe(`
+            INSERT INTO mgr.ar_blast_or
+            (enitity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
+             doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
+             filenames2, process_id, audit_user, audit_date)
+             VALUES
+             ()
+            `)
     }
 }
