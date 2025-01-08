@@ -74,7 +74,7 @@ export class PeruriService {
     const doc_no = file_name.slice(0, -4);
 
     const approved_file = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT * FROM mgr.ar_blast_inv WHERE doc_no = ${doc_no}
+            SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
         `);
 
     if (!approved_file[0]) {
@@ -111,7 +111,7 @@ export class PeruriService {
 
     const signedFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.peruri_stamp_file_log
-                WHERE file_name_sign = ${signedFileName}
+                WHERE file_name_sign = '${signedFileName}'
             `);
     // const signedFile = await this.postgreService.file.findFirst({
     //     where: { file_name: `${body.file_name.slice(0, -4)}_signed.pdf` },
@@ -137,7 +137,7 @@ export class PeruriService {
     };
 
     if (file.length === 0) {
-      await this.fjiDatabase.$executeRawUnsafe(`
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
                 INSERT INTO mgr.peruri_stamp_file_log
                 (file_type, file_name_sign, file_status_sign,
                 company_cd, file_token_sign, audit_date, audit_user) 
@@ -146,7 +146,7 @@ export class PeruriService {
             `);
       file = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.peruri_stamp_file_log
-                WHERE file_name_sign = ${file_name}
+                WHERE file_name_sign = '${file_name}'
             `);
     }
 
