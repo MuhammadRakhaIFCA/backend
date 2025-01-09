@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpException, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiInvoiceService } from './api-invoice.service';
 import { AuthGuard } from '@nestjs/passport';
 import { generateDto } from './dto/generate.dto';
@@ -144,5 +144,19 @@ export class ApiInvoiceController {
     @Query('end_date') end_date: string,
   ) {
     return await this.apiInvoiceService.downloadStampedInvoice(start_date, end_date)
+  }
+
+  @Post('invoice-submit')
+  async submitInvoice(@Body() data: Record<any, any>) {
+    return this.apiInvoiceService.submitInvoice(data);
+  }
+
+  @Delete('invoice-delete/:doc_no/:process_id')
+  async deleteInvoice(@Param('doc_no') doc_no: string, @Param('process_id') process_id: string) {
+    return this.apiInvoiceService.deleteInvoice(doc_no, process_id)
+  }
+  @Get('invoice-approval-list')
+  async getInvoiceAppovelList() {
+    return this.apiInvoiceService.getApprovalList()
   }
 }

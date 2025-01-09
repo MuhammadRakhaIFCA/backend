@@ -5,7 +5,7 @@ import { LoginDto } from './dto/login.dto';
 import { EditUserDto } from './dto/edit-user.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
 
-@Controller('fji')
+@Controller('api')
 export class FjiUserController {
   constructor(private readonly fjiService: FjiService) { }
 
@@ -34,10 +34,6 @@ export class FjiUserController {
   @Post('user/create')
   async createUser(@Body() data: createUserDto) {
     return await this.fjiService.createUser(data)
-  }
-  @Post('user/login')
-  async login(@Body() data: LoginDto) {
-    return await this.fjiService.login(data)
   }
   @Put('user/edit')
   async editUser(@Body() data: EditUserDto) {

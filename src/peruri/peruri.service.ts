@@ -113,9 +113,6 @@ export class PeruriService {
                 SELECT * FROM mgr.peruri_stamp_file_log
                 WHERE file_name_sign = '${signedFileName}'
             `);
-    // const signedFile = await this.postgreService.file.findFirst({
-    //     where: { file_name: `${body.file_name.slice(0, -4)}_signed.pdf` },
-    // });
     console.log(signedFile.length);
     if (signedFile.length > 0) {
       throw new BadRequestException({
@@ -142,23 +139,36 @@ export class PeruriService {
                 (file_type, file_name_sign, file_status_sign,
                 company_cd, file_token_sign, audit_date, audit_user) 
                 VALUES 
-                (${file_type}, ${file_name}, 'p', ${company_cd}, ${token}, GETDATE(), 'audit user')
+                (${file_type}, ${file_name}, 'P', ${company_cd}, ${token}, GETDATE(), 'audit user')
             `);
       file = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.peruri_stamp_file_log
                 WHERE file_name_sign = '${file_name}'
             `);
+      const updateTableBody = {
+        file_token_sign: token,
+        file_status_sign: 'P',
+        doc_no,
+        project_no: approved_file[0].project_no,
+        entity_cd: approved_file[0].entity_cd,
+        debtor_acct: approved_file[0].debtor_acct,
+        invoice_tipe: approved_file[0].invoice_tipe,
+        //process_id: approved_file[0].process_id
+      }
+
+      await this.updateBlastInvTable(updateTableBody)
     }
 
     let imagePath;
-    // if (file[0].file_status_sign === 'f' || file[0].file_status_sign === 'a') {
+    // if (file[0].file_status_sign === 'F' || file[0].file_status_sign === 'A') {
     //     await this.fjiDatabase.$executeRaw(Prisma.sql`
     //         UPDATE peruri_stamp_file_log
     //         SET restamp_date = NOW()
     //         WHERE file_name = '${file.file_name}'
     //       `)
     // }
-    if (file[0]?.file_status_sign === `p`) {
+    if (file[0]?.file_status_sign === `P`) {
+      console.log("getting sn")
       const sn = await firstValueFrom(
         this.httpService.post(
           'https://stampv2stg.e-meterai.co.id/chanel/stampv2',
@@ -180,16 +190,29 @@ export class PeruriService {
       if (sn.data.statusCode !== '00') {
         throw new NotFoundException({
           statusCode: 401,
-          message: 'failed to get serial number',
+          message: 'failed to get serial number ',
           data: [],
         });
       }
       //6. masukkin sn ke table sn
       await this.fjiDatabase.$executeRawUnsafe(`
                 UPDATE mgr.peruri_stamp_file_log
-                SET file_status_sign = 'a', file_sn_sign = '${sn.data.result.sn}', file_token_sign ='${token}'
+                SET file_status_sign = 'A', file_sn_sign = '${sn.data.result.sn}', file_token_sign ='${token}'
                 WHERE file_name_sign = '${file_name}'
               `);
+      const updateTableBody = {
+        file_token_sign: token,
+        file_sn_sign: sn.data.result.sn,
+        file_status_sign: 'A',
+        doc_no,
+        project_no: approved_file[0].project_no,
+        entity_cd: approved_file[0].entity_cd,
+        debtor_acct: approved_file[0].debtor_acct,
+        invoice_tipe: approved_file[0].invoice_tipe,
+        //process_id: approved_file[0].process_id
+      }
+
+      await this.updateBlastInvTable(updateTableBody)
       const base64Image = sn.data.result.image;
 
       const folderPath = `${rootFolder}stamp-images`;
@@ -205,14 +228,13 @@ export class PeruriService {
       const stampImage = Buffer.from(base64Image, 'base64');
       await fs.promises.writeFile(imagePath, stampImage);
 
-      // await sharp(stampImage)
-      //     .png()
-      //     .toFile(imagePath);
     }
 
     const snResponse = await this.fjiDatabase.$queryRawUnsafe(
       `SELECT file_sn_sign FROM mgr.peruri_stamp_file_log
              where file_name_sign = '${file_name}'
+             and company_cd = '${company_cd}'
+             and file_type = '${file_type}'
              `,
     );
 
@@ -275,7 +297,7 @@ export class PeruriService {
     } catch (error) {
       //10. jika gagal ubah status menjadi f
       await this.fjiDatabase.$executeRawUnsafe(`
-                         UPDATE mgr.peruri_stamp_file_log SET file_status_sign = 'f'
+                         UPDATE mgr.peruri_stamp_file_log SET file_status_sign = 'F'
                          WHERE file_name_sign = '${file_name}'
                         `);
       // console.log(error)
@@ -284,21 +306,45 @@ export class PeruriService {
         message: 'stamping failed',
         data: [error],
       });
+    } finally {
+      const updateTableBody = {
+        file_token_sign: token,
+        file_sn_sign: sn,
+        file_status_sign: 'F',
+        doc_no,
+        project_no: approved_file[0].project_no,
+        entity_cd: approved_file[0].entity_cd,
+        debtor_acct: approved_file[0].debtor_acct,
+        invoice_tipe: approved_file[0].invoice_tipe,
+        //process_id: approved_file[0].process_id
+      }
+
+      await this.updateBlastInvTable(updateTableBody)
     }
 
     //9. jika stamping berhasil ubah nama file di database dengan ditambah '_signed' dan ubah status menjadi s
     await this.fjiDatabase.$executeRawUnsafe(`
             UPDATE mgr.peruri_stamp_file_log 
-            SET file_status_sign = 's', file_name_sign = '${signedFileName}'
+            SET file_status_sign = 'S', file_name_sign = '${signedFileName}'
             WHERE file_name_sign = '${file_name}'
             `);
+    const updateTableBody = {
+      file_name_sign: signedFileName,
+      file_token_sign: token,
+      file_sn_sign: sn,
+      file_status_sign: 'S',
+      doc_no,
+      project_no: approved_file[0].project_no,
+      entity_cd: approved_file[0].entity_cd,
+      debtor_acct: approved_file[0].debtor_acct,
+      invoice_tipe: approved_file[0].invoice_tipe,
+      // process_id: approved_file[0].process_id
+    }
 
-    await this.fjiDatabase.$executeRawUnsafe(`
-            UPDATE mgr.ar_blast_inv SET
-            file_status_Sign = 'S', file_name_sign = '${signedFileName}',
-            file_token_sign = '${token}', file_sn_sign = '${sn}'
-            WHERE doc_no = '${doc_no}'
-            `);
+    await this.updateBlastInvTable(updateTableBody)
+
+
+
     return {
       statusCode: 201,
       message: 'stamping successful',
@@ -310,6 +356,37 @@ export class PeruriService {
         },
       ],
     };
+  }
+
+  async updateBlastInvTable(data: Record<any, any>) {
+    //console.log('Data:', JSON.stringify(data, null, 2));
+    const {
+      file_name_sign, file_token_sign, file_sn_sign, file_status_sign,
+      doc_no, project_no, entity_cd, debtor_acct, invoice_tipe, process_id
+    } = data
+    try {
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_inv SET file_name_sign = ${file_name_sign}, status_process_sign = 'y',
+        file_token_sign = ${file_token_sign}, file_sn_sign = ${file_sn_sign}, file_status_sign = ${file_status_sign}
+        WHERE doc_no = ${doc_no}
+        AND project_no = ${project_no}
+        AND entity_cd = ${entity_cd}
+        AND debtor_acct = ${debtor_acct}
+        AND invoice_tipe = ${invoice_tipe}
+        `)
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'fail to update ar_blast_inv table',
+        data: []
+      })
+    }
+    return ({
+      statusCode: 200,
+      message: 'update ar_blast_inv table successfully',
+      data: []
+    })
   }
 
   private isEmpty(value: any): boolean {

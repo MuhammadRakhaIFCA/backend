@@ -7,6 +7,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { FjiDatabaseModule } from 'src/database/database-fji.module';
 
 @Global()
 @Module({
@@ -43,6 +44,7 @@ import { diskStorage } from 'multer';
         },
       }),
     }),
+    FjiDatabaseModule
   ],
   controllers: [MailController],
   providers: [MailService]

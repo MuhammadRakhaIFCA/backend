@@ -19,67 +19,6 @@ export class FjiService {
     ) { }
 
 
-    async login(loginDto: LoginDto) {
-        const { email, password } = loginDto
-        const findUser = await this.fjiDatabase.$queryRawUnsafe(`
-              SELECT * FROM mgr.m_user WHERE email = '${email}'
-            `)
-        if (findUser[0] === undefined) {
-            throw new NotFoundException({
-                statusCode: 404,
-                message: "user not found",
-                data: []
-            })
-        };
-        if (await bcrypt.compare(("email" + email + "p@ssw0rd" + password), findUser[0].password)) {
-            const { password, ...user } = findUser[0]
-            const tokens = await this.generateToken(findUser[0].user_id, findUser[0].email, findUser[0].name);
-            return {
-                statusCode: 200,
-                message: "login sucess",
-                data: [
-                    user,
-                    tokens
-                ]
-            };
-        } else {
-            throw new UnauthorizedException({
-                statusCode: 401,
-                message: "wrong password",
-                data: []
-            })
-        }
-    }
-
-    private async generateToken(id: number, email: string, UserLevel: string) {
-        const [access_token, refresh_token] = await Promise.all([
-
-            this.jwtService.signAsync(
-                {
-                    sub: id, email, UserLevel
-
-                },
-                {
-                    secret: process.env.AT_SECRET,
-                    expiresIn: 60 * 15
-                }
-            ),
-            this.jwtService.signAsync(
-                {
-                    sub: id, email, UserLevel
-
-                },
-                {
-                    secret: process.env.RT_SECRET,
-                    expiresIn: 60 * 60 * 24 * 7
-                }
-            )
-        ])
-        return {
-            access_token,
-            refresh_token
-        }
-    }
 
     async getUser() {
 
@@ -123,10 +62,10 @@ export class FjiService {
     async createUser(data: createUserDto) {
         const { email, name } = data
         const password = "pass1234"
-        if (this.isEmpty(email), this.isEmpty(password), this.isEmpty(name)) {
+        if (this.isEmpty(email), this.isEmpty(name)) {
             throw new BadRequestException({
                 statusCode: 400,
-                message: "email, password and name can't be emtpy",
+                message: "email and name can't be emtpy",
                 data: []
             })
         }

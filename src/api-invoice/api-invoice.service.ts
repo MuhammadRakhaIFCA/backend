@@ -306,6 +306,7 @@ export class ApiInvoiceService {
         email_addr: 'm.rakha@ifca.co.id',
         bill_type,
         doc_no,
+        related_class,
         doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
         descs: result[0].descs,
         doc_amt: result[0].base_amt,
@@ -317,6 +318,7 @@ export class ApiInvoiceService {
         currency_cd: result[0].currency_cd,
       };
       const approve = await this.addToApproval(approvalBody);
+      console.log(approve)
       if (approve.statusCode == 400) {
         throw new BadRequestException({
           statusCode: 400,
@@ -324,70 +326,7 @@ export class ApiInvoiceService {
           data: [],
         });
       }
-      const getType = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.m_type_invoice WHERE type_cd = '${related_class}'
-                `);
-      const getTypeDtl: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                    SELECT * FROM mgr.m_type_invoice_dtl WHERE type_id = ${getType[0].type_id} AND job_task LIKE '%Approval Lvl%'
-                `);
 
-      for (const row of getTypeDtl) {
-        // Extract approval level from "Approval Lvl X"
-        const approvalLevelMatch = row.job_task.match(/Approval Lvl (\d+)/);
-        const approvalLevel = approvalLevelMatch
-          ? parseInt(approvalLevelMatch[1], 10)
-          : null;
-
-        const getUser = await this.fjiDatabase.$queryRawUnsafe(`
-                        SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
-                    `);
-
-        const approvalDtlBody = {
-          entity_cd: result[0].entity_cd,
-          project_no: result[0].project_no,
-          debtor_acct: result[0].debtor_acct,
-          approval_level: approvalLevel,
-          approval_user: getUser[0].email,
-          approval_status: 'P',
-          approval_remarks: '',
-          doc_no,
-          process_id,
-          audit_user: name,
-        };
-
-        const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
-        if (approvalDtl.statusCode == 400) {
-          throw new BadRequestException({
-            statusCode: 400,
-            message: 'Failed to add to approvals',
-            data: [],
-          });
-        }
-
-        if (approvalLevel === 1) {
-          const approvalLogBody = {
-            entity_cd: result[0].entity_cd,
-            project_no: result[0].project_no,
-            debtor_acct: result[0].debtor_acct,
-            email_addr: getUser[0].email,
-            status_code: 200,
-            response_message: 'email sent successfully',
-            send_date: moment().format('DD MMM YYYY'),
-            doc_no,
-            process_id,
-            audit_user: name,
-          };
-
-          const approvalLog = await this.addToApprovalLog(approvalLogBody);
-          if (approvalLog.statusCode == 400) {
-            throw new BadRequestException({
-              statusCode: 400,
-              message: 'Failed to add to approval log',
-              data: [],
-            });
-          }
-        }
-      }
     } catch (error) {
       return error.response;
     } finally {
@@ -487,6 +426,7 @@ export class ApiInvoiceService {
       email_addr: 'm.rakha@ifca.co.id',
       bill_type: null,
       doc_no,
+      related_class,
       doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
       descs: result[0].descs,
       doc_amt: result[0].base_amt,
@@ -546,29 +486,29 @@ export class ApiInvoiceService {
         });
       }
 
-      if (approvalLevel === 1) {
-        const approvalLogBody = {
-          entity_cd: result[0].entity_cd,
-          project_no: result[0].project_no,
-          debtor_acct: result[0].debtor_acct,
-          email_addr: getUser[0].email,
-          status_code: 200,
-          response_message: 'email sent successfully',
-          send_date: moment().format('DD MMM YYYY'),
-          doc_no,
-          process_id,
-          audit_user: name,
-        };
+      // if (approvalLevel === 1) {
+      //   const approvalLogBody = {
+      //     entity_cd: result[0].entity_cd,
+      //     project_no: result[0].project_no,
+      //     debtor_acct: result[0].debtor_acct,
+      //     email_addr: getUser[0].email,
+      //     status_code: 200,
+      //     response_message: 'email sent successfully',
+      //     send_date: moment().format('DD MMM YYYY'),
+      //     doc_no,
+      //     process_id,
+      //     audit_user: name,
+      //   };
 
-        const approvalLog = await this.addToApprovalLog(approvalLogBody);
-        if (approvalLog.statusCode == 400) {
-          throw new BadRequestException({
-            statusCode: 400,
-            message: 'Failed to add to approval log',
-            data: [],
-          });
-        }
-      }
+      //   const approvalLog = await this.addToApprovalLog(approvalLogBody);
+      //   if (approvalLog.statusCode == 400) {
+      //     throw new BadRequestException({
+      //       statusCode: 400,
+      //       message: 'Failed to add to approval log',
+      //       data: [],
+      //     });
+      //   }
+      // }
     }
 
     return {
@@ -643,6 +583,7 @@ export class ApiInvoiceService {
       email_addr: 'm.rakha@ifca.co.id',
       bill_type: null,
       doc_no,
+      related_class,
       doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
       descs: result[0].descs,
       doc_amt: result[0].fdoc_amt,
@@ -662,70 +603,7 @@ export class ApiInvoiceService {
         data: [],
       });
     }
-    const getType = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT * FROM mgr.m_type_invoice WHERE type_cd = '${related_class}'
-            `);
-    const getTypeDtl: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.m_type_invoice_dtl WHERE type_id = ${getType[0].type_id} AND job_task LIKE '%Approval Lvl%'
-            `);
 
-    for (const row of getTypeDtl) {
-      // Extract approval level from "Approval Lvl X"
-      const approvalLevelMatch = row.job_task.match(/Approval Lvl (\d+)/);
-      const approvalLevel = approvalLevelMatch
-        ? parseInt(approvalLevelMatch[1], 10)
-        : null;
-
-      const getUser = await this.fjiDatabase.$queryRawUnsafe(`
-                    SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
-                `);
-
-      const approvalDtlBody = {
-        entity_cd: result[0].entity_cd,
-        project_no: result[0].project_no,
-        debtor_acct: result[0].debtor_acct,
-        approval_level: approvalLevel,
-        approval_user: getUser[0].email,
-        approval_status: 'P',
-        approval_remarks: '',
-        doc_no,
-        process_id,
-        audit_user: name,
-      };
-
-      const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
-      if (approvalDtl.statusCode == 400) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'Failed to add to approvals',
-          data: [],
-        });
-      }
-
-      if (approvalLevel === 1) {
-        const approvalLogBody = {
-          entity_cd: result[0].entity_cd,
-          project_no: result[0].project_no,
-          debtor_acct: result[0].debtor_acct,
-          email_addr: getUser[0].email,
-          status_code: 200,
-          response_message: 'email sent successfully',
-          send_date: moment().format('DD MMM YYYY'),
-          doc_no,
-          process_id,
-          audit_user: name,
-        };
-
-        const approvalLog = await this.addToApprovalLog(approvalLogBody);
-        if (approvalLog.statusCode == 400) {
-          throw new BadRequestException({
-            statusCode: 400,
-            message: 'Failed to add to approval log',
-            data: [],
-          });
-        }
-      }
-    }
 
     return {
       statusCode: 201,
@@ -831,12 +709,12 @@ export class ApiInvoiceService {
       this.isEmpty(doc_no) ||
       this.isEmpty(process_id) ||
       this.isEmpty(approval_user) ||
-      (approval_status !== 'A' && approval_status !== 'R')
+      (approval_status !== 'A' && approval_status !== 'R' && approval_status !== 'C')
     ) {
       throw new BadRequestException({
         statusCode: 400,
         message:
-          "doc_no and process_id can't be empty, approval status must be A or R",
+          "doc_no and process_id can't be empty, approval status must be A or R or C",
         data: [],
       });
     }
@@ -861,7 +739,7 @@ export class ApiInvoiceService {
       if (result === 0) {
         throw new BadRequestException({
           statusCode: 400,
-          message: 'you already approved this document',
+          message: 'you already approved this document ',
           data: [],
         });
       }
@@ -895,28 +773,53 @@ export class ApiInvoiceService {
                     ORDER BY approval_level ASC 
                     `);
       if (getNextApproveUser.length === 0) {
-        console.log('insert to ar blast inv');
-        const result = await this.fjiDatabase.$executeRawUnsafe(`
-                    UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
-                    WHERE process_id = '${process_id}' 
-                    `);
-        const insert = await this.fjiDatabase.$executeRawUnsafe(`
-                    INSERT INTO mgr.ar_blast_inv
-                    (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
-                    doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
-                    filenames2, process_id, audit_user, audit_date)
-                    VALUES
-                    ('${approvalTable[0].entity_cd}', '${approvalTable[0].project_no}', '${approvalTable[0].debtor_acct}',
-                    '${approvalTable[0].email_addr}', '${approvalTable[0].gen_date}', '${approvalTable[0].bill_type}',
-                    '${doc_no}', '${approvalTable[0].doc_date}', '${approvalTable[0].descs}', '${approvalTable[0].currency_cd}',
-                    '${approvalTable[0].doc_amt}', '', '${approvalTable[0].invoice_tipe}',
-                    '${approvalTable[0].filenames}', '${approvalTable[0].filenames2}', '${process_id}',
-                    '${approvalTable[0].audit_user}', '${approvalTable[0].audit_date}')
-                    `);
-        if (result === 0 || insert === 0) {
+        const gen_date = moment(approvalTable[0].gen_date).format('YYYYMMDD')
+        const doc_date = moment(approvalTable[0].doc_date).format('YYYYMMDD')
+        const audit_date = moment(approvalTable[0].audit_date).format('YYYYMMDD')
+        try {
+          const result = await this.fjiDatabase.$executeRawUnsafe(`
+            UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
+            WHERE process_id = '${process_id}' 
+            `);
+          // const insert = await this.fjiDatabase.$executeRawUnsafe(`
+          //   INSERT INTO mgr.ar_blast_inv
+          //   (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
+          //   doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
+          //   filenames2, process_id, audit_user, audit_date)
+          //   VALUES
+          //   ('${approvalTable[0].entity_cd}', '${approvalTable[0].project_no}', '${approvalTable[0].debtor_acct}',
+          //   '${approvalTable[0].email_addr}', '${gen_date}', '${approvalTable[0].bill_type}',
+          //   '${doc_no}', '${doc_date}', '${approvalTable[0].descs}', '${approvalTable[0].currency_cd}',
+          //   ${approvalTable[0].doc_amt}, null, '${approvalTable[0].invoice_tipe}',
+          //   '${approvalTable[0].filenames}', '${approvalTable[0].filenames2}', '${process_id}',
+          //   '${approvalTable[0].audit_user}', '${audit_date}')
+          //   `);
+          const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
+            INSERT INTO mgr.ar_blast_inv
+            (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
+            doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
+            filenames2, process_id, audit_user, audit_date)
+            VALUES
+            (${approvalTable[0].entity_cd}, ${approvalTable[0].project_no}, ${approvalTable[0].debtor_acct},
+            ${approvalTable[0].email_addr}, ${gen_date}, ${approvalTable[0].bill_type},
+            ${doc_no}, ${approvalTable[0].related_class}, ${doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
+            ${approvalTable[0].doc_amt}, ${approvalTable[0].invoice_tipe},
+            ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${process_id},
+            ${approvalTable[0].audit_user}, ${audit_date})
+            `);
+
+          if (result === 0 || insert === 0) {
+            throw new BadRequestException({
+              statusCode: 400,
+              message: 'failed to insert to database',
+              data: [],
+            });
+          }
+        } catch (error) {
+          console.log(error)
           throw new BadRequestException({
             statusCode: 400,
-            message: 'failed to update database',
+            message: 'failed to insert to database',
             data: [],
           });
         }
@@ -1010,6 +913,151 @@ export class ApiInvoiceService {
     };
   }
 
+  async getApprovalList() {
+    try {
+      const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT abia.*,debtor_name = ad.name FROM mgr.ar_blast_inv_approval abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        where progress_approval = 0
+        ORDER BY gen_date DESC
+        `)
+      return {
+        statusCode: 200,
+        message: 'get list successful',
+        data: result
+      }
+    } catch (error) {
+      throw new NotFoundException({
+        statusCode: 404,
+        message: 'Approval list not found',
+        data: [],
+      })
+    }
+  }
+
+  async deleteInvoice(doc_no: string, process_id: string) {
+    if (this.isEmpty(doc_no)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'doc_no',
+        data: [],
+      })
+    }
+    try {
+      const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        DELETE FROM mgr.ar_blast_inv_approval 
+         WHERE doc_no = '${doc_no}' AND progress_approval = 0 AND process_id = '${process_id}'
+         `);
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'delete failed',
+        data: [],
+      })
+    }
+    return {
+      statusCode: 200,
+      message: 'delete successful',
+      data: [],
+    }
+  }
+
+  async submitInvoice(data: Record<any, any>) {
+    const { doc_no, process_id, audit_user, related_class
+    } = data;
+    if (this.isEmpty(doc_no) || this.isEmpty(process_id) || this.isEmpty(audit_user) || this.isEmpty(related_class)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'doc_no, process_id, audit_user, related_class cannot be empty',
+        data: [],
+      })
+    }
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv_approval 
+       WHERE doc_no = '${doc_no}'
+       `);
+    const getType = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.m_type_invoice WHERE type_cd = '${related_class}'
+      `);
+    const getTypeDtl: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT * FROM mgr.m_type_invoice_dtl WHERE type_id = ${getType[0].type_id} AND job_task LIKE '%Approval Lvl%'
+      `);
+
+    let approval_level: number = 0
+    for (const row of getTypeDtl) {
+      approval_level += 1
+      // Extract approval level from "Approval Lvl X"
+      const approvalLevelMatch = row.job_task.match(/Approval Lvl (\d+)/);
+      const approvalLevel = approvalLevelMatch
+        ? parseInt(approvalLevelMatch[1], 10)
+        : null;
+
+      const getUser = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
+          `);
+
+      const approvalDtlBody = {
+        entity_cd: result[0].entity_cd,
+        project_no: result[0].project_no,
+        debtor_acct: result[0].debtor_acct,
+        approval_level: approvalLevel,
+        approval_user: getUser[0].email,
+        approval_status: 'P',
+        approval_remarks: '',
+        doc_no,
+        process_id,
+        audit_user: audit_user,
+      };
+
+      const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
+      if (approvalDtl.statusCode == 400) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Failed to add to approvals',
+          data: [],
+        });
+      }
+
+      // if (approvalLevel === 1) {
+      //   const approvalLogBody = {
+      //     entity_cd: result[0].entity_cd,
+      //     project_no: result[0].project_no,
+      //     debtor_acct: result[0].debtor_acct,
+      //     email_addr: getUser[0].email,
+      //     status_code: 200,
+      //     response_message: 'email sent successfully',
+      //     send_date: moment().format('DD MMM YYYY'),
+      //     doc_no,
+      //     process_id,
+      //     audit_user: name,
+      //   };
+
+      //   const approvalLog = await this.addToApprovalLog(approvalLogBody);
+      //   if (approvalLog.statusCode == 400) {
+      //     throw new BadRequestException({
+      //       statusCode: 400,
+      //       message: 'Failed to add to approval log',
+      //       data: [],
+      //     });
+      //   }
+      // }
+    }
+    await this.fjiDatabase.$executeRawUnsafe(`
+      UPDATE mgr.ar_blast_inv_approval set approval_lvl = ${approval_level}, status_approve = 'P', progress_approval = 1
+      WHERE process_id = '${process_id}' AND doc_no = '${doc_no}'
+      `)
+
+    return {
+      statusCode: 200,
+      message: 'invoice submitted',
+      data: []
+    }
+
+  }
+
   async addToApproval(data: Record<any, any>) {
     const {
       entity_cd,
@@ -1018,6 +1066,7 @@ export class ApiInvoiceService {
       email_addr,
       bill_type,
       doc_no,
+      related_class,
       doc_date,
       descs,
       doc_amt,
@@ -1033,14 +1082,15 @@ export class ApiInvoiceService {
       const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                     INSERT INTO mgr.ar_blast_inv_approval 
                     (entity_cd, project_no, debtor_acct, email_addr, 
-                    gen_date, bill_type, doc_no, doc_date, descs, doc_amt, filenames, filenames2, gen_flag, process_id, 
+                    gen_date, bill_type, doc_no, related_class, doc_date, descs, doc_amt, filenames, filenames2, gen_flag, process_id, 
                     audit_user, audit_date, invoice_tipe, status_approve, progress_approval, currency_cd)
                     VALUES 
                     (${entity_cd}, ${project_no}, ${debtor_acct}, ${email_addr}, GETDATE(), 
-                    ${bill_type}, ${doc_no}, ${doc_date}, ${descs}, ${doc_amt}, ${filenames}, 
+                    ${bill_type}, ${doc_no}, ${related_class},${doc_date}, ${descs}, ${doc_amt}, ${filenames}, 
                     ${filenames2}, 'Y', ${process_id}, ${audit_user}, GETDATE(), ${invoice_tipe},
-                    'P', 1, ${currency_cd})
+                    null, 0, ${currency_cd})
                 `);
+      console.log(result)
     } catch (error) {
       console.log(error);
       return {
@@ -1211,6 +1261,7 @@ export class ApiInvoiceService {
             SELECT * FROM mgr.v_inv_approval
             WHERE approval_user = '${approval_user}'
             AND approval_status = 'P'
+            ORDER BY gen_date DESC
             `);
     if (result.length === 0) {
       throw new NotFoundException({
@@ -1342,6 +1393,13 @@ export class ApiInvoiceService {
   }
 
   async downloadStampedInvoice(start_date: string, end_date: string) {
+    if (this.isEmpty(start_date) || this.isEmpty(end_date)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Start Date and End Date are required',
+        data: [],
+      });
+    }
     const rootFolder = process.env.ROOT_PDF_FOLDER
     const ftpBaseUrl = process.env.FTP_BASE_URL
     try {
@@ -1353,7 +1411,7 @@ export class ApiInvoiceService {
       if (result.length === 0) {
         throw new NotFoundException({
           statusCode: 404,
-          message: 'No stamped invoice yet',
+          message: 'No stamped file yet',
           data: [],
         });
       }

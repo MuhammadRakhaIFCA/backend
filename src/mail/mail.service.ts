@@ -5,12 +5,13 @@ import { UpdateMailDto } from './dto/update-mail.dto';
 import * as nodemailer from 'nodemailer'
 import { ConfigService } from '@nestjs/config';
 import ical from 'ical-generator';
+import { FjiDatabaseService } from 'src/database/database-fji.service';
 
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
 
-  constructor() {
+  constructor(fjiDatabase: FjiDatabaseService) {
     // Initialize the transporter
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -205,6 +206,14 @@ export class MailService {
         message: 'failed to send email',
         data: []
       })
+    }
+  }
+
+  async addToInvLogTable() {
+    try {
+
+    } catch (error) {
+
     }
   }
 }

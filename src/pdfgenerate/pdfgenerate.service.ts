@@ -779,32 +779,32 @@ export class PdfgenerateService {
             startPeriod: result[0]?.start_period,
             endPeriod: result[0]?.end_period,
         };
-        console.log(pdfBody)
+        //console.log(pdfBody)
 
         await this.generatePdfFirstJakarta3(pdfBody)
 
-        // try {
-        //     await this.connect();
-        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
-        //     const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
-        //     if (!fs.existsSync(filePath)) {
-        //         console.error(`Local file does not exist: ${filePath}`);
-        //     }
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
 
-        //     await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_v_${doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_v_${doc_no}.pdf`);
 
-        // } catch (error) {
-        //     console.log("Error during upload:.", error);
-        //     throw new BadRequestException({
-        //         statusCode: 400,
-        //         message: 'Failed to upload to FTP',
-        //         data: [error],
-        //     });
-        // } 
-        // finally {
-        //     console.log("Disconnecting from FTP servers");
-        //     await this.disconnect();
-        // }
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
 
     }
 
@@ -1188,7 +1188,7 @@ export class PdfgenerateService {
         const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
 
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_v_${data.docNno}.pdf`;
+        const filePath = `${rootFolder}schedule/fji_reference_v_${data.docNo}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}schedule}`)) {
             fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
