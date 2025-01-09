@@ -16,7 +16,6 @@ import { Prisma } from '@prisma/client';
 import axios from 'axios';
 import * as AdmZip from 'adm-zip';
 import { firstValueFrom } from 'rxjs';
-import { UnknownErrorException } from 'pdfjs-dist/types/shared/util';
 
 @Injectable()
 export class ApiInvoiceService {

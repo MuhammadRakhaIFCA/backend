@@ -358,6 +358,27 @@ export class PeruriService {
     };
   }
 
+  async noStamp(doc_no: string) {
+    try {
+      await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE SET status_process_sign = 'N'
+        WHERE doc_no = '${doc_no}'
+        `)
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: "no stamping failed",
+        data: []
+      })
+    }
+
+    return ({
+      statusCode: 200,
+      message: "sucesfully set file to no stamp",
+
+    })
+  }
+
   async updateBlastInvTable(data: Record<any, any>) {
     //console.log('Data:', JSON.stringify(data, null, 2));
     const {
@@ -366,7 +387,7 @@ export class PeruriService {
     } = data
     try {
       await this.fjiDatabase.$executeRaw(Prisma.sql`
-        UPDATE mgr.ar_blast_inv SET file_name_sign = ${file_name_sign}, status_process_sign = 'y',
+        UPDATE mgr.ar_blast_inv SET file_name_sign = ${file_name_sign}, status_process_sign = 'Y',
         file_token_sign = ${file_token_sign}, file_sn_sign = ${file_sn_sign}, file_status_sign = ${file_status_sign}
         WHERE doc_no = ${doc_no}
         AND project_no = ${project_no}

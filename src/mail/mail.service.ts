@@ -6,12 +6,13 @@ import * as nodemailer from 'nodemailer'
 import { ConfigService } from '@nestjs/config';
 import ical from 'ical-generator';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
+import * as moment from 'moment'
 
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
 
-  constructor(fjiDatabase: FjiDatabaseService) {
+  constructor(private readonly fjiDatabase: FjiDatabaseService) {
     // Initialize the transporter
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -209,9 +210,45 @@ export class MailService {
     }
   }
 
-  async addToInvLogTable() {
-    try {
+  async blastEmail(doc_no: string, process_id: string) {
+    const send_id = Array(6)
+      .fill(null)
+      .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+      .join('');
 
+    const result = this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv where doc_no = '${doc_no}'
+      `)
+    const send_status = 'S'
+
+    await this.updateInvLogTable(
+      doc_no,
+      moment().format('YYYYMMDD'),
+      send_status,
+      send_id,
+      result[0].entity_cd,
+      result[0].project_no,
+      result[0].debtor_acct,
+      result[0].invoice_tipe
+    )
+  }
+
+  async updateInvLogTable(
+    doc_no: string, send_date: string, send_status: string, send_id: string,
+    entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string
+  ) {
+
+    try {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.ar_blast_inv SET send_id = '${send_id}', send_date = '${send_date}',
+        send_status = '${send_status}'
+        WHERE
+        entity_cd = '${entity_cd}',
+        project_no = '${project_no}',
+        debtor_acct = '${debtor_acct}',
+        invoice_tipe = '${invoice_tipe}',
+        doc_no = '${doc_no}'
+        `)
     } catch (error) {
 
     }
