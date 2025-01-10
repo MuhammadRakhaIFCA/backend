@@ -10,6 +10,7 @@ import { PdfgenerateModule } from './pdfgenerate/pdfgenerate.module';
 import { ApiInvoiceModule } from './api-invoice/api-invoice.module';
 import { ReceiptModule } from './receipt/receipt.module';
 import { FjiUserModule } from './fji/fji.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [PeruriModule, UploadModule, MailModule,
@@ -19,7 +20,8 @@ import { FjiUserModule } from './fji/fji.module';
     PdfgenerateModule,
     ApiInvoiceModule,
     ReceiptModule,
-    FjiUserModule
+    FjiUserModule,
+    AuthModule
   ],
   controllers: [AppController],
   providers: [AppService],

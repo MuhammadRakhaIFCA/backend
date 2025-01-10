@@ -243,7 +243,7 @@ export class PdfgenerateService {
             .text('Payment Due Date ', 395, 204)
 
         const docDate = moment(data.doc_date).format('DD/MM/YYYY')
-        const dueDate = moment(data.doc_date).format('DD/MM/YYYY')
+        const dueDate = moment(data.due_date).format('DD/MM/YYYY')
         doc.fontSize(11).font('Times-Roman')
             .text(docDate, 495, 155, { width: 80, align: 'center' })
             .text(data.doc_no, 495, 180, { width: 80, align: 'center' })
@@ -254,6 +254,11 @@ export class PdfgenerateService {
 
         //table tengah
         doc.fontSize(11).text('We debit/credit your account as follow : ', 30, 220)
+        // console.log(doc.getTextWidth('We debit/')) 
+        // const xPosition = 30 + doc.getTextWidth('We debit/')
+        // const yPosition = 220; 
+
+        doc.text('xxxxx', 72, 220);
         doc.rect(425, 235, 150, 270).stroke()
         doc.rect(25, 265, 550, 200).stroke()
         doc.rect(25, 235, 550, 270).stroke()
@@ -272,9 +277,9 @@ export class PdfgenerateService {
             tableYStart += 15
         }
         doc.text(`Period : ${data.line1}`, 35, tableYStart + 50)
-        if (data.descs_info !== undefined) {
-            tableYStart += 15
-            doc.text(`${data.descs_info}`, 35, tableYStart + 50)
+        if (data.descs_info !== undefined && data.descs_info !== null) {
+            //tableYStart += 15
+            doc.text(`${data.descs_info}`, 35, tableYStart + 65)
         }
 
 
@@ -292,13 +297,16 @@ export class PdfgenerateService {
         if (allocAmt > 0) {
             doc.fontSize(12)
                 .text(data.currency_cd, 435, tableYStart + 180, { width: 130, align: 'left' })
-                .text(formattedAllocAmt, 435, tableYStart + 180, { width: 130, align: 'right' })
-            doc.fontSize(9)
-                .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
-                .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
+                .text(`(${formattedAllocAmt})`, 435, tableYStart + 180, { width: 130, align: 'right' })
+                //.fontSize(14)
+                .text('Less Over Payment/Refund Secr.Deposit/Other', 35, tableYStart + 180)
         }
+        doc.fontSize(9)
+            .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
+            .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
 
-        const total = baseAmt + taxAmt + allocAmt
+
+        const total = Math.round((baseAmt + taxAmt - allocAmt) * 100) / 100
         const formattedTotal = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 
@@ -312,8 +320,13 @@ export class PdfgenerateService {
             .text(':', 200, tableYStart + 265)
             .text('PAYMENT INSTRUCTION', 35, tableYStart + 290)
             .text(':', 200, tableYStart + 290)
-
-        doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)}`, 210, tableYStart + 265, { width: 300 })
+        console.log("total : " + total)
+        if (data.currency_cd == "RP") {
+            doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)} only`, 210, tableYStart + 265, { width: 340 })
+        }
+        else if (data.currency_cd == "USD") {
+            doc.fontSize(10).text(`United States Dollar ${this.numberToWords(total)} only`, 210, tableYStart + 265, { width: 340 })
+        }
         tableYStart += 10
         doc.fontSize(9).font('Times-Roman')
             .text('- Payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
@@ -338,6 +351,7 @@ export class PdfgenerateService {
             .text('Disclaimer : ', 225, tableYStart + 400)
             .font('Times-Italic')
             .text('This document does not need to be signed', 270, tableYStart + 400)
+            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
 
 
 
@@ -615,6 +629,7 @@ export class PdfgenerateService {
             address2: result[0]?.address2,
             address3: result[0]?.address1,
             postCd: result[0]?.post_cd,
+            currencyCd: result[0].currency_cd,
             docDate: result[0]?.read_date,
             meterId: result.map((item) => item.meter_id),
             lastRead: result.map((item) => Number(item.last_read)),
@@ -630,6 +645,7 @@ export class PdfgenerateService {
             roundingAmount: result.map((item) =>
                 item.as_reduction === 'Y' ? Number(item.rounding) - 1 : Number(item.rounding)
             ),
+            formid: result[0]?.formid || ''
         };
 
 
@@ -645,7 +661,7 @@ export class PdfgenerateService {
                 console.error(`Local file does not exist: ${filePath}`);
             }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/reference_g_${doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_g_${doc_no}.pdf`);
 
         } catch (error) {
             console.log("Error during upload:.", error);
@@ -708,7 +724,9 @@ export class PdfgenerateService {
             apportionPercent: result[0]?.apportion_percent,
             asReduction: result[0]?.as_reduction,
             trxAmt: result[0]?.trx_amt,
-            rounding: result[0]?.rounding
+            rounding: result[0]?.rounding,
+            currencyCd: result[0].currency_cd,
+            formid: result[0]?.formid || ''
         };
 
         await this.generatePdfFirstJakarta5(pdfBody)
@@ -737,7 +755,8 @@ export class PdfgenerateService {
         }
 
     }
-    async generateReferenceV(doc_no: string, debtor_acct: string, doc_date: Date) {
+    async generateReferenceV(doc_no: string, debtor_acct: string, doc_date: Date,
+        project_no: string, entity_cd: string) {
         const docDate = moment(doc_date).format('DD MMM YYYY');
         const doc = new PDFDocument({
             size: 'A4',
@@ -754,11 +773,20 @@ export class PdfgenerateService {
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
 
+        console.log("bill date : " + docDate)
+        console.log("debtor acct : " + debtor_acct)
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             select * from mgr.v_ar_ref_ot_web 
             WHERE debtor_acct = '${debtor_acct}' 
             and bill_date  = '${docDate}'
-        `);
+            and project_no = '${project_no}'
+            and entity_cd = '${entity_cd}'
+            `);
+        // const startDate = result.map((item: any) => moment(item.start_date).format('DD/MM/YYYY HH:mm'))
+        // const endDate = result.map((item: any) => moment(item.end_date).format('DD/MM/YYYY HH:mm'))
+
+        // console.log("start date : " + startDate)
+        // console.log("end date : " + endDate)
 
 
 
@@ -778,6 +806,7 @@ export class PdfgenerateService {
             lotNo: result.map((item: any) => String(item.lot_no)),
             startPeriod: result[0]?.start_period,
             endPeriod: result[0]?.end_period,
+            formid: result[0]?.formid || ''
         };
         //console.log(pdfBody)
 
@@ -861,7 +890,9 @@ export class PdfgenerateService {
             usageKwh11: result[0]?.usage_kwh_11,
             usageKwh21: result[0]?.usage_kwh_21,
             minUsageHour: result[0]?.min_usage_hour,
-            rounding: result[0]?.rounding
+            rounding: result[0]?.rounding,
+            formid: result[0]?.formid || '',
+            currencyCd: result[0].currency_cd,
         };
         console.log(pdfBody)
 
@@ -984,10 +1015,10 @@ export class PdfgenerateService {
             doc.text(`PPH ${data.pphRate}%`, 350, tableYStart + 35)
         }
         if (data.overPayment > 0) {
-            doc.fontSize(9)
-                .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
-                .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
         }
+        doc.fontSize(9)
+            .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
+            .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
 
         const total = data.baseAmount + data.taxAmount
 
@@ -1002,8 +1033,14 @@ export class PdfgenerateService {
             .text('PAYMENT INSTRUCTION', 35, tableYStart + 280)
             .text(':', 200, tableYStart + 280)
 
-        doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)}`, 210, tableYStart + 265)
-            .fontSize(9).font('Times-Roman')
+        if (data.currency_cd == "RP") {
+            doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)} only`, 210, tableYStart + 265)
+        }
+
+        else if (data.currency_cd == "USD") {
+            doc.fontSize(10).text(`United States Dollar ${this.numberToWords(total)} only`, 210, tableYStart + 265)
+        }
+        doc.fontSize(9).font('Times-Roman')
             .text('- Payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
             .text('or transfer to our acount : ', 39, tableYStart + 305)
             //.text('- Please attach the PAYMENT ADVICE SLIP together with yout payment and sent to the Building Management Office', 35, tableYStart + 330)
@@ -1163,10 +1200,15 @@ export class PdfgenerateService {
 
         doc.fontSize(10)
             .text('In Words : ', 10, textYStart + 20)
-            .text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)}`, { indent: 15 })
+        if (data.currencyCd == "RP") {
+            doc.text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15 })
+        }
+        else if (data.currencyCd == "USD") {
+            doc.text(`United States Dollar ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15 })
+        }
 
         doc.rect(10, tableYStart + 70, 550, 1).stroke()
-            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
+            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
             .fontSize(9)
             .text('Note : This letter is an explanation of the Chilled Water, FCU calculation for Debit/Credit Note', 10, tableYStart + 85)
 
@@ -1217,7 +1259,7 @@ export class PdfgenerateService {
 
         doc.font('Times-Bold').fontSize(11)
             .text('CALCULATION OF OVERTIME', 20, 210, { align: 'left', width: 550 })
-            .text('Page 1 of 4', 20, 210, { align: 'right', width: 550 })
+            .text('Page 1 of 1', 20, 210, { align: 'right', width: 550 })
         // Calculations
 
 
@@ -1246,8 +1288,8 @@ export class PdfgenerateService {
         let totalEquivalentHour = 0;
         let totalAmount = 0;
         data.startDate.forEach((startDate, idx) => {
-            const start = moment(startDate);
-            const end = moment(data.endDate[idx]);
+            const start = moment(startDate).subtract(7, 'hours');
+            const end = moment(data.endDate[idx]).subtract(7, 'hours');
 
             const diffInMinutes = end.diff(start, 'minutes');
             const timeConsumption = `${Math.floor(diffInMinutes / 60)}:${(diffInMinutes % 60).toString().padStart(2, '0')}`;
@@ -1290,13 +1332,18 @@ export class PdfgenerateService {
             .text(totalAmountFormatted, 390, textYStart, { align: 'right', width: 70 });
 
         doc.fontSize(10)
-            .text(`Periode Date ${moment(data.startPeriod).format('DD/MM/YYYY')} to ${moment(data.startPeriod).format('DD/MM/YYYY')}`, 20, textYStart + 20)
-            .text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))}`, 20, textYStart + 40)
-            // .text(`In Words : ${this.numberToWords(Math.round(totalAmount))}`, 20, textYStart + 40)
+            .text(`Periode Date ${moment(data.startPeriod).format('DD/MM/YYYY')} to ${moment(data.endPeriod).format('DD/MM/YYYY')}`, 20, textYStart + 20)
+        if (data.currency == "RP") {
+            doc.text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40)
+        }
+        else if (data.currency == "USD") {
+            doc.text(`In Words : United States Dollar ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40)
+        }
+        // .text(`In Words : ${this.numberToWords(Math.round(totalAmount))}`, 20, textYStart + 40)
 
 
 
-            .text('FJI-FIN-FR-001-006/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
+        doc.text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
             .fontSize(9)
 
         doc.fontSize(8).font('Times-Bold')
@@ -1390,8 +1437,15 @@ export class PdfgenerateService {
             .stroke()
 
         //isi table
-        const startDate = moment(data.startDate).format('DD/MM/YYYY')
-        const endDate = moment(data.endDate).format('DD/MM/YYYY')
+        let startDate = ''
+        let endDate = ''
+        if (data.start_date !== undefined) {
+            console.log("valid date : " + data.start_date)
+            startDate = moment(data.startDate).format('DD/MM/YYYY')
+        }
+        if (data.end_date !== undefined) {
+            endDate = moment(data.endDate).format('DD/MM/YYYY')
+        }
         doc
             .text('Description', 20, 240, { width: 340, align: 'center' })
             .text('Amount', 360, 240, { width: 200, align: 'center' })
@@ -1451,7 +1505,7 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .text(data.signature, { width: 190, align: 'center' })
-            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
+            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
 
 
         doc.fontSize(8).font('Times-Bold')
@@ -1529,7 +1583,10 @@ export class PdfgenerateService {
         if (data.asReduction === 'Y') {
             reduction = 1
         }
-        const rawSubtotal = data.usage11 + data.usage21 - reduction
+
+        console.log("usage11 : " + data.usage11)
+        console.log("usage21 : " + data.usage21)
+        const rawSubtotal = Number(data.usage11) + Number(data.usage21) - Number(reduction)
         const subtotal = (rawSubtotal).toLocaleString('en-US', { minimumFractionDigits: 2 })
         const rawSubTotalTimesApportion = rawSubtotal * data.apportionPercent / 100
         const subTotalTimesApportion = (rawSubTotalTimesApportion).toLocaleString('en-US', { minimumFractionDigits: 2 })
@@ -1573,11 +1630,16 @@ export class PdfgenerateService {
             .text('Total', 300, 385, { align: 'right', width: 80 })
 
 
-            .text('FJI-FIN-FR-001-005/REV.0.0/27.02.2023', 0, 800, { width: 550, align: 'right' })
+            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
             .rect(20, 450, 550, 1).stroke()
             .text('In Words : ', 20, 460)
-            .text(`Indoneisan Rupiah ${inWords}`, 50, 475)
-            .rect(20, 500, 550, 1).stroke()
+        if (data.currencyCd == "RP") {
+            doc.text(`Indonesian Rupiah ${inWords} only`, 50, 475)
+        }
+        else if (data.currencyCd == "USD") {
+            doc.text(`United States Dollar ${inWords} only`, 50, 475)
+        }
+        doc.rect(20, 500, 550, 1).stroke()
             .text('Note : This letter is an explanation of the water calculation for Debit/Credit Note',
                 20, 515)
         doc.fontSize(8).font('Times-Bold')
@@ -1704,10 +1766,12 @@ export class PdfgenerateService {
             .text('=', 130, 380)
             .text(`( 60h x ${capacity} KVA ) X Rp. ${usageRate1}`, 140, 380)
         if (Number(data.flashHours) > 40) {
-            if (data.usageKwh11 > 0 && data.usageKwh21 === 0) {
+            if (Number(data.usageKwh11) > 0 && Number(data.usageKwh21) === 0) {
                 doc.text(`${usage} Kwh X Rp. ${usageRate1}`, 140, 390)
+                console.log(usage)
             } else {
                 doc.text(`${kwh} Kwh X Rp. ${usageRate1}`, 140, 390)
+                console.log(kwh)
             }
         }
 
@@ -1733,7 +1797,7 @@ export class PdfgenerateService {
             .text('=', 130, 470)
             .text('Rounding', 20, 485)
 
-        if (data.flashHours > data.minUsageHour) {
+        if (Number(data.flashHours) <= Number(data.minUsageHour)) {
             doc.text('= RP', 400, 365).text(`${usage11}`, 400, 360, { width: 170, align: 'right' })
                 .text('= RP', 400, 390).text(`0.00`, 400, 390, { width: 170, align: 'right' })
         } else {
@@ -1756,8 +1820,13 @@ export class PdfgenerateService {
         const inWords = this.numberToWords(data.trxAmt)
         doc.rect(20, 550, 550, 1).stroke()
             .text('In Words : ', 20, 560)
-            .text(`Indoneisan Rupiah ${inWords}`, 50, 575)
-            .rect(20, 600, 550, 1).stroke()
+        if (data.currencyCd == "RP") {
+            doc.text(`Indonesian Rupiah ${inWords} only`, 50, 575)
+        }
+        else if (data.currencyCd == "USD") {
+            doc.text(`Indonesian Rupiah ${inWords} only`, 50, 575)
+        }
+        doc.rect(20, 600, 550, 1).stroke()
             .text('Note : This letter is an explanation of the electricity calculation for Debit/Credit Note',
                 20, 615)
         doc.fontSize(8).font('Times-Bold')
@@ -1838,8 +1907,8 @@ export class PdfgenerateService {
             .text(':', 170, 300)
             .text(':', 170, 350)
             .text(':', 170, 370)
-            .text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)}`, 190, 300, { width: 365 })
-            .text(`${data.descs}`, 190, 350)
+        doc.text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)} only`, 190, 300, { width: 365 })
+        doc.text(`${data.descs}`, 190, 350)
         if (raw_fdoc_amt >= 5000000) {
             doc.text('E-Meterei', 450, 400, { width: 100, align: 'center' })
         }
@@ -2131,7 +2200,7 @@ export class PdfgenerateService {
         const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
         const thousands = ['', 'Thousand', 'Million', 'Billion'];
 
-        if (amount === 0) return 'Zero';
+        if (amount === 0) return '';
 
         const [integerPart, decimalPart] = amount.toString().split('.');
 
@@ -2144,7 +2213,7 @@ export class PdfgenerateService {
             const chunk = integerAmount % 1000;
             if (chunk > 0) {
                 const chunkWords = this.convertChunk(chunk);
-                words = chunkWords + (thousands[i] ? ' ' + thousands[i] + ' ' : '') + words;
+                words = chunkWords + (thousands[i] ? ' ' + thousands[i] : '') + (words ? ' and ' : '') + words;
             }
             integerAmount = Math.floor(integerAmount / 1000);
             i++;
@@ -2155,7 +2224,7 @@ export class PdfgenerateService {
         // Convert the decimal part if present
         if (decimalPart && parseInt(decimalPart, 10) > 0) {
             const decimalWords = this.convertChunk(parseInt(decimalPart, 10));
-            words += ` and ${decimalWords} Cent${parseInt(decimalPart, 10) > 1 ? 's' : ''}`;
+            words += ` point ${decimalWords} Cent${parseInt(decimalPart, 10) > 1 ? 's' : ''}`;
         }
 
         return words.trim();
@@ -2191,6 +2260,7 @@ export class PdfgenerateService {
 
         return words.trim();
     }
+
 
 
 }

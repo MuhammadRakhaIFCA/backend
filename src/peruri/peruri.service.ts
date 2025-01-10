@@ -69,6 +69,13 @@ export class PeruriService {
 
   async stamping(body: Record<any, any>) {
     const { company_cd, file_name, file_type } = body;
+    if (this.isEmpty(company_cd) || this.isEmpty(file_name) || this.isEmpty(file_type)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Company CD, File Name, File Type are required',
+        data: []
+      })
+    }
     const rootFolder = process.env.ROOT_PDF_FOLDER;
     const upper_file_type = file_type.toUpperCase();
     const doc_no = file_name.slice(0, -4);
@@ -360,24 +367,37 @@ export class PeruriService {
 
   async noStamp(doc_no: string) {
     try {
-      await this.fjiDatabase.$executeRawUnsafe(`
-        UPDATE SET status_process_sign = 'N'
-        WHERE doc_no = '${doc_no}'
-        `)
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.ar_blast_inv
+        SET status_process_sign = 'N', file_status_sign = 'N'
+        WHERE doc_no = '${doc_no}' AND status_process_sign IS NULL
+      `);
+      if (result === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'File not found',
+          data: [],
+        });
+      }
+
+      return {
+        statusCode: 200,
+        message: 'Successfully set file to no stamp',
+        data: [],
+      };
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Database query failed:', error);
       throw new BadRequestException({
         statusCode: 400,
-        message: "no stamping failed",
-        data: []
-      })
+        message: 'Failed to set file to no stamp',
+        data: [],
+      });
     }
-
-    return ({
-      statusCode: 200,
-      message: "sucesfully set file to no stamp",
-
-    })
   }
+
 
   async updateBlastInvTable(data: Record<any, any>) {
     //console.log('Data:', JSON.stringify(data, null, 2));

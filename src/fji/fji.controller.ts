@@ -1,15 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { FjiService } from './fji.service';
 import { createUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { EditUserDto } from './dto/edit-user.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api')
 export class FjiUserController {
   constructor(private readonly fjiService: FjiService) { }
 
   @Get('user/get')
+  @UseGuards(AuthGuard('jwt'))
   async getUser() {
     return await this.fjiService.getUser()
   }

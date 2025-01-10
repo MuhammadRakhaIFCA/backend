@@ -86,7 +86,7 @@ export class ApiInvoiceService {
                 WHERE doc_amt <= 5000000
                 AND file_status_sign IS NULL
                 AND send_id IS NULL
-                OR (doc_amt >= 5000000 AND status_process_sign = 'N')
+                OR (doc_amt >= 5000000 AND status_process_sign = 'Y')
                 `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -237,6 +237,7 @@ export class ApiInvoiceService {
       due_date: result[0].due_date,
       descs: result[0].descs,
       descs_lot: result[0]?.descs_lot || '',
+      descs_info: result[0]?.notes,
       start_date: result[0].start_date,
       end_date: result[0].end_date,
       currency_cd: result[0].currency_cd,
@@ -245,7 +246,7 @@ export class ApiInvoiceService {
       tax_scheme: result[0].tax_shceme,
       tax_rate: result[0].tax_rate,
       pph_rate: result[0].pph_rate,
-      line1: result[0].line1,
+      line1: result[0]?.line1 || '-',
       signature: result[0].signature,
       designation: result[0].designation,
       bank_name_rp: result[0].bank_name_rp,
@@ -259,6 +260,7 @@ export class ApiInvoiceService {
       inv_group: result[0].inv_group,
       bill_type,
       meter_type,
+      formid: result[0].formid
     };
 
     try {
@@ -277,6 +279,8 @@ export class ApiInvoiceService {
           doc_no,
           result[0].debtor_acct,
           result[0].doc_date,
+          result[0].project_no,
+          result[0].entity_cd
         );
         filenames2 = `fji_reference_v_${doc_no}.pdf`;
       } else if (bill_type === 'E' && meter_type === 'W') {
@@ -406,6 +410,7 @@ export class ApiInvoiceService {
       sequence_no: result[0].sequence_no,
       group_cd: result[0].group_cd,
       inv_group: result[0].inv_group,
+      formid: result[0].formid
     };
 
     try {
@@ -556,8 +561,8 @@ export class ApiInvoiceService {
       dueDate: result[0].due_date,
       taxDesc: result[0].tax_descs,
       taxRate: result[0].tax_rate,
-      startDate: result[0].start_date,
-      endDate: result[0].end_date,
+      startDate: result[0]?.start_date,
+      endDate: result[0]?.end_date,
       currencyCd: result[0].currency_cd,
       baseAmount: result[0].fbase_amt,
       taxAmount: result[0].ftax_amt,
@@ -1321,7 +1326,7 @@ export class ApiInvoiceService {
     } else {
       throw new BadRequestException({
         statusCode: 400,
-        message: 'Invalid Status. Status must be either S or F',
+        message: 'Invalid Status. Status must be either S or F ',
         data: [],
       });
     }
@@ -1371,13 +1376,13 @@ export class ApiInvoiceService {
                SELECT * FROM mgr.peruri_stamp_file_log WHERE company_cd = '${company_cd}' 
                 AND file_type = 'invoice'
                 AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= '${startDate}' 
-                AND year(audit_date)*10000+month(audit_date)*100+day(audi_date) <= '${endDate}'
+                AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) <= '${endDate}'
             `);
       if (!result || result.length === 0) {
         console.log(result.length);
         throw new NotFoundException({
           statusCode: 404,
-          message: 'No stamp history yet',
+          message: 'No stamp history yet ',
           data: [],
         });
       }
@@ -1387,6 +1392,7 @@ export class ApiInvoiceService {
         data: result,
       };
     } catch (error) {
+      console.log(error)
       throw new NotFoundException(error.response);
     }
   }

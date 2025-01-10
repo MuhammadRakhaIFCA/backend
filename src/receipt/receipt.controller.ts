@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ReceiptService } from './receipt.service';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('api/receipt')
 export class ReceiptController {
@@ -51,17 +52,28 @@ export class ReceiptController {
     return this.receiptService.getStampHistory(data);
   }
 
-  @Get('get')
+  @Post('get')
   async getOR(
-    @Query('start_date') start_date: string,
-    @Query('end_date') end_date: string,
+    @Body() data: Record<any, any>
   ) {
-    return this.receiptService.getOR(start_date, end_date);
+    return this.receiptService.getOR(data);
   }
   @Get('generate')
   async generateOR(
     @Query('doc_no') doc_no: string,
   ) {
     return this.receiptService.generateOR(doc_no);
+  }
+
+  @Post('upload-faktur/:doc_no')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFaktur(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('doc_no') doc_no: string
+  ) {
+    const filePath = file.path; //
+    const fileName = file.originalname;
+
+    return await this.receiptService.uploadFaktur(filePath, fileName, doc_no);
   }
 }

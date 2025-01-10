@@ -1,4 +1,4 @@
-import { Injectable, RequestTimeoutException } from '@nestjs/common';
+import { BadRequestException, Injectable, RequestTimeoutException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer'
 import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
@@ -210,18 +210,33 @@ export class MailService {
     }
   }
 
-  async blastEmail(doc_no: string, process_id: string) {
+  async blastEmail(doc_no: string) {
     const send_id = Array(6)
       .fill(null)
       .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
       .join('');
 
-    const result = this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.ar_blast_inv where doc_no = '${doc_no}'
-      `)
-    const send_status = 'S'
+    // Fetch the record for the given doc_no
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
+    `);
 
-    await this.updateInvLogTable(
+    if (!result || result.length === 0) {
+      throw new Error(`No record found for doc_no: ${doc_no}`);
+    }
+
+    // Split the email_addr column into an array of strings
+    const email_addrs = result[0].email_addr
+      ? result[0].email_addr.split(';').map((email: string) => email.trim())
+      : [];
+
+    const send_status = 'S';
+    const status_code = 200;
+    const response_message = "email sent successfully";
+    const send_date = moment().format('YYYYMMDD');
+
+    // Update the ar_blast_inv table
+    await this.updateArBlastTable(
       doc_no,
       moment().format('YYYYMMDD'),
       send_status,
@@ -230,10 +245,28 @@ export class MailService {
       result[0].project_no,
       result[0].debtor_acct,
       result[0].invoice_tipe
-    )
+    );
+
+    // Loop through email_addrs and call insertToMsgLog for each email
+    for (const email of email_addrs) {
+      await this.insertToMsgLog(
+        result[0].entity_cd,
+        result[0].project_no,
+        result[0].debtor_acct,
+        email, // Use the current email from the array
+        doc_no,
+        status_code,
+        response_message,
+        send_date,
+        send_id,
+        result[0].audit_user,
+        result[0].audit_date
+      );
+    }
   }
 
-  async updateInvLogTable(
+
+  async updateArBlastTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
     entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string
   ) {
@@ -249,8 +282,83 @@ export class MailService {
         invoice_tipe = '${invoice_tipe}',
         doc_no = '${doc_no}'
         `)
+
+
     } catch (error) {
 
+    }
+  }
+
+  async insertToMsgLog(
+    entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
+    doc_no: string, status_code: number, response_message: string,
+    send_date: string, send_id: string, audit_user: string, audit_date: string
+  ) {
+    try {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        INSERT INTO mgr.ar_blast_inv_log_msg
+        (entity_cd, project_no, debtor_acct, email_addr, doc_no, status_code, response_message,
+        send_date, send_id, audit_user, audit_date)
+        VALUES
+        ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
+        '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
+        '${audit_user}', '${audit_date}'
+        `)
+      if (result === 0) {
+        throw new BadRequestException({
+          status: 400,
+          message: 'Failed to insert to mgr.ar_blast_inv_log_msg table',
+          data: []
+        })
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+    }
+  }
+
+  async updateEmailConfig(data: Record<any, any>) {
+    const {
+      driver, host, port, username, password,
+      encryption, sender_name, sender_email, audit_user
+    } = data
+
+    const prevConfig: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.email_configuration
+      `)
+    if (prevConfig.length > 0) {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.email_configuration 
+        SET 
+        driver = '${driver}', host = '${host}', driver = '${port}',
+        username = '${username}', password = '${password}', encryption = '${encryption}',
+        sender_name = '${sender_name}', sender_email = '${sender_email}',
+        audit_user = '${audit_user}', audit_date = GETDATE()
+        `)
+      if (result === 0) {
+        throw new BadRequestException({
+          status: 400,
+          message: 'Failed to update email configuration',
+          data: []
+        })
+      }
+    } else {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        INSERT INTO mgr.email_configuration
+        (driver, host, port, username, password, encryption, sender_name, sender_email,
+        audit_user, audit_date)
+        VALUES
+        ('${driver}', '${host}', '${port}', '${username}', '${password}', '${encryption}', 
+         '${sender_name}', '${sender_email}', '${audit_user}', GETDATE())
+        `)
+      if (result === 0) {
+        throw new BadRequestException({
+          status: 400,
+          message: 'Failed to insert to mgr.email_configuration table',
+          data: []
+        })
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { PeruriService } from './peruri.service';
 import * as QRCode from 'qrcode'
 import { StampDto } from './dto/stamp.dto';
@@ -7,13 +7,18 @@ import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express
 import * as fs from 'fs';
 import * as path from 'path';
 
-@Controller('peruri')
+@Controller('api/peruri')
 export class PeruriController {
   constructor(private readonly peruriService: PeruriService, private readonly uploadService: UploadService) { }
 
   @Post('stamp')
   async stamp(@Body() body: Record<any, any>) {
     return await this.peruriService.stamping(body)
+  }
+
+  @Get('no-stamp/:doc_no')
+  async noStamp(@Param('doc_no') doc_no: string) {
+    return await this.peruriService.noStamp(doc_no)
   }
 
   @Post('manual-stamp')

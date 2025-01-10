@@ -330,7 +330,15 @@ export class ReceiptService {
         }
     }
 
-    async getOR(start_date: string, end_date: string) {
+    async getOR(data) {
+        const { start_date, end_date } = data
+        if (this.isEmptyString(start_date) || this.isEmptyString(end_date)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "start_date and end_date can't be empty",
+                data: []
+            })
+        }
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_ar_or_web
             WHERE
@@ -413,5 +421,45 @@ export class ReceiptService {
              VALUES
              ()
             `)
+    }
+
+    async uploadFaktur(filePath: string, fileName: string, doc_no: string) {
+        try {
+            await this.connect();
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/FAKTUR/${fileName}`);
+
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
+
+        const result = await this.fjiDatabase.$executeRawUnsafe(`
+            UPDATE mgr.ar_blast_or SET filenames3 = '${fileName}'
+            WHERE doc_no = '${doc_no}'
+            `)
+        if (result === 0) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to update ar blast table',
+                data: [],
+            });
+        }
+        return {
+            statusCode: 201,
+            message: 'Faktur pajak uploaded successfully',
+            data: []
+        }
     }
 }

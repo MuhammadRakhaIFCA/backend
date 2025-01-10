@@ -13,9 +13,11 @@ export class ApiInvoiceController {
     return this.apiInvoiceService.getStamp(status)
   }
 
-  @Get('invoice/stamp-history')
-  async getStampHistory() {
-
+  @Post('invoice/stamp-history')
+  async getStampHistory(
+    @Body() data: Record<any, any>
+  ) {
+    return this.apiInvoiceService.getStampHistory(data)
   }
 
   @Get('invoice/email')
