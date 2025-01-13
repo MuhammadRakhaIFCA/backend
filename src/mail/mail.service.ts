@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, RequestTimeoutException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, RequestTimeoutException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer'
 import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
@@ -24,12 +24,15 @@ export class MailService {
   }
 
   private smtptransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',  // SMTP server
+    host: 'smtp.mailersend.net',
+    // host: 'smtp.gmail.com',  // SMTP server
     port: 587,               // Port number
     secure: false,           // Use TLS (false for port 587)
     auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASSWORD
+      user: 'MS_S5HjWQ@ifca.co.id',
+      pass: 'spnk1sLn4Z81k7Ec'
+      // user: process.env.MAIL_USER,
+      // pass: process.env.MAIL_PASSWORD
     },
 
   });
@@ -319,46 +322,79 @@ export class MailService {
   }
 
   async updateEmailConfig(data: Record<any, any>) {
+    console.log(data)
     const {
       driver, host, port, username, password,
       encryption, sender_name, sender_email, audit_user
     } = data
 
-    const prevConfig: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.email_configuration
-      `)
-    if (prevConfig.length > 0) {
-      const result = await this.fjiDatabase.$executeRawUnsafe(`
-        UPDATE mgr.email_configuration 
-        SET 
-        driver = '${driver}', host = '${host}', driver = '${port}',
-        username = '${username}', password = '${password}', encryption = '${encryption}',
-        sender_name = '${sender_name}', sender_email = '${sender_email}',
-        audit_user = '${audit_user}', audit_date = GETDATE()
+    try {
+      const prevConfig: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.email_configuration
         `)
-      if (result === 0) {
-        throw new BadRequestException({
-          status: 400,
-          message: 'Failed to update email configuration',
-          data: []
-        })
+      if (prevConfig.length > 0) {
+        const result = await this.fjiDatabase.$executeRawUnsafe(`
+          UPDATE mgr.email_configuration 
+          SET 
+          driver = '${driver}', host = '${host}', port = '${port}',
+          username = '${username}', password = '${password}', encryption = '${encryption}',
+          sender_name = '${sender_name}', sender_email = '${sender_email}',
+          audit_user = '${audit_user}', audit_date = GETDATE()
+          `)
+        if (result === 0) {
+          throw new BadRequestException({
+            status: 400,
+            message: 'Failed to update email configuration',
+            data: []
+          })
+        }
+      } else {
+        const result = await this.fjiDatabase.$executeRawUnsafe(`
+          INSERT INTO mgr.email_configuration
+          (driver, host, port, username, password, encryption, sender_name, sender_email,
+          audit_user, audit_date)
+          VALUES
+          ('${driver}', '${host}', '${port}', '${username}', '${password}', '${encryption}', 
+           '${sender_name}', '${sender_email}', '${audit_user}', GETDATE())
+          `)
+        if (result === 0) {
+          throw new BadRequestException({
+            status: 400,
+            message: 'Failed to insert to mgr.email_configuration table',
+            data: []
+          })
+        }
       }
-    } else {
-      const result = await this.fjiDatabase.$executeRawUnsafe(`
-        INSERT INTO mgr.email_configuration
-        (driver, host, port, username, password, encryption, sender_name, sender_email,
-        audit_user, audit_date)
-        VALUES
-        ('${driver}', '${host}', '${port}', '${username}', '${password}', '${encryption}', 
-         '${sender_name}', '${sender_email}', '${audit_user}', GETDATE())
-        `)
-      if (result === 0) {
-        throw new BadRequestException({
-          status: 400,
-          message: 'Failed to insert to mgr.email_configuration table',
-          data: []
-        })
-      }
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException(error.response)
     }
+
+
+    return ({
+      statusCode: 200,
+      message: 'Email configuration updated successfully',
+      data: []
+    })
+  }
+
+  async getEmailConfig() {
+    try {
+      const result = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.email_configuration
+        `)
+      return ({
+        statusCode: 200,
+        message: 'succesfully get email configuration',
+        data: result
+      })
+    } catch (error) {
+      throw new NotFoundException({
+        status: 404,
+        message: 'Email configuration not found',
+        data: []
+      })
+    }
+
   }
 }

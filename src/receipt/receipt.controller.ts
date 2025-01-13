@@ -3,27 +3,27 @@ import { ReceiptService } from './receipt.service';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 
-@Controller('api/receipt')
+@Controller('api')
 export class ReceiptController {
   constructor(private readonly receiptService: ReceiptService) { }
 
-  @Get('email')
+  @Get('receipt/email')
   //@UseGuards(AuthGuard('jwt'))
   async getReceipt() {
     return await this.receiptService.getReceipt()
   }
 
-  @Get('email-detail/:doc_no')
+  @Get('receipt/email-detail/:doc_no')
   //@UseGuards(AuthGuard('jwt'))
   async getReceiptDetail(@Param('doc_no') doc_no: string) {
     return this.receiptService.getReceiptDetail(doc_no);
   }
-  @Post('email-history')
+  @Post('receipt/email-history')
   // @UseGuards(AuthGuard('jwt'))
   // async getHistory(@Body() data: Record<any, any>) {
   //   return this.receiptService.getHistory(data);
   // }
-  @Get('email-history-detail/:email_addr/:doc_no')
+  @Get('receipt/email-history-detail/:email_addr/:doc_no')
   async getHistoryDetail(
     @Param('email_addr') email_addr: string,
     @Param('doc_no') doc_no: string,
@@ -31,7 +31,7 @@ export class ReceiptController {
     return this.receiptService.getHistoryDetail(email_addr, doc_no);
   }
 
-  @Get('stamp/:status')
+  @Get('receipt/stamp/:status')
   //@UseGuards(AuthGuard('jwt'))
   async getStamp(@Param('status') status: string) {
     return this.receiptService.getStamp(status);
@@ -44,7 +44,7 @@ export class ReceiptController {
   // async generateReceipt(@Param('doc_no') doc_no: string) {
   //   return this.receiptService.generateReceipt(doc_no);
   // }
-  @Post('stamp-history')
+  @Post('receipt/stamp-history')
   //@UseGuards(AuthGuard('jwt'))
   async getStampHistory(
     @Body() data: Record<any, any>
@@ -52,17 +52,18 @@ export class ReceiptController {
     return this.receiptService.getStampHistory(data);
   }
 
-  @Post('get')
+  @Post('receipt/get')
   async getOR(
     @Body() data: Record<any, any>
   ) {
     return this.receiptService.getOR(data);
   }
-  @Get('generate')
+  @Get('receipt/generate')
   async generateOR(
     @Query('doc_no') doc_no: string,
+    @Query('audit_user') audit_user: string,
   ) {
-    return this.receiptService.generateOR(doc_no);
+    return this.receiptService.generateOR(doc_no, audit_user);
   }
 
   @Post('upload-faktur/:doc_no')
@@ -71,8 +72,11 @@ export class ReceiptController {
     @UploadedFile() file: Express.Multer.File,
     @Param('doc_no') doc_no: string
   ) {
-    const filePath = file.path; //
+    const filePath = `${file.path}`;
+    // const filePath = `${file.path}FAKTUR`; 
     const fileName = file.originalname;
+    console.log(file.path)
+    console.log(fileName)
 
     return await this.receiptService.uploadFaktur(filePath, fileName, doc_no);
   }

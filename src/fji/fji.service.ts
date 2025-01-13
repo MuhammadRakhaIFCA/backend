@@ -93,6 +93,37 @@ export class FjiService {
             })
         }
     }
+    async editPassword(data: Record<any, any>) {
+        const { email, password } = data
+        if (this.isEmpty(email)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "email can't be empty",
+                data: []
+            })
+        }
+        const encryptedPassword = await bcrypt.hash(("email" + email + "p@ssw0rd" + password), 10);
+        const result = await this.fjiDatabase.$executeRawUnsafe(`
+            UPDATE mgr.m_user SET password = '${encryptedPassword}', updated_at = GETDATE(), updated_by = 'MGR'
+            WHERE email = '${email}'
+        `);
+
+        if (result === 0) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "User not found",
+                data: []
+            })
+        }
+
+        return {
+            statusCode: 200,
+            message: "password  updated successfully",
+            data: [{
+                email,
+            }]
+        };
+    }
     async editUser(data: EditUserDto) {
         const { email, password, name, pict, user_id, } = data;
         if (this.isEmpty(user_id)) {

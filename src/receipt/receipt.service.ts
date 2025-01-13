@@ -360,7 +360,18 @@ export class ReceiptService {
         }
     }
 
-    async generateOR(doc_no: string) {
+    async generateOR(doc_no: string, audit_user: string) {
+        if (this.isEmptyString(doc_no) || this.isEmptyString(audit_user)) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "doc_no and audit_user can't be empty",
+                data: []
+            })
+        }
+        const process_id = Array(6)
+            .fill(null)
+            .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+            .join('');
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_ar_ledger_gen_or_web
             WHERE doc_no = '${doc_no}'
@@ -394,15 +405,28 @@ export class ReceiptService {
             debtor_acct: result[0].debtor_acct,
             email_addr: result[0].email_addr,
             doc_no: result[0].doc_no,
-            doc_date: result[0].doc_date,
+            descs: result[0].descs,
+            doc_date: moment(result[0].doc_date).format('YYYYMMDD'),
             currency_cd: result[0].currency_cd,
             doc_amt: result[0].fdoc_amt,
+            filenames: `${doc_no}.pdf`,
+            process_id,
+            audit_user,
+            // entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
+            //  doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
+            //  filenames2, process_id, audit_user, audit_date
         }
 
         try {
+            console.log(body)
             await this.addToORTable(body)
         } catch (error) {
-            throw new BadRequestException(error.response)
+            console.log(error)
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'failed to add to mgr.ar_blast_or table',
+                data: []
+            })
         }
 
         return {
@@ -413,14 +437,30 @@ export class ReceiptService {
     }
 
     async addToORTable(data: Record<any, any>) {
+        const { entity_cd, project_no, debtor_acct, email_addr, bill_type, doc_no,
+            doc_date, descs, currency_cd, doc_amt, invoice_tipe,
+            filenames, process_id, audit_user, audit_date
+        } = data
         const result = await this.fjiDatabase.$executeRawUnsafe(`
             INSERT INTO mgr.ar_blast_or
-            (enitity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
-             doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
-             filenames2, process_id, audit_user, audit_date)
+            (entity_cd, project_no, debtor_acct, email_addr, gen_date, doc_no,
+             doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
+             process_id, audit_user, audit_date)
              VALUES
-             ()
+             (
+             '${entity_cd}', '${project_no}','${debtor_acct}', '${email_addr}', GETDATE(),
+             '${doc_no}', '${doc_date}', '${descs}', '${currency_cd}',
+             ${doc_amt}, '${invoice_tipe}', '${filenames}', 
+             '${process_id}', '${audit_user}', GETDATE()
+             )
             `)
+        if (result === 0) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'failed to add to mgr.ar_blast_or table',
+                data: []
+            })
+        }
     }
 
     async uploadFaktur(filePath: string, fileName: string, doc_no: string) {

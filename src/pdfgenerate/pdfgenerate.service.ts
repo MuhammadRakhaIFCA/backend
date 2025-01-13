@@ -272,10 +272,12 @@ export class PdfgenerateService {
             .text(data.descs, 35, tableYStart + 35)
         doc.text(data.currency_cd, 435, tableYStart + 35, { width: 130, align: 'left' })
             .text(formattedBaseAmt, 435, tableYStart + 35, { width: 130, align: 'right' })
-        if (data.descs_lot !== undefined) {
+        if (data.trx_type !== '1402' && data.descs_lot !== undefined) {
+            console.log("descs_lot : " + data.descs_lot)
+            console.log("trx_type : " + data.trx_type)
             doc.text(`Unit Number : ${data.descs_lot}`, 35, tableYStart + 50)
-            tableYStart += 15
         }
+        tableYStart += 15
         doc.text(`Period : ${data.line1}`, 35, tableYStart + 50)
         if (data.descs_info !== undefined && data.descs_info !== null) {
             //tableYStart += 15
@@ -992,6 +994,7 @@ export class PdfgenerateService {
 
         //table tengah
         doc.fontSize(11).text('We debit/credit your account as follow : ', 30, 220)
+        doc.fontSize(11).text('xxxxx', 72, 220)
         doc.rect(425, 235, 150, 270).stroke()
         doc.rect(25, 265, 550, 200).stroke()
         doc.rect(25, 235, 550, 270).stroke()
@@ -1211,6 +1214,7 @@ export class PdfgenerateService {
             .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
             .fontSize(9)
             .text('Note : This letter is an explanation of the Chilled Water, FCU calculation for Debit/Credit Note', 10, tableYStart + 85)
+        //.text('xxxxx', 150, tableYStart + 85)
 
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, tableYStart + 150)
@@ -1439,11 +1443,11 @@ export class PdfgenerateService {
         //isi table
         let startDate = ''
         let endDate = ''
-        if (data.start_date !== undefined) {
-            console.log("valid date : " + data.start_date)
+        if (data.startDate !== undefined) {
+            console.log("valid date : " + data.startDate)
             startDate = moment(data.startDate).format('DD/MM/YYYY')
         }
-        if (data.end_date !== undefined) {
+        if (data.endDate !== undefined) {
             endDate = moment(data.endDate).format('DD/MM/YYYY')
         }
         doc
@@ -1642,6 +1646,7 @@ export class PdfgenerateService {
         doc.rect(20, 500, 550, 1).stroke()
             .text('Note : This letter is an explanation of the water calculation for Debit/Credit Note',
                 20, 515)
+        // .text('xxxxx', 150, 515)
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, 540)
             .font('Times-Italic')
@@ -1762,7 +1767,7 @@ export class PdfgenerateService {
             doc.text(`${minUsageHour} h x ${capacity} KVA x Rp. ${usageRate1}`)
         }
 
-        doc.text('Blok 1', 20, 380, { width: 100, align: 'left' })
+        doc.text('Blok 1', 20, 380, { width: 100, align: 'right' })
             .text('=', 130, 380)
             .text(`( 60h x ${capacity} KVA ) X Rp. ${usageRate1}`, 140, 380)
         if (Number(data.flashHours) > 40) {
@@ -1775,7 +1780,7 @@ export class PdfgenerateService {
             }
         }
 
-        doc.text('Blok 2', 20, 410, { width: 100, align: 'left' })
+        doc.text('Blok 2', 20, 410, { width: 100, align: 'right' })
             .text('=', 130, 410)
         if (data.calculationMethod === 5 && Number(data.usageRate2) > 0) {
             doc.text(`CC ${usage} Kwh ${usageHigh} Kwh X Rp. ${usageRate2}`, 140, 410)
@@ -1824,11 +1829,12 @@ export class PdfgenerateService {
             doc.text(`Indonesian Rupiah ${inWords} only`, 50, 575)
         }
         else if (data.currencyCd == "USD") {
-            doc.text(`Indonesian Rupiah ${inWords} only`, 50, 575)
+            doc.text(`United States Dollar ${inWords} only`, 50, 575)
         }
         doc.rect(20, 600, 550, 1).stroke()
             .text('Note : This letter is an explanation of the electricity calculation for Debit/Credit Note',
                 20, 615)
+        // .text('xxxxx', 150, 615) 
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, 640)
             .font('Times-Italic')

@@ -5,7 +5,7 @@ import { UpdateMailDto } from './dto/update-mail.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateMailEventDto } from './dto/create-mail-event.dto';
 
-@Controller('mail')
+@Controller('api/mail')
 export class MailController {
   constructor(private readonly mailService: MailService) { }
 
@@ -45,5 +45,13 @@ export class MailController {
   @Get('blast-email/:doc_no')
   async blastEmail(@Param('doc_no') doc_no: string) {
     return this.mailService.blastEmail(doc_no)
+  }
+  @Post('edit-config')
+  async editConfig(@Body() data: Record<any, any>) {
+    return this.mailService.updateEmailConfig(data)
+  }
+  @Get('config')
+  async getConfig() {
+    return this.mailService.getEmailConfig()
   }
 }

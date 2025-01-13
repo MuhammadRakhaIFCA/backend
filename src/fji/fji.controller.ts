@@ -41,6 +41,10 @@ export class FjiUserController {
   async editUser(@Body() data: EditUserDto) {
     return await this.fjiService.editUser(data)
   }
+  @Put('user/edit-password')
+  async editUserPassword(@Body() data: Record<any, any>) {
+    return await this.fjiService.editPassword(data)
+  }
   @Post('user/assign/type')
   async assignRole(@Body() data: AssignTypeDto) {
     return await this.fjiService.assignType(data)
