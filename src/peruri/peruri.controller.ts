@@ -20,6 +20,10 @@ export class PeruriController {
   async noStamp(@Param('doc_no') doc_no: string) {
     return await this.peruriService.noStamp(doc_no)
   }
+  @Get('no-stamp-or/:doc_no')
+  async noStampOr(@Param('doc_no') doc_no: string) {
+    return await this.peruriService.noStampOr(doc_no)
+  }
 
   @Post('manual-stamp')
   @UseInterceptors(

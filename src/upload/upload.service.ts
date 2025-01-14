@@ -31,7 +31,7 @@ export class UploadService {
       };
     }
 
-    return { message: `Word "${targetWord}" not found.` };
+    return { message: `Word "${targetWord}" not found. ` };
   }
 
   async getCoordinates(
@@ -108,9 +108,9 @@ export class UploadService {
           if (
             currentLine.length > 0 &&
             x -
-              (currentLine[currentLine.length - 1].x +
-                currentLine[currentLine.length - 1].width) <=
-              3
+            (currentLine[currentLine.length - 1].x +
+              currentLine[currentLine.length - 1].width) <=
+            3
           ) {
             // Add to the current line
             currentLine.push({

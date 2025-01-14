@@ -86,7 +86,8 @@ export class ApiInvoiceService {
                 WHERE doc_amt <= 5000000
                 AND file_status_sign IS NULL
                 AND send_id IS NULL
-                OR (doc_amt >= 5000000 AND status_process_sign = 'Y')
+               OR (doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N', null) AND send_id IS NULL)
+
                 `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -134,37 +135,37 @@ export class ApiInvoiceService {
     }
   }
 
-  // async getHistory(data: Record<any, any>) {
-  //   const { startDate, endDate, status } = data;
-  //   try {
-  //     const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-  //               SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
-  //               INNER JOIN mgr.ar_debtor ad 
-  //               ON abia.debtor_acct = ad.debtor_acct
-  //               AND abia.entity_cd = ad.entity_cd
-  //               AND abia.project_no = ad.project_no
-  //               WHERE send_id IS NOT NULL 
-  //               AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-  //               AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-  //               AND send_status = '${status}'
-  //               ORDER BY send_date DESC
-  //           `);
-  //     if (!result || result.length === 0) {
-  //       throw new NotFoundException({
-  //         statusCode: 404,
-  //         message: 'No history yet',
-  //         data: [],
-  //       });
-  //     }
-  //     return {
-  //       statusCode: 200,
-  //       message: 'history retrieved successfully',
-  //       data: result,
-  //     };
-  //   } catch (error) {
-  //     throw new NotFoundException(error.response);
-  //   }
-  // }
+  async getHistory(data: Record<any, any>) {
+    const { startDate, endDate, status } = data;
+    try {
+      const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_inv abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+                WHERE send_id IS NOT NULL 
+                AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+                AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+                AND send_status = '${status}'
+                ORDER BY send_date DESC
+            `);
+      if (!result || result.length === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'No history yet',
+          data: [],
+        });
+      }
+      return {
+        statusCode: 200,
+        message: 'history retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      throw new NotFoundException(error.response);
+    }
+  }
 
   async getHistoryDetail(email_addr: string, doc_no: string) {
     try {
@@ -1468,6 +1469,86 @@ export class ApiInvoiceService {
       return ({
         statusCode: 200,
         message: 'Stamped invoice downloaded successfully',
+        data: [{
+          url: `${ftpBaseUrl}${remoteZipPath}`
+        }]
+      })
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException(error.response);
+    }
+  }
+  async downloadStampedOr(start_date: string, end_date: string) {
+    if (this.isEmpty(start_date) || this.isEmpty(end_date)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Start Date and End Date are required',
+        data: [],
+      });
+    }
+    const rootFolder = process.env.ROOT_PDF_FOLDER
+    const ftpBaseUrl = process.env.FTP_BASE_URL
+    try {
+      const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.ar_blast_or
+               WHERE year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= ${start_date}
+               AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= ${end_date}
+                `);
+      if (result.length === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'No stamped file yet ',
+          data: [],
+        });
+      }
+
+      const zip = new AdmZip();
+      for (let i = 0; i < result.length; i++) {
+        const filenames = `${result[i].filenames.slice(0, -4)}_signed.pdf`;
+        const invoice_tipe = result[i].invoice_tipe.toUpperCase();
+        const fileUrl = `${ftpBaseUrl}SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
+        try {
+          // Download the PDF file
+          const response = await firstValueFrom(this.httpService.get(fileUrl, { responseType: 'arraybuffer' }));
+          console.log("in try : " + fileUrl)
+          zip.addFile(filenames, Buffer.from(response.data));
+        } catch (error) {
+          console.log("in catch : " + fileUrl)
+          continue;
+        }
+      }
+
+      const localFolderPath = `${rootFolder}download/`;
+      const zipFileName = `stamped_${start_date}_to_${end_date}.zip`;
+      const zipFilePath = `${localFolderPath}${zipFileName}`;
+      const remoteFolderPath = `/SIGNED/GQCINV/DOWNLOAD/`;
+      const remoteZipPath = `${remoteFolderPath}${zipFileName}`;
+      console.log("ftp zip path : " + remoteZipPath)
+      await this.connect();
+
+      if (!fs.existsSync(localFolderPath)) {
+        fs.mkdirSync(localFolderPath, { recursive: true });
+      }
+      zip.writeZip(zipFilePath);
+
+      await this.client.ensureDir(remoteFolderPath);
+
+      try {
+
+        await this.client.ensureDir(remoteFolderPath);
+        await this.upload(zipFilePath, remoteZipPath);
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Failed to upload file',
+          data: [],
+        })
+      } finally {
+        await this.disconnect();
+      }
+      return ({
+        statusCode: 200,
+        message: 'Stamped or downloaded successfully',
         data: [{
           url: `${ftpBaseUrl}${remoteZipPath}`
         }]

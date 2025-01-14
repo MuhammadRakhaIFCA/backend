@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ReceiptService } from './receipt.service';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
+import * as fs from 'fs'
 
 @Controller('api')
 export class ReceiptController {
@@ -20,9 +21,9 @@ export class ReceiptController {
   }
   @Post('receipt/email-history')
   // @UseGuards(AuthGuard('jwt'))
-  // async getHistory(@Body() data: Record<any, any>) {
-  //   return this.receiptService.getHistory(data);
-  // }
+  async getHistory(@Body() data: Record<any, any>) {
+    return this.receiptService.getHistory(data);
+  }
   @Get('receipt/email-history-detail/:email_addr/:doc_no')
   async getHistoryDetail(
     @Param('email_addr') email_addr: string,
@@ -75,9 +76,38 @@ export class ReceiptController {
     const filePath = `${file.path}`;
     // const filePath = `${file.path}FAKTUR`; 
     const fileName = file.originalname;
-    console.log(file.path)
+    console.log("path : " + file.path)
     console.log(fileName)
+    console.log("doc no : " + doc_no)
 
     return await this.receiptService.uploadFaktur(filePath, fileName, doc_no);
   }
+
+  @Post('upload-faktur-base64/:doc_no')
+  async uploadFakturBase64(
+    @Body() body: { base64: string; file_name: string },
+    @Param('doc_no') doc_no: string
+  ) {
+    const { base64, file_name } = body;
+
+    // Decode the base64 string into a buffer
+    const fileBuffer = Buffer.from(base64, 'base64');
+
+    // Define a temporary file path to save the decoded file
+    const tempFilePath = `D:/FAKTUR/${file_name}`;
+
+    // Save the buffer to a temporary file
+    await fs.promises.writeFile(tempFilePath, fileBuffer);
+
+    try {
+      return await this.receiptService.uploadFaktur(tempFilePath, file_name, doc_no);
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Failed to process the base64 file',
+        data: [error],
+      });
+    }
+  }
+
 }

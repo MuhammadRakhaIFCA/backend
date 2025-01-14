@@ -42,9 +42,13 @@ export class MailController {
     return await this.mailService.sendEmail(to, subject, text, html, cc, bcc, attachments);
   }
 
-  @Get('blast-email/:doc_no')
-  async blastEmail(@Param('doc_no') doc_no: string) {
-    return this.mailService.blastEmail(doc_no)
+  @Get('blast-email-inv/:doc_no')
+  async blastEmailInv(@Param('doc_no') doc_no: string) {
+    return this.mailService.blastEmailInv(doc_no)
+  }
+  @Get('blast-email-or/:doc_no')
+  async blastEmailOr(@Param('doc_no') doc_no: string) {
+    return this.mailService.blastEmailOr(doc_no)
   }
   @Post('edit-config')
   async editConfig(@Body() data: Record<any, any>) {

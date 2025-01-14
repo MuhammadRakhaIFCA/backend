@@ -1850,13 +1850,13 @@ export class PdfgenerateService {
     async generateOR(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
         const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}or/${data.doc_no}.pdf`;
+        const filePath = `${rootFolder}receipt/${data.doc_no}.pdf`;
         const raw_fdoc_amt = Number(data.fdoc_amt)
         const fdoc_amt = raw_fdoc_amt.toLocaleString('en-US', { minimumFractionDigits: 2 })
         const doc_date = moment(data.doc_date).format('DD/MM/YYYY')
 
-        if (!fs.existsSync(`${rootFolder}or}`)) {
-            fs.mkdirSync(`${rootFolder}or`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}receipt}`)) {
+            fs.mkdirSync(`${rootFolder}receipt`, { recursive: true });
         }
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
@@ -1916,7 +1916,7 @@ export class PdfgenerateService {
         doc.text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)} only`, 190, 300, { width: 365 })
         doc.text(`${data.descs}`, 190, 350)
         if (raw_fdoc_amt >= 5000000) {
-            doc.text('E-Meterei', 450, 400, { width: 100, align: 'center' })
+            doc.text('E-meterai', 450, 400, { width: 100, align: 'center' })
         }
         if (data.or_paid_by === 'C') {
             doc.text('Cash', 190, 370)
@@ -1939,27 +1939,27 @@ export class PdfgenerateService {
             .text('has been cleared')
         doc.end()
 
-        // try {
-        //     await this.connect();
-        //     const rootFolder = process.env.ROOT_PDF_FOLDER;
-        //     const filePath = `${rootFolder}or/${data.doc_no}.pdf`;
-        //     if (!fs.existsSync(filePath)) {
-        //         console.error(`Local file does not exist: ${filePath}`);
-        //     }
+        try {
+            await this.connect();
+            const rootFolder = process.env.ROOT_PDF_FOLDER;
+            const filePath = `${rootFolder}receipt/${data.doc_no}.pdf`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
 
-        //     await this.upload(filePath, `/UNSIGNED/GQCINV/OR/${data.doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/RECEIPT/${data.doc_no}.pdf`);
 
-        // } catch (error) {
-        //     console.log("Error during upload:.", error);
-        //     throw new BadRequestException({
-        //         statusCode: 400,
-        //         message: 'Failed to upload to FTP',
-        //         data: [error],
-        //     });
-        // } finally {
-        //     console.log("Disconnecting from FTP servers");
-        //     await this.disconnect();
-        // }
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
         return ({
             statusCode: 201,
             message: "invoice created!",

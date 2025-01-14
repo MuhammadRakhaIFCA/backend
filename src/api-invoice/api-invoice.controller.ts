@@ -30,11 +30,11 @@ export class ApiInvoiceController {
   async getInvoiceDetail(@Param('doc_no') doc_no: string) {
     return this.apiInvoiceService.getInvoiceDetail(doc_no);
   }
-  // @Post('invoice/email-history')
-  // //@UseGuards(AuthGuard('jwt'))
-  // async getHistory(@Body() data: Record<any, any>) {
-  //   return this.apiInvoiceService.getHistory(data);
-  // }
+  @Post('invoice/email-history')
+  //@UseGuards(AuthGuard('jwt'))
+  async getHistory(@Body() data: Record<any, any>) {
+    return this.apiInvoiceService.getHistory(data);
+  }
   @Get('invoice/email-history-detail/:email_addr/:doc_no')
   //@UseGuards(AuthGuard('jwt'))
   async getHistoryDetail(
@@ -146,6 +146,13 @@ export class ApiInvoiceController {
     @Query('end_date') end_date: string,
   ) {
     return await this.apiInvoiceService.downloadStampedInvoice(start_date, end_date)
+  }
+  @Get('download-or')
+  async downloadOrPdfsAsZip(
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+  ) {
+    return await this.apiInvoiceService.downloadStampedOr(start_date, end_date)
   }
 
   @Post('invoice-submit')

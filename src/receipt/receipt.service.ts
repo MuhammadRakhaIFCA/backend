@@ -6,6 +6,7 @@ import { PdfgenerateService } from 'src/pdfgenerate/pdfgenerate.service';
 import * as ftp from 'basic-ftp';
 import * as path from 'path';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ReceiptService {
@@ -75,10 +76,15 @@ export class ReceiptService {
     async getReceipt() {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_blast_or WHERE doc_amt <= 5000000
+                SELECT abo.*, debtor_name = name FROM mgr.ar_blast_or abo 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abo.debtor_acct = ad.debtor_acct
+                AND abo.entity_cd = ad.entity_cd
+                AND abo.project_no = ad.project_no
+                WHERE doc_amt <= 5000000
                 AND file_status_sign IS NULL
-                AND status_process_sign = 'N'
                 AND send_id IS NULL
+                OR (doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N') AND send_id IS NULL)
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -126,36 +132,40 @@ export class ReceiptService {
         }
     }
 
-    // async getHistory(data: Record<any, any>) {
-    //     const { startDate, endDate, status } = data
-    //     try {
-    //         const result: Array<any> = await this.sqlserver.$queryRawUnsafe(`
-    //             SELECT * FROM mgr.ar_blast_or 
-    //             WHERE send_id IS NOT NULL 
-    //                 AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-    //                 AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-    //                 AND send_status = '${status}'
-    //                 ORDER BY send_date DESC
-    //         `)
-    //         if (!result || result.length === 0) {
-    //             console.log(result.length)
-    //             throw new NotFoundException({
-    //                 statusCode: 404,
-    //                 message: 'No history yet',
-    //                 data: [],
-    //             });
-    //         }
-    //         return {
-    //             statusCode: 200,
-    //             message: 'history retrieved successfully',
-    //             data: result,
-    //         };
-    //     } catch (error) {
-    //         throw new NotFoundException(
-    //             error.response
-    //         );
-    //     }
-    // }
+    async getHistory(data: Record<any, any>) {
+        const { startDate, endDate, status } = data
+        try {
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_or abia 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+                WHERE send_id IS NOT NULL 
+                AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+                AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+                AND send_status = '${status}'
+                ORDER BY send_date DESC
+            `)
+            if (!result || result.length === 0) {
+                console.log(result.length)
+                throw new NotFoundException({
+                    statusCode: 404,
+                    message: 'No history yet',
+                    data: [],
+                });
+            }
+            return {
+                statusCode: 200,
+                message: 'history retrieved successfully',
+                data: result,
+            };
+        } catch (error) {
+            throw new NotFoundException(
+                error.response
+            );
+        }
+    }
     async getHistoryDetail(email_addr: string, doc_no: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -198,9 +208,13 @@ export class ReceiptService {
         }
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM  mgr.ar_blast_or
+                 SELECT abo.*, debtor_name = name FROM mgr.ar_blast_or abo 
+                INNER JOIN mgr.ar_debtor ad 
+                ON abo.debtor_acct = ad.debtor_acct
+                AND abo.entity_cd = ad.entity_cd
+                AND abo.project_no = ad.project_no
                 WHERE doc_amt >= 5000000 
-                AND file_status ${file_status}
+                AND file_status_sign ${file_status}
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -308,7 +322,7 @@ export class ReceiptService {
                 SELECT * FROM mgr.peruri_stamp_file_log WHERE company_cd = '${company_cd}' 
                 AND file_type = 'receipt'
                 AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= '${startDate}' 
-                AND year(audit_date)*10000+month(audit_date)*100+day(audi_date) <= '${endDate}'
+                AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) <= '${endDate}'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -344,6 +358,7 @@ export class ReceiptService {
             WHERE
             year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${start_date}' 
             AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${end_date}' 
+            AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_or ) 
             `)
         if (result.length === 0) {
             throw new NotFoundException({
@@ -438,26 +453,26 @@ export class ReceiptService {
 
     async addToORTable(data: Record<any, any>) {
         const { entity_cd, project_no, debtor_acct, email_addr, bill_type, doc_no,
-            doc_date, descs, currency_cd, doc_amt, invoice_tipe,
-            filenames, process_id, audit_user, audit_date
+            doc_date, descs, currency_cd, doc_amt,
+            filenames, process_id, audit_user,
         } = data
-        const result = await this.fjiDatabase.$executeRawUnsafe(`
+        const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
             INSERT INTO mgr.ar_blast_or
             (entity_cd, project_no, debtor_acct, email_addr, gen_date, doc_no,
              doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
              process_id, audit_user, audit_date)
              VALUES
              (
-             '${entity_cd}', '${project_no}','${debtor_acct}', '${email_addr}', GETDATE(),
-             '${doc_no}', '${doc_date}', '${descs}', '${currency_cd}',
-             ${doc_amt}, '${invoice_tipe}', '${filenames}', 
-             '${process_id}', '${audit_user}', GETDATE()
+             ${entity_cd}, ${project_no},${debtor_acct}, ${email_addr}, GETDATE(),
+             ${doc_no}, ${doc_date}, ${descs}, ${currency_cd},
+             ${doc_amt}, 'receipt', ${filenames}, 
+             ${process_id}, ${audit_user}, GETDATE()
              )
             `)
         if (result === 0) {
             throw new BadRequestException({
                 statusCode: 400,
-                message: 'failed to add to mgr.ar_blast_or table',
+                message: 'failed to add to mgr.ar_blast_or table ',
                 data: []
             })
         }
@@ -486,7 +501,7 @@ export class ReceiptService {
         }
 
         const result = await this.fjiDatabase.$executeRawUnsafe(`
-            UPDATE mgr.ar_blast_or SET filenames3 = '${fileName}'
+            UPDATE mgr.ar_blast_inv SET filenames3 = '${fileName}'
             WHERE doc_no = '${doc_no}'
             `)
         if (result === 0) {
