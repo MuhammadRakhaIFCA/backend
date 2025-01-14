@@ -11,7 +11,7 @@ export class FjiUserController {
   constructor(private readonly fjiService: FjiService) { }
 
   @Get('user/get')
-  @UseGuards(AuthGuard('jwt'))
+  //@UseGuards(AuthGuard('jwt'))
   async getUser() {
     return await this.fjiService.getUser()
   }
