@@ -47,6 +47,7 @@ import { FjiDatabaseModule } from 'src/database/database-fji.module';
     FjiDatabaseModule
   ],
   controllers: [MailController],
-  providers: [MailService]
+  providers: [MailService],
+  exports: [MailService]
 })
 export class MailModule { }

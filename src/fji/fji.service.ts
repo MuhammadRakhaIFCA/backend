@@ -9,13 +9,15 @@ import { LoginDto } from './dto/login.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
 import { EditUserDto } from './dto/edit-user.dto';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class FjiService {
     constructor(
         private readonly fjiDatabase: FjiDatabaseService,
         //private readonly tanriseDatabase: TanriseDatabaseService,
-        private readonly jwtService: JwtService
+        private readonly jwtService: JwtService,
+        private readonly mailService: MailService
     ) { }
 
 
@@ -76,15 +78,6 @@ export class FjiService {
                 VALUES 
                 ('${email}', '${encryptedPassword}', '${name}', 'MGR', GETDATE()) 
                 `)
-            return ({
-                statusCode: 201,
-                message: "user created",
-                data: [{
-                    email,
-                    name,
-                    createdBy: 'MGR'
-                }]
-            })
         } catch (error) {
             throw new BadRequestException({
                 statusCode: 400,
@@ -92,6 +85,25 @@ export class FjiService {
                 data: []
             })
         }
+
+        try {
+            await this.mailService.sendAccountCreationEmail(email)
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to send account creation email",
+                data: []
+            })
+        }
+        return ({
+            statusCode: 201,
+            message: "user created",
+            data: [{
+                email,
+                name,
+                createdBy: 'MGR'
+            }]
+        })
     }
     async editPassword(data: Record<any, any>) {
         const { email, password } = data

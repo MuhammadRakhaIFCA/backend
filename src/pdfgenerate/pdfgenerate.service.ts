@@ -196,7 +196,7 @@ export class PdfgenerateService {
         const formattedPphRate = pphRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formattedAllocAmt = allocAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         //header kiri
-        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
         const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
         doc.image(`${imagePath}`, 15, 25, { width: 40, height: 45 })
             .fontSize(12)
@@ -268,8 +268,11 @@ export class PdfgenerateService {
         doc.fontSize(12).font('Times-Bold')
             .text('DESCRIPTION', 25, tableYStart, { width: 400, align: 'center' })
             .text('AMOUNT', 425, tableYStart, { width: 150, align: 'center' })
+        if (data.type == "manual") {
+            doc.font('Times-Roman')
+        }
+        doc.text(data.descs, 35, tableYStart + 35)
         doc.font('Times-Roman')
-            .text(data.descs, 35, tableYStart + 35)
         doc.text(data.currency_cd, 435, tableYStart + 35, { width: 130, align: 'left' })
             .text(formattedBaseAmt, 435, tableYStart + 35, { width: 130, align: 'right' })
         if (data.trx_type !== '1402' && data.descs_lot !== undefined) {
@@ -364,16 +367,15 @@ export class PdfgenerateService {
             margin: 0,
         });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}manual/${data.doc_no}.pdf`;
-
-        if (!fs.existsSync(`${rootFolder}manual}`)) {
-            fs.mkdirSync(`${rootFolder}manual`, { recursive: true });
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/manual/${data.doc_no}.pdf`;
+        console.log("manual uploaded in local file in : " + filePath)
+        if (!fs.existsSync(`${rootFolder}/manual}`)) {
+            fs.mkdirSync(`${rootFolder}/manual`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
-        console.log("manual")
         await this.generatePageOne(doc, data)
 
 
@@ -381,8 +383,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}manual/${data.doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/manual/${data.doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -412,11 +414,11 @@ export class PdfgenerateService {
             margin: 0,
         });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/${data.doc_no}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/${data.doc_no}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -429,8 +431,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/${data.doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/schedule/${data.doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -469,11 +471,11 @@ export class PdfgenerateService {
             margin: 0,
         });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}manual/pakubuwono_${data.forPayment}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/manual/pakubuwono_${data.forPayment}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}manual}`)) {
-            fs.mkdirSync(`${rootFolder}manual`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/manual}`)) {
+            fs.mkdirSync(`${rootFolder}/manual`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -507,8 +509,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}proforma/${data.docNo}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/proforma/${data.docNo}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -608,11 +610,11 @@ export class PdfgenerateService {
             margin: 0,
         });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_g_${doc_no}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/fji_reference_g_${doc_no}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -657,8 +659,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/fji_reference_g_${doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/schedule/fji_reference_g_${doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -735,8 +737,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/fji_reference_w_${doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/schedule/fji_reference_w_${doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -765,11 +767,11 @@ export class PdfgenerateService {
             margin: 0,
         });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/fji_reference_v_${doc_no}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -816,8 +818,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/fji_reference_v_${doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/schedule/fji_reference_v_${doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -850,10 +852,10 @@ export class PdfgenerateService {
         const pdfBody = {
             docNo: doc_no,
             name: result[0]?.name,
-            address1: result[0]?.address1,
-            address2: result[0]?.address2,
-            address3: result[0]?.address3,
-            postCd: result[0]?.post_cd,
+            address1: result[0]?.address1 || '',
+            address2: result[0]?.address2 || '',
+            address3: result[0]?.address3 || '',
+            postCd: result[0]?.post_cd || '',
             docDate: moment(result[0]?.doc_date).format('DD/MM/YYYY'),
             readDate: moment(result[0]?.read_date).format('DD/MM/YYYY'),
             startDate: moment(result[0]?.start_date).format('DD/MM/YYYY'),
@@ -902,8 +904,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}schedule/fji_reference_e_${doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/schedule/fji_reference_e_${doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
@@ -938,7 +940,7 @@ export class PdfgenerateService {
         }
 
         //header kiri
-        const rootFolder = process.env.ROOT_PDF_FOLDER
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
         const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
         doc.image(imagePath, 15, 25, { width: 40, height: 45 })
         doc.fontSize(12)
@@ -1037,11 +1039,11 @@ export class PdfgenerateService {
             .text(':', 200, tableYStart + 280)
 
         if (data.currency_cd == "RP") {
-            doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)} only`, 210, tableYStart + 265)
+            doc.fontSize(10).text(`Indonesian Rupiah ${this.numberToWords(total)} only`, 210, tableYStart + 265, { width: 365 })
         }
 
         else if (data.currency_cd == "USD") {
-            doc.fontSize(10).text(`United States Dollar ${this.numberToWords(total)} only`, 210, tableYStart + 265)
+            doc.fontSize(10).text(`United States Dollar ${this.numberToWords(total)} only`, 210, tableYStart + 265, { width: 365 })
         }
         doc.fontSize(9).font('Times-Roman')
             .text('- Payment should be made to the form of the crossed cheque (Giro) payable to', 35, tableYStart + 295)
@@ -1073,12 +1075,12 @@ export class PdfgenerateService {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
         const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_g_${data.docNo}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/fji_reference_g_${data.docNo}.pdf`;
 
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -1204,10 +1206,10 @@ export class PdfgenerateService {
         doc.fontSize(10)
             .text('In Words : ', 10, textYStart + 20)
         if (data.currencyCd == "RP") {
-            doc.text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15 })
+            doc.text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15, width: 400 })
         }
         else if (data.currencyCd == "USD") {
-            doc.text(`United States Dollar ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15 })
+            doc.text(`United States Dollar ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15, width: 400 })
         }
 
         doc.rect(10, tableYStart + 70, 550, 1).stroke()
@@ -1233,11 +1235,11 @@ export class PdfgenerateService {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
         const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_v_${data.docNo}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/fji_reference_v_${data.docNo}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -1338,10 +1340,10 @@ export class PdfgenerateService {
         doc.fontSize(10)
             .text(`Periode Date ${moment(data.startPeriod).format('DD/MM/YYYY')} to ${moment(data.endPeriod).format('DD/MM/YYYY')}`, 20, textYStart + 20)
         if (data.currency == "RP") {
-            doc.text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40)
+            doc.text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40, { width: 365 })
         }
         else if (data.currency == "USD") {
-            doc.text(`In Words : United States Dollar ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40)
+            doc.text(`In Words : United States Dollar ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40, { width: 365 })
         }
         // .text(`In Words : ${this.numberToWords(Math.round(totalAmount))}`, 20, textYStart + 40)
 
@@ -1370,11 +1372,11 @@ export class PdfgenerateService {
             margin: 0,
         });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}proforma/${data.docNo}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/proforma/${data.docNo}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}proforma}`)) {
-            fs.mkdirSync(`${rootFolder}proforma`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/proforma}`)) {
+            fs.mkdirSync(`${rootFolder}/proforma`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
@@ -1443,20 +1445,20 @@ export class PdfgenerateService {
         //isi table
         let startDate = ''
         let endDate = ''
-        if (data.startDate !== undefined) {
+        if (data.startDate !== undefined && data.startDate !== null) {
             console.log("valid date : " + data.startDate)
             startDate = moment(data.startDate).format('DD/MM/YYYY')
         }
-        if (data.endDate !== undefined) {
+        if (data.endDate !== undefined && data.endDate !== null) {
             endDate = moment(data.endDate).format('DD/MM/YYYY')
         }
         doc
             .text('Description', 20, 240, { width: 340, align: 'center' })
             .text('Amount', 360, 240, { width: 200, align: 'center' })
             .text(`Charge Name : `, 30, 270).moveDown()
-            .text('Period :', { lineGap: 5 }).text('VAT : ')
+            .text('Period :', 30, 290, { lineGap: 5 }).text('VAT : ', 30, 305)
             .text(data.taxDesc, 100, 270).moveDown()
-            .text(`${startDate} - ${endDate}`, { lineGap: 2 }).text(`${data.taxRate} %`)
+            .text(`${startDate} - ${endDate}`, 100, 290, { lineGap: 2 }).text(`${data.taxRate} %`, 100, 305)
             .text('Amount Should be paid', 210, 365)
         doc
             .text(data.currencyCd, 368, 270)
@@ -1509,7 +1511,7 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .text(data.signature, { width: 190, align: 'center' })
-            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
+
 
 
         doc.fontSize(8).font('Times-Bold')
@@ -1529,11 +1531,11 @@ export class PdfgenerateService {
     async generatePdfFirstJakarta5(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_w_${data.docNo}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/fji_reference_w_${data.docNo}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
@@ -1627,13 +1629,15 @@ export class PdfgenerateService {
             .text(` =  RP`, 400, 365)
             .text(`${roundingReduction}`, 400, 365, { width: 170, align: 'right' })
             .rect(390, 378, 180, 1).stroke()
-            .text(` =  RP`, 400, 385)
-            .text(`${rounding}`, 400, 385, { width: 170, align: 'right' })
             .text('Subtotal', 300, 330, { align: 'right', width: 80 })
             .text(`${apportionPercent}%`, 300, 350, { align: 'right', width: 80 })
+
+            .font('Times-Bold')
             .text('Total', 300, 385, { align: 'right', width: 80 })
+            .text(` =  RP`, 400, 385)
+            .text(`${rounding}`, 400, 385, { width: 170, align: 'right' })
 
-
+            .font('Times-Roman')
             .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
             .rect(20, 450, 550, 1).stroke()
             .text('In Words : ', 20, 460)
@@ -1661,11 +1665,11 @@ export class PdfgenerateService {
     async generatePdfFirstJakarta6(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
 
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}schedule/fji_reference_e_${data.docNo}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/fji_reference_e_${data.docNo}.pdf`;
 
-        if (!fs.existsSync(`${rootFolder}schedule}`)) {
-            fs.mkdirSync(`${rootFolder}schedule`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
@@ -1814,27 +1818,31 @@ export class PdfgenerateService {
             .text('= RP', 400, 465).text(`${subtotal}`, 400, 465, { width: 170, align: 'right' })
             .text('= RP', 400, 480).text(`${subTotalTimesApportion}`, 400, 480, { width: 170, align: 'right' })
             .text('= RP', 400, 495).text(`${roundingAmount}`, 400, 495, { width: 170, align: 'right' })
-            .text('= RP', 400, 515).text(`${trxAmt}`, 400, 515, { width: 170, align: 'right' })
 
             .text('Subtotal', 300, 465, { align: 'right', width: 80 })
             .text(`${apportionPercent}%`, 300, 480, { align: 'right', width: 80 })
-            .text('Total', 300, 515, { align: 'right', width: 80 })
             .rect(390, 458, 180, 1).stroke()
             .rect(390, 508, 180, 1).stroke()
 
+            .font('Times-Bold')
+            .text('Total', 300, 515, { align: 'right', width: 80 })
+            .text('= RP', 400, 515).text(`${trxAmt}`, 400, 515, { width: 170, align: 'right' })
+
+            .font('Times-Roman')
         const inWords = this.numberToWords(data.trxAmt)
         doc.rect(20, 550, 550, 1).stroke()
             .text('In Words : ', 20, 560)
         if (data.currencyCd == "RP") {
-            doc.text(`Indonesian Rupiah ${inWords} only`, 50, 575)
+            doc.text(`Indonesian Rupiah ${inWords} only`, 50, 575, { width: 500 })
         }
         else if (data.currencyCd == "USD") {
-            doc.text(`United States Dollar ${inWords} only`, 50, 575)
+            doc.text(`United States Dollar ${inWords} only`, 50, 575, { width: 500 })
         }
         doc.rect(20, 600, 550, 1).stroke()
             .text('Note : This letter is an explanation of the electricity calculation for Debit/Credit Note',
                 20, 615)
-        // .text('xxxxx', 150, 615) 
+            // .text('xxxxx', 150, 615) 
+            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, 640)
             .font('Times-Italic')
@@ -1849,14 +1857,15 @@ export class PdfgenerateService {
 
     async generateOR(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
-        const rootFolder = process.env.ROOT_PDF_FOLDER
-        const filePath = `${rootFolder}receipt/${data.doc_no}.pdf`;
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/receipt/${data.doc_no}.pdf`;
         const raw_fdoc_amt = Number(data.fdoc_amt)
         const fdoc_amt = raw_fdoc_amt.toLocaleString('en-US', { minimumFractionDigits: 2 })
         const doc_date = moment(data.doc_date).format('DD/MM/YYYY')
+        console.log("or created in local : " + filePath)
 
-        if (!fs.existsSync(`${rootFolder}receipt}`)) {
-            fs.mkdirSync(`${rootFolder}receipt`, { recursive: true });
+        if (!fs.existsSync(`${rootFolder}/receipt}`)) {
+            fs.mkdirSync(`${rootFolder}/receipt`, { recursive: true });
         }
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
@@ -1941,8 +1950,8 @@ export class PdfgenerateService {
 
         try {
             await this.connect();
-            const rootFolder = process.env.ROOT_PDF_FOLDER;
-            const filePath = `${rootFolder}receipt/${data.doc_no}.pdf`;
+            const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+            const filePath = `${rootFolder}/receipt/${data.doc_no}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }

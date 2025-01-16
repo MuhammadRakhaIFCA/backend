@@ -8,10 +8,14 @@ import ical from 'ical-generator';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
 import * as moment from 'moment'
 import * as crypto from 'crypto';
+import * as ftp from 'basic-ftp';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
+  private client: ftp.Client
 
   constructor(private readonly fjiDatabase: FjiDatabaseService) {
     // Initialize the transporter
@@ -22,8 +26,56 @@ export class MailService {
         pass: process.env.MAIL_PASSWORD
       },
     });
+    this.client = new ftp.Client();
+    this.client.ftp.verbose = true;
   }
 
+  async connect(): Promise<void> {
+    console.log(this.client.closed)
+    if (this.client.closed) {
+      console.log('Reconnecting to FTP server...');
+      await this.client.access({
+        host: process.env.FTP_HOST,
+        user: process.env.FTP_USERNAME,
+        password: process.env.FTP_PASSWORD,
+        secure: false,
+        port: 21,
+      });
+    }
+    console.log('Connected to FTP server.');
+  }
+  async download(remoteFilePath: string, localFilePath: string): Promise<void> {
+    try {
+      await this.client.downloadTo(localFilePath, remoteFilePath);
+      console.log('File downloaded successfully');
+    } catch (error) {
+      throw new Error(`Failed to download file: ${error.message}`);
+    }
+  }
+  async upload(localFilePath: string, remoteFilePath: string): Promise<void> {
+    try {
+      if (!fs.existsSync(localFilePath)) {
+        throw new Error(`Local file does not exist: ${localFilePath}`);
+      }
+      const remoteDirPath = path.dirname(remoteFilePath);
+      await this.client.ensureDir(remoteDirPath);
+      await this.client.uploadFrom(localFilePath, remoteFilePath);
+      console.log('File uploaded successfully');
+    } catch (error) {
+      throw new Error(`Failed to upload file: ${error.message}`);
+      throw new BadRequestException(error);
+    }
+  }
+
+  async disconnect() {
+    try {
+      this.client.close();
+      console.log('Disconnected from FTP server');
+    } catch (err) {
+      console.error('Failed to disconnect', err);
+      throw err;
+    }
+  }
 
 
   encrypt(text: string): string {
@@ -144,31 +196,6 @@ export class MailService {
       },
     });
   }
-  // private async smtptransporter = nodemailer.createTransport({
-  //   host: await this.getEmailConfig.data.host,
-  //   // host: 'smtp.gmail.com',  // SMTP server
-  //   port: this.mailConfig[0].port,               // Port number
-  //   secure: false,           // Use TLS (false for port 587)
-  //   auth: {
-  //     user: this.mailConfig[0].username,
-  //     pass: this.mailConfig[0].password
-  //     // user: process.env.MAIL_USER,
-  //     // pass: process.env.MAIL_PASSWORD
-  //   },
-
-  // });
-  // async sendMail() {
-  //   await this.mailerService.sendMail({
-  //     to: "muhammadrakha3995@email.com",
-  //     from: process.env.MAIL_USER,
-  //     subject: 'Welcome to Nice App! Confirm your Email',
-  //     template: './confirmation', // `.hbs` extension is appended automatically
-  //     context: { // ✏️ filling curly brackets with content
-  //       name: "user",
-  //       url: "example.com/auth/confirm",
-  //     },
-  //   });
-  // }
 
   async sendEmail(
     to: string,
@@ -218,130 +245,52 @@ export class MailService {
     }
   }
 
-  private message = {
-    from: process.env.MAIL_USER,
-    to: 'muhammadrakha3995@gmail.com',
-    subject: 'List Message',
-    text: 'I hope no-one unsubscribes from this list!',
-    list: {
-      // List-Help: <mailto:admin@example.com?subject=help>
-      help: 'admin@example.com?subject=help',
-      // List-Unsubscribe: <http://example.com> (Comment)
-      unsubscribe: {
-        url: 'http://example.com',
-        comment: 'Comment'
-      },
-      // List-Subscribe: <mailto:admin@example.com?subject=subscribe>
-      // List-Subscribe: <http://example.com> (Subscribe)
-      subscribe: [
-        'admin@example.com?subject=subscribe',
-        {
-          url: 'http://example.com',
-          comment: 'Subscribe'
-        }
-      ],
-      // List-Post: <http://example.com/post>, <mailto:admin@example.com?subject=post> (Post)
-      post: [
-        [
-          'http://example.com/post',
-          {
-            url: 'admin@example.com?subject=post',
-            comment: 'Post'
-          }
-        ]
-      ]
+  async sendAccountCreationEmail(email: string) {
+    const mailConfig = await this.getEmailConfig()
+    const mailOptions: any = {
+      from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
+      to: email,
+      subject: `Account creation`,
+      text: 'You have created an account, your default password is pass1234', // Fallback for plain text clients
+      html: '<p>You have created an account, your default password is pass1234</p>'
     }
-  }
 
-
-
-  private generateIcalEvent(
-    organizer: { name: string, email: string },
-    attendeesList: Array<{ name: string, email: string }>,
-    startDate: Date,
-    endDate: Date
-  ): string {
-    const calendar = ical({ name: 'My Calendar' });
-
-    // Add an event to the calendar
-    calendar.createEvent({
-      start: new Date(startDate),
-      end: new Date(endDate),
-      // start: new Date('2024-12-03T10:00:00'), 
-      // end: new Date('2024-12-03T12:00:00'),   
-      summary: 'Team Meeting',
-      description: 'Discuss project updates',
-      location: 'Zoom',
-      organizer: { name: organizer.name, email: organizer.email },
-      attendees: attendeesList.map((attendee) => ({
-        name: attendee.name,
-        email: attendee.email,
-      })),
-    });
-
-    return calendar.toString();
-  }
-
-
-  async sendEmailEvent(
-    to: string,
-    subject: string,
-    text: string,
-    startDate: Date,
-    endDate: Date,
-    html?: string,
-    attachments?: Array<{ filename: string; path: string }>,
-  ) {
+    let send_status: string
+    let status_code: number
+    let response_message: string
+    const send_date = moment().format('YYYYMMDD')
     try {
-      //await this.smtptransporter.sendMail(this.message);
-      const content = this.generateIcalEvent(
-        {
-          name: 'Rakha',
-          email: process.env.MAIL_USER,
-        },
-        [
-          {
-            name: 'John',
-            email: 'john@example.com',
-          },
-          {
-            name: 'Jane',
-            email: 'jane@example.com',
-          }
-        ],
-        startDate,
-        endDate
-      );
       const smtptransporter = await this.getSmtpTransporter()
-      await smtptransporter.sendMail({
-        from: {
-          name: "custom name",
-          address: "user1@gmail.com",
-        },
-        replyTo: `"User1" <user1@gmail.com>`,
-        to,
-        subject,
-        text,
-        html,
-        attachments,
-        icalEvent: {
-          filename: 'invitation.ics',
-          method: 'request', // 'request' for inviting attendees
-          content,           // iCal content
-        },
-      });
-      return ({
-        statusCode: 201,
-        message: 'Email sent successfully',
-        data: []
-      })
+      const info = await smtptransporter.sendMail(mailOptions);
+      if (info.accepted.includes(email)) {
+        send_status = 'S';
+        status_code = 200;
+        response_message = 'Email sent successfully';
+      }
+      else if (info.pending.includes(email)) {
+        send_status = 'P';
+        status_code = 202;
+        response_message = 'Email is pending';
+      }
+      else if (info.rejected.includes(email)) {
+        send_status = 'F';
+        status_code = 400;
+        response_message = 'Email not accepted by server';
+      }
     } catch (error) {
-      throw new RequestTimeoutException({
-        statusCode: 408,
-        message: 'failed to send email',
+      console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: "fail to send account creation email",
         data: []
       })
     }
+
+    return ({
+      statusCode: status_code,
+      message: response_message,
+      data: []
+    })
   }
 
   async blastEmailOr(doc_no: string) {
@@ -355,8 +304,6 @@ export class MailService {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}'
     `);
-
-
 
     if (!result || result.length === 0) {
       throw new NotFoundException({
@@ -372,7 +319,40 @@ export class MailService {
       : [];
 
     const mailConfig = await this.getEmailConfig()
-    const rootFolder = process.env.ROOT_PDF_FOLDER
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+    console.log(`sending or, unsigned file from local : ${rootFolder}/receipt/${result[0].filenames}`)
+
+    // if (result[0].file_name_sign) {
+    //   await this.connect()
+    //   try {
+    //     await this.download(
+    //       `SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
+    //       `${rootFolder}/receipt/${result[0].file_name_sign}`)
+    //   } catch (error) {
+    //     throw new BadRequestException({
+    //       statusCode: 400,
+    //       message: 'fail to download signed file',
+    //       data: []
+    //     })
+    //   } finally {
+    //     this.disconnect()
+    //   }
+    // } else {
+    //   await this.connect()
+    //   try {
+    //     await this.download(`
+    //       UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
+    //       `${rootFolder}/receipt/${result[0].filenames}`)
+    //   } catch (error) {
+    //     throw new BadRequestException({
+    //       statusCode: 400,
+    //       message: 'fail to download unsigned file',
+    //       data: []
+    //     })
+    //   } finally {
+    //     this.disconnect()
+    //   }
+    // }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
@@ -386,15 +366,24 @@ export class MailService {
         result[0].doc_no,
       ),
       attachments: [
-        {
-          filename: result[0].filenames,
-          path: `${rootFolder}receipt/${result[0].filenames}`,
-        },
+        ...(result[0].file_name_sign
+          ? [
+            {
+              filename: result[0].file_name_sign,
+              path: `${rootFolder}/receipt/${result[0].file_name_sign}`,
+            },
+          ]
+          : [
+            {
+              filename: result[0].filenames,
+              path: `${rootFolder}/receipt/${result[0].filenames}`,
+            }
+          ]),
         ...(result[0].filenames3
           ? [
             {
               filename: result[0].filenames3,
-              path: `${rootFolder}FAKTUR/${result[0].filenames3}`,
+              path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
             },
           ]
           : []),
@@ -443,14 +432,6 @@ export class MailService {
       result[0].invoice_tipe
     );
 
-    if (status_code === 408) {
-      throw new RequestTimeoutException({
-        statusCode: 408,
-        message: 'failed to send email',
-        data: []
-      })
-    }
-
     // Loop through email_addrs and call insertToMsgLog for each email
     for (const email of email_addrs) {
       console.log(email)
@@ -469,9 +450,17 @@ export class MailService {
       );
     }
 
+    if (status_code === 408) {
+      throw new RequestTimeoutException({
+        statusCode: 408,
+        message: 'failed to send email',
+        data: []
+      })
+    }
+
     return {
-      statusCode: 200,
-      message: "blast email successful",
+      statusCode: status_code,
+      message: response_message,
       data: result[0]
     }
   }
@@ -500,7 +489,77 @@ export class MailService {
       : [];
 
     const mailConfig = await this.getEmailConfig()
-    const rootFolder = process.env.ROOT_PDF_FOLDER
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+    const upper_file_type = result[0].invoice_tipe.toUpperCase()
+
+    if (result[0].file_name_sign) {
+      await this.connect()
+      try {
+        await this.download(
+          `SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
+          `${rootFolder}/${result[0].invoice_tipe}/${result[0].file_name_sign}`
+        )
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download signed file',
+          data: []
+        })
+      } finally {
+        await this.disconnect()
+      }
+    } else {
+      await this.connect()
+      try {
+        await this.download(
+          `UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames}`,
+          `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`
+        )
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download unsigned file',
+          data: []
+        })
+      } finally {
+        await this.disconnect()
+      }
+    }
+
+    if (result[0].filenames2) {
+      await this.connect()
+      try {
+        await this.download(
+          `UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames2}`,
+          `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`
+        )
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download reference file',
+          data: []
+        })
+      } finally {
+        await this.disconnect()
+      }
+    }
+    if (result[0].filenames3) {
+      await this.connect()
+      try {
+        await this.download(
+          `UNSIGNED/GQCINV/FAKTUR/${result[0].filenames3}`,
+          `${rootFolder}/FAKTUR/${result[0].filenames3}`
+        )
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download faktur',
+          data: []
+        })
+      } finally {
+        await this.disconnect()
+      }
+    }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
@@ -514,15 +573,24 @@ export class MailService {
         result[0].doc_no,
       ),
       attachments: [
-        {
-          filename: result[0].filenames,
-          path: `${rootFolder}${result[0].invoice_tipe}/${result[0].filenames}`,
-        },
+        ...(result[0].file_name_sign
+          ? [
+            {
+              filename: result[0].file_name_sign,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].file_name_sign}`,
+            },
+          ]
+          : [
+            {
+              filename: result[0].filenames,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`,
+            }
+          ]),
         ...(result[0].filenames2
           ? [
             {
               filename: result[0].filenames2,
-              path: `${rootFolder}${result[0].invoice_tipe}/${result[0].filenames2}`,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`,
             },
           ]
           : []),
@@ -530,7 +598,7 @@ export class MailService {
           ? [
             {
               filename: result[0].filenames3,
-              path: `${rootFolder}FAKTUR/${result[0].filenames3}`,
+              path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
             },
           ]
           : []),
@@ -566,6 +634,7 @@ export class MailService {
       response_message = 'Email not accepted by server';
     }
 
+
     // Update the ar_blast_inv table
     await this.updateArBlastInvTable(
       doc_no,
@@ -594,9 +663,16 @@ export class MailService {
         moment(result[0].audit_date).format('YYYYMMDD')
       );
     }
+    if (status_code === 408) {
+      throw new RequestTimeoutException({
+        statusCode: 408,
+        message: 'failed to send email',
+        data: []
+      })
+    }
     return {
-      statusCode: 200,
-      message: "blast email successful",
+      statusCode: status_code,
+      message: response_message,
       data: result[0]
     }
   }

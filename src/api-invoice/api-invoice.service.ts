@@ -261,7 +261,8 @@ export class ApiInvoiceService {
       inv_group: result[0].inv_group,
       bill_type,
       meter_type,
-      formid: result[0].formid
+      formid: result[0].formid,
+      type: "schedule"
     };
 
     try {
@@ -411,7 +412,8 @@ export class ApiInvoiceService {
       sequence_no: result[0].sequence_no,
       group_cd: result[0].group_cd,
       inv_group: result[0].inv_group,
-      formid: result[0].formid
+      formid: result[0].formid,
+      type: "manual"
     };
 
     try {
@@ -519,7 +521,7 @@ export class ApiInvoiceService {
     return {
       statusCode: 201,
       message: 'pdf generated successfuly',
-      data: [{ path: `/UNSIGNED/GQCINV/SCHEDULE/${doc_no}.pdf` }],
+      data: [{ path: `/UNSIGNED/GQCINV/MANUAL/${doc_no}.pdf` }],
     };
   }
   private isEmpty(value: any): boolean {
@@ -1406,7 +1408,7 @@ export class ApiInvoiceService {
         data: [],
       });
     }
-    const rootFolder = process.env.ROOT_PDF_FOLDER
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
     const ftpBaseUrl = process.env.FTP_BASE_URL
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -1438,7 +1440,7 @@ export class ApiInvoiceService {
         }
       }
 
-      const localFolderPath = `${rootFolder}download/`;
+      const localFolderPath = `${rootFolder}/download/`;
       const zipFileName = `stamped_${start_date}_to_${end_date}.zip`;
       const zipFilePath = `${localFolderPath}${zipFileName}`;
       const remoteFolderPath = `/SIGNED/GQCINV/DOWNLOAD/`;
@@ -1486,7 +1488,7 @@ export class ApiInvoiceService {
         data: [],
       });
     }
-    const rootFolder = process.env.ROOT_PDF_FOLDER
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
     const ftpBaseUrl = process.env.FTP_BASE_URL
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -1518,7 +1520,7 @@ export class ApiInvoiceService {
         }
       }
 
-      const localFolderPath = `${rootFolder}download/`;
+      const localFolderPath = `${rootFolder}/download/`;
       const zipFileName = `stamped_${start_date}_to_${end_date}.zip`;
       const zipFilePath = `${localFolderPath}${zipFileName}`;
       const remoteFolderPath = `/SIGNED/GQCINV/DOWNLOAD/`;

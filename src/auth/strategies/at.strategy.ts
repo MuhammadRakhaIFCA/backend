@@ -21,7 +21,7 @@ export class AtStrategy extends PassportStrategy(Strategy, 'jwt') {
     //         throw new UnauthorizedException({
     //             statusCode: 401,
     //             message: 'Unauthorized',
-    //             data: {}
+    //             data: []
     //         });
     //     }
     //     return user;

@@ -9,22 +9,6 @@ import { CreateMailEventDto } from './dto/create-mail-event.dto';
 export class MailController {
   constructor(private readonly mailService: MailService) { }
 
-  @Post('')
-  @UseInterceptors(FileInterceptor('file'))
-  async sendMail(@UploadedFile() file: Express.Multer.File, @Body() body: CreateMailEventDto) {
-    const { to, subject, text, startDate, endDate, html } = body;
-    const attachments = file
-      ? [
-        {
-          filename: file.originalname,
-          path: file.path,
-        },
-      ]
-      : [];
-
-    return await this.mailService.sendEmailEvent(to, subject, text, startDate, endDate, html, attachments);
-
-  }
 
   @Post('send')
   @UseInterceptors(FileInterceptor('file'))

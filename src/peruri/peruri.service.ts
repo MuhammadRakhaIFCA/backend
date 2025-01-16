@@ -76,7 +76,7 @@ export class PeruriService {
         data: []
       })
     }
-    const rootFolder = process.env.ROOT_PDF_FOLDER;
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     const upper_file_type = file_type.toUpperCase();
     const doc_no = file_name.slice(0, -4);
     let approved_file: Array<any>
@@ -234,7 +234,7 @@ export class PeruriService {
 
       const base64Image = sn.data.result.image;
 
-      const folderPath = `${rootFolder}stamp-images`;
+      const folderPath = `${rootFolder}/stamp-images`;
       const fileName = `${file_name.replace(/\.pdf$/, '')}.png`;
       imagePath = path.join(folderPath, fileName);
 
@@ -258,7 +258,7 @@ export class PeruriService {
     );
 
     const sn = snResponse[0]?.file_sn_sign;
-    const folderPath = `${rootFolder}stamp-images`;
+    const folderPath = `${rootFolder}/stamp-images`;
     const fileName = `${file_name.replace(/\.pdf$/, '')}.png`;
 
     imagePath = path.join(folderPath, fileName);
@@ -277,7 +277,7 @@ export class PeruriService {
     }
 
     //7. hit api untuk dapat coordinate llx, lly, urx dan ury
-    const pdfpath = `${rootFolder}${file_type}/${file_name}`;
+    const pdfpath = `${rootFolder}/${file_type}/${file_name}`;
     const coordinates = await this.getCoordinates(pdfpath, 'E-meterai', 1);
 
     // console.log("pdf path : " + pdfpath)

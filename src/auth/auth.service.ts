@@ -38,13 +38,11 @@ export class AuthService {
     if (await bcrypt.compare(("email" + email + "p@ssw0rd" + password), findUser[0].password)) {
       const { password, ...user } = findUser[0]
       const tokens = await this.generateToken(findUser[0].user_id, findUser[0].email, findUser[0].name);
+      const userAndToken = { ...user, ...tokens }
       return {
         statusCode: 200,
         message: "login sucess",
-        data: [
-          user,
-          tokens
-        ]
+        data: [userAndToken]
       };
     } else {
       throw new UnauthorizedException({

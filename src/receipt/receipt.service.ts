@@ -283,8 +283,8 @@ export class ReceiptService {
 
     //     try {
     //         await this.connect();
-    //         const rootFolder = process.env.ROOT_PDF_FOLDER;
-    //         const filePath = `${rootFolder}proforma/pakubuwono_${result[0].doc_no}.pdf`;
+    //         const rootFolder= path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+    //         const filePath = `${rootFolder}/proforma/pakubuwono_${result[0].doc_no}.pdf`;
     //         if (!fs.existsSync(filePath)) {
     //             console.error(`Local file does not exist: ${filePath}`);
     //         }

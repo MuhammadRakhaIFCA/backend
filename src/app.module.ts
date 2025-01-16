@@ -11,6 +11,7 @@ import { ApiInvoiceModule } from './api-invoice/api-invoice.module';
 import { ReceiptModule } from './receipt/receipt.module';
 import { FjiUserModule } from './fji/fji.module';
 import { AuthModule } from './auth/auth.module';
+import { FinpayModule } from './finpay/finpay.module';
 
 @Module({
   imports: [PeruriModule, UploadModule, MailModule,
@@ -21,7 +22,8 @@ import { AuthModule } from './auth/auth.module';
     ApiInvoiceModule,
     ReceiptModule,
     FjiUserModule,
-    AuthModule
+    AuthModule,
+    FinpayModule
   ],
   controllers: [AppController],
   providers: [AppService],
