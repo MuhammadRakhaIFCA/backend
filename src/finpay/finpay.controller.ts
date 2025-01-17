@@ -7,9 +7,9 @@ import { NotificationCallbackDto } from './dto/notification-callback.dto';
 export class FinpayController {
   constructor(private readonly finpayService: FinpayService) { }
 
-  @Post('pay')
+  @Post('initiate-pay')
   async pay(@Body() dto: PaymentDto) {
-    return await this.finpayService.pay(dto)
+    return await this.finpayService.initiatePay(dto)
   }
 
   @Post('notification')

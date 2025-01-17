@@ -42,7 +42,7 @@ export class AuthService {
       return {
         statusCode: 200,
         message: "login sucess",
-        data: [userAndToken]
+        data: userAndToken
       };
     } else {
       throw new UnauthorizedException({

@@ -12,7 +12,7 @@ export class UnauthorizedExceptionFilter implements ExceptionFilter {
         const isCustomResponse =
             typeof exceptionResponse === 'object' &&
             exceptionResponse !== null &&
-            'statusCode' in exceptionResponse;
+            'data' in exceptionResponse;
 
         if (isCustomResponse) {
             // Use the custom response if provided
@@ -21,7 +21,7 @@ export class UnauthorizedExceptionFilter implements ExceptionFilter {
             // Default response for empty UnauthorizedException
             response.status(401).json({
                 statusCode: 401,
-                message: 'Unauthorized',
+                message: 'Unauthorized, please login first',
                 data: []
             });
         }

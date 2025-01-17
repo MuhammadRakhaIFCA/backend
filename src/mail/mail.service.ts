@@ -258,7 +258,7 @@ export class MailService {
     let send_status: string
     let status_code: number
     let response_message: string
-    const send_date = moment().format('YYYYMMDD')
+    const send_date = moment().format('YYYYMMDD h:mm:ss')
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
@@ -322,43 +322,43 @@ export class MailService {
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
     console.log(`sending or, unsigned file from local : ${rootFolder}/receipt/${result[0].filenames}`)
 
-    // if (result[0].file_name_sign) {
-    //   await this.connect()
-    //   try {
-    //     await this.download(
-    //       `SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
-    //       `${rootFolder}/receipt/${result[0].file_name_sign}`)
-    //   } catch (error) {
-    //     throw new BadRequestException({
-    //       statusCode: 400,
-    //       message: 'fail to download signed file',
-    //       data: []
-    //     })
-    //   } finally {
-    //     this.disconnect()
-    //   }
-    // } else {
-    //   await this.connect()
-    //   try {
-    //     await this.download(`
-    //       UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
-    //       `${rootFolder}/receipt/${result[0].filenames}`)
-    //   } catch (error) {
-    //     throw new BadRequestException({
-    //       statusCode: 400,
-    //       message: 'fail to download unsigned file',
-    //       data: []
-    //     })
-    //   } finally {
-    //     this.disconnect()
-    //   }
-    // }
+    if (result[0].file_name_sign) {
+      await this.connect()
+      try {
+        await this.download(
+          `SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
+          `${rootFolder}/receipt/${result[0].file_name_sign}`)
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download signed file',
+          data: []
+        })
+      } finally {
+        this.disconnect()
+      }
+    } else {
+      await this.connect()
+      try {
+        await this.download(
+          `UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
+          `${rootFolder}/receipt/${result[0].filenames}`)
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download unsigned file',
+          data: []
+        })
+      } finally {
+        this.disconnect()
+      }
+    }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: result[0].email_addr,
       subject: `OR ${doc_no}`,
-      text: "Please find the attached invoice.", // Fallback for plain text clients
+      text: "Please find the attached invoice ", // Fallback for plain text clients
       html: this.generateEmailTemplate(
         mailConfig.data[0].sender_name,
         mailConfig.data[0].sender_email,
@@ -394,7 +394,7 @@ export class MailService {
     let send_status: string
     let status_code: number
     let response_message: string
-    const send_date = moment().format('YYYYMMDD');
+    const send_date = moment().format('YYYYMMDD h:mm:ss');
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
@@ -420,10 +420,10 @@ export class MailService {
       response_message = 'Email not accepted by server';
     }
 
-    // Update the ar_blast_inv table
+    // Update the ar_blast_or table
     await this.updateArBlastOrTable(
       doc_no,
-      moment().format('YYYYMMDD'),
+      moment().format('YYYYMMDD h:mm:ss'),
       send_status,
       send_id,
       result[0].entity_cd,
@@ -446,7 +446,7 @@ export class MailService {
         send_date,
         send_id,
         result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD')
+        moment(result[0].audit_date).format('YYYYMMDD h:mm:ss')
       );
     }
 
@@ -608,7 +608,7 @@ export class MailService {
     let send_status: string
     let status_code: number
     let response_message: string
-    const send_date = moment().format('YYYYMMDD');
+    const send_date = moment().format('YYYYMMDD h:mm:ss');
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
@@ -638,7 +638,7 @@ export class MailService {
     // Update the ar_blast_inv table
     await this.updateArBlastInvTable(
       doc_no,
-      moment().format('YYYYMMDD'),
+      moment().format('YYYYMMDD h:mm:ss'),
       send_status,
       send_id,
       result[0].entity_cd,
@@ -660,7 +660,7 @@ export class MailService {
         send_date,
         send_id,
         result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD')
+        moment(result[0].audit_date).format('YYYYMMDD h:mm:ss')
       );
     }
     if (status_code === 408) {
@@ -709,7 +709,6 @@ export class MailService {
     doc_no: string, send_date: string, send_status: string, send_id: string,
     entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string
   ) {
-
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         UPDATE mgr.ar_blast_or SET send_id = '${send_id}', send_date = '${send_date}',
@@ -721,7 +720,6 @@ export class MailService {
         AND invoice_tipe = '${invoice_tipe}'
         AND doc_no = '${doc_no}'
         `)
-
 
     } catch (error) {
       console.log(error)
@@ -841,7 +839,6 @@ export class MailService {
       console.log(error)
       throw new BadRequestException(error.response)
     }
-
 
     return ({
       statusCode: 200,

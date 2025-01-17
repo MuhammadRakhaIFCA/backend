@@ -28,6 +28,10 @@ export class FjiService {
             const result = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.m_user
                 `)
+            const timezone = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT SYSDATETIMEOFFSET() AS CurrentDateTimeOffset
+                `)
+            console.log(timezone)
             return ({
                 statusCode: 201,
                 message: "user get",
@@ -64,6 +68,7 @@ export class FjiService {
     async createUser(data: createUserDto) {
         const { email, name } = data
         const password = "pass1234"
+        const pict = "https://i0.wp.com/www.winhelponline.com/blog/wp-content/uploads/2017/12/user.png?resize=256%2C256&quality=100&ssl=1"
         if (this.isEmpty(email), this.isEmpty(name)) {
             throw new BadRequestException({
                 statusCode: 400,
@@ -74,9 +79,9 @@ export class FjiService {
         try {
             const encryptedPassword = await bcrypt.hash(("email" + email + "p@ssw0rd" + password), 10)
             const result = await this.fjiDatabase.$executeRawUnsafe(`
-               INSERT into mgr.m_user (email, password, name, created_by, created_at) 
+               INSERT into mgr.m_user (email, password, name, pict, created_by, created_at) 
                 VALUES 
-                ('${email}', '${encryptedPassword}', '${name}', 'MGR', GETDATE()) 
+                ('${email}', '${encryptedPassword}', '${name}', '${pict}','MGR', GETDATE()) 
                 `)
         } catch (error) {
             throw new BadRequestException({
@@ -86,15 +91,15 @@ export class FjiService {
             })
         }
 
-        try {
-            await this.mailService.sendAccountCreationEmail(email)
-        } catch (error) {
-            throw new BadRequestException({
-                statusCode: 400,
-                message: "fail to send account creation email",
-                data: []
-            })
-        }
+        // try {
+        //     await this.mailService.sendAccountCreationEmail(email)
+        // } catch (error) {
+        //     throw new BadRequestException({
+        //         statusCode: 400,
+        //         message: "fail to send account creation email",
+        //         data: []
+        //     })
+        // }
         return ({
             statusCode: 201,
             message: "user created",

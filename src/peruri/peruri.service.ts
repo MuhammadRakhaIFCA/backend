@@ -76,6 +76,13 @@ export class PeruriService {
         data: []
       })
     }
+    // if (!this.checkSaldo(company_cd)) {
+    //   throw new UnauthorizedException({
+    //     statusCode: 404,
+    //     message: "saldo stamping tidak cukup",
+    //     data: []
+    //   })
+    // }
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     const upper_file_type = file_type.toUpperCase();
     const doc_no = file_name.slice(0, -4);
@@ -315,17 +322,6 @@ export class PeruriService {
       );
     } catch (error) {
       //10. jika gagal ubah status menjadi f
-      await this.fjiDatabase.$executeRawUnsafe(`
-                         UPDATE mgr.peruri_stamp_file_log SET file_status_sign = 'F'
-                         WHERE file_name_sign = '${file_name}'
-                        `);
-      // console.log(error)
-      throw new BadRequestException({
-        statusCode: 400,
-        message: 'stamping failed',
-        data: [error],
-      });
-    } finally {
       const updateTableBody = {
         file_token_sign: token,
         file_sn_sign: sn,
@@ -343,6 +339,16 @@ export class PeruriService {
       } else {
         await this.updateBlastInvTable(updateTableBody)
       }
+      await this.fjiDatabase.$executeRawUnsafe(`
+                         UPDATE mgr.peruri_stamp_file_log SET file_status_sign = 'F'
+                         WHERE file_name_sign = '${file_name}'
+                        `);
+      // console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'stamping failed',
+        data: [error],
+      });
     }
 
     //9. jika stamping berhasil ubah nama file di database dengan ditambah '_signed' dan ubah status menjadi s
@@ -370,7 +376,11 @@ export class PeruriService {
       await this.updateBlastInvTable(updateTableBody)
     }
 
-
+    try {
+      await this.useSaldo(company_cd)
+    } catch (error) {
+      throw new BadRequestException(error.response)
+    }
 
     return {
       statusCode: 201,
@@ -559,5 +569,124 @@ export class PeruriService {
       message: 'success',
       data: coordinates,
     };
+  }
+
+  async checkSaldo(company_cd: string) {
+    try {
+      const saldo = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.peruri_stamp_balance table
+        WHERE company_cd = '${company_cd}'
+        ORDER BY audit_date desc
+        `)
+
+      if (saldo && saldo[0]?.saldo > 0) {
+        return true
+      } else {
+        return false
+      }
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'fail to check mgr.peruri_stamp_balance table',
+        data: []
+      })
+    }
+  }
+
+  async useSaldo(company_cd: string) {
+    const transaction_number = 'idsnaf'
+    try {
+      const saldo = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.peruri_stamp_balance
+        WHERE company_cd = '${company_cd}'
+        ORDER BY audit_date desc
+        `)
+
+      const newSaldo = Number(saldo[0].saldo) - 1
+      await this.fjiDatabase.$executeRawUnsafe(`
+        INSERT INTO FROM mgr.peruri_stamp_balance
+        (company_cd, transaction_number, qty, type, saldo, audit_date)
+        VALUES
+        ('${company_cd}', '${transaction_number}', 1, 'K', '${newSaldo}', GETDATE())
+        `)
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'fail to insert data into mgr.peruri_stamp_balance table',
+        data: []
+      })
+    }
+  }
+
+  async topup(body: Record<any, any>) {
+    const { company_cd, transaction_number } = body
+    try {
+      const saldo: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT top(1) saldo, qty FROM mgr.peruri_stamp_balance
+        WHERE company_cd = '${company_cd}'
+        ORDER BY audit_date desc
+        `)
+      const transaction: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.finpay_transaction
+        WHERE order_id = '${transaction_number}'
+        AND company_cd = '${company_cd}'
+        `)
+      if (!transaction || transaction.length === 0) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: "this order id doesn't exist",
+          data: []
+        })
+      }
+      if (transaction[0]?.status_payment === "COMPLETED") {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: "this order is already completed",
+          data: []
+        })
+      }
+      if (transaction[0].status_payment !== "PAID") {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: "you haven't paid your transaction",
+          data: []
+        })
+      }
+      const qty = transaction[0].order_qty
+      let newSaldo: number = 0
+      if (!saldo || saldo.length === 0) {
+        newSaldo = qty
+      } else {
+        newSaldo = Number(saldo[0].saldo) + qty
+      }
+
+      await this.fjiDatabase.$executeRawUnsafe(`
+        INSERT INTO mgr.peruri_stamp_balance
+        (company_cd, transaction_number, qty, type, saldo, audit_date)
+        VALUES
+        ('${company_cd}', '${transaction_number}', ${qty}, 'D', ${newSaldo}, GETDATE())
+        `)
+    } catch (error) {
+      throw new BadRequestException(error.response)
+    }
+
+    try {
+      await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.finpay_transaction 
+        SET status_payment = 'COMPLETED', audit_date = GETDATE()
+        WHERE order_id = '${transaction_number}'
+        `)
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'fail to update mgr.finpay_transaction table',
+        data: [error]
+      })
+    }
+    return ({
+      statusCode: 201,
+      message: "top up success",
+      data: []
+    })
   }
 }

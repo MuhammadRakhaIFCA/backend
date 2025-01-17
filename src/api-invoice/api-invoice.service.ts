@@ -1471,9 +1471,7 @@ export class ApiInvoiceService {
       return ({
         statusCode: 200,
         message: 'Stamped invoice downloaded successfully',
-        data: [{
-          url: `${ftpBaseUrl}${remoteZipPath}`
-        }]
+        data: `${ftpBaseUrl}${remoteZipPath}`
       })
     } catch (error) {
       console.log(error)
@@ -1551,9 +1549,7 @@ export class ApiInvoiceService {
       return ({
         statusCode: 200,
         message: 'Stamped or downloaded successfully',
-        data: [{
-          url: `${ftpBaseUrl}${remoteZipPath}`
-        }]
+        data: `${ftpBaseUrl}${remoteZipPath}`
       })
     } catch (error) {
       console.log(error)

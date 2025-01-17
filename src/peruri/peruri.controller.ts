@@ -51,6 +51,12 @@ export class PeruriController {
     await this.uploadService.stampTest(pdfFile.path, outputPdfPath, imgBuffer, 1, pdfFile.filename, coordinates[0]);
   }
 
+  @Post('topup')
+  async topup(@Body() body: Record<any, any>) {
+    return await this.peruriService.topup(body)
+  }
+
+
   @Get()
   async testDecode() {
     let data = ''

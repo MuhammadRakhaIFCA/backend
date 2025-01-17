@@ -10,9 +10,10 @@ import {
     IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Optional } from '@nestjs/common';
 
 class OrderDto {
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
     id: string;
 
