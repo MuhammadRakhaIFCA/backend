@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FjiService } from './fji.service';
 import { createUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
@@ -6,6 +6,7 @@ import { EditUserDto } from './dto/edit-user.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 
 @Controller('api')
 export class FjiUserController {
@@ -52,10 +53,11 @@ export class FjiUserController {
   @UseInterceptors(FileInterceptor('file'))
   async changePhoto(
     @UploadedFile() file: Express.Multer.File,
-    @Param('user_id') email: string
+    @Param('user_id') email: string,
+    @Req() req: Request
   ) {
     console.log(file)
-    return await this.fjiService.changePhoto(file.filename, email)
+    return await this.fjiService.changePhoto(file.filename, email, req)
   }
 
   @Put('user/edit-password')

@@ -3,13 +3,14 @@ import { BadRequestException, Injectable, NotFoundException, UnauthorizedExcepti
 import { createUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-
+import * as path from 'path'
 import * as jwt from 'jsonwebtoken'
 import { LoginDto } from './dto/login.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
 import { EditUserDto } from './dto/edit-user.dto';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
 import { MailService } from 'src/mail/mail.service';
+import { Request } from 'express';
 
 @Injectable()
 export class FjiService {
@@ -467,15 +468,15 @@ export class FjiService {
         }
     }
 
-    async changePhoto(filename: string, email: string) {
-        console.log(email)
-        const imageUrl = `http://localhost:5000/uploads/profilepic/${filename}`;
+    async changePhoto(filename: string, email: string, req: Request) {
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const imageUrl = `${baseUrl}/uploads/profilepic/${filename}`;
+        console.log(imageUrl)
         try {
             const result = await this.fjiDatabase.$executeRawUnsafe(`
                 UPDATE mgr.m_user SET pict = '${imageUrl}'
                 WHERE email = '${email}'
                 `)
-
             if (result === 0) {
                 throw new BadRequestException({
                     statusCode: 400,
