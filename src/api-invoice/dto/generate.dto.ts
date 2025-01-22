@@ -6,4 +6,7 @@ export class generateDto {
 
     @IsNotEmpty()
     endDate: string
+
+    @IsNotEmpty()
+    auditUser: string
 }

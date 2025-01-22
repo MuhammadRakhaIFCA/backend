@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FjiService } from './fji.service';
 import { createUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { EditUserDto } from './dto/edit-user.dto';
 import { AssignTypeDto } from './dto/assign-type.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('api')
 export class FjiUserController {
@@ -18,6 +19,10 @@ export class FjiUserController {
   @Get('type/get')
   async getType() {
     return await this.fjiService.getType()
+  }
+  @Get('type/get-or')
+  async getTypeOr() {
+    return await this.fjiService.getTypeOr()
   }
   @Get('user/get/:user_id')
   async getUserById(@Param('user_id') user_id: string) {
@@ -38,9 +43,21 @@ export class FjiUserController {
     return await this.fjiService.createUser(data)
   }
   @Put('user/edit')
-  async editUser(@Body() data: EditUserDto) {
+  async editUser(
+    @Body() data: EditUserDto,
+  ) {
     return await this.fjiService.editUser(data)
   }
+  @Post('user/change-photo/:user_id')
+  @UseInterceptors(FileInterceptor('file'))
+  async changePhoto(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('user_id') email: string
+  ) {
+    console.log(file)
+    return await this.fjiService.changePhoto(file.filename, email)
+  }
+
   @Put('user/edit-password')
   async editUserPassword(@Body() data: Record<any, any>) {
     return await this.fjiService.editPassword(data)
@@ -51,6 +68,11 @@ export class FjiUserController {
   }
   @Post('user/assign/type-approval')
   async assignApproval(@Body() data: Record<any, any>) {
+    return await this.fjiService.assignTypeApproval(data)
+  }
+  @Post('user/assign/type-or')
+  async assignOr(@Body() data: Record<any, any>) {
+    data.type_id = 14
     return await this.fjiService.assignTypeApproval(data)
   }
   @Delete('user/delete/:user_id')

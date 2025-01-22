@@ -86,7 +86,8 @@ export class ApiInvoiceService {
                 WHERE doc_amt <= 5000000
                 AND file_status_sign IS NULL
                 AND send_id IS NULL
-               OR (doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N', null) AND send_id IS NULL)
+               OR (doc_amt >= 5000000 AND status_process_sign IN ('N', null) AND send_id IS NULL)
+               OR (doc_amt >= 5000000 AND file_status_sign IN ('S') AND send_id IS NULL)
 
                 `);
       if (!result || result.length === 0) {
@@ -620,16 +621,18 @@ export class ApiInvoiceService {
   }
 
   async getSchedule(data: generateDto) {
-    const { startDate, endDate } = data;
+    const { startDate, endDate, auditUser } = data;
     try {
       console.log(startDate, endDate);
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * 
-                FROM mgr.v_ar_ledger_gen_bill_sch_web
-                WHERE 
-                 year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
-                AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-                AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )  
+            SELECT * FROM mgr.v_ar_ledger_gen_bill_sch_web
+            INNER JOIN mgr.v_assign_approval_level
+            ON mgr.v_ar_ledger_gen_bill_sch_web.related_class = mgr.v_assign_approval_level.type_cd
+            WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
+              AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+              AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval ) 
+              AND mgr.v_assign_approval_level.email = '${auditUser}'
+              AND mgr.v_assign_approval_level.job_task = 'Maker' 
             `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -650,15 +653,18 @@ export class ApiInvoiceService {
   }
 
   async getManual(data: generateDto) {
-    const { startDate, endDate } = data;
+    const { startDate, endDate, auditUser } = data;
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                select * from mgr.v_ar_ledger_gen_inv_manual_web
-                WHERE 
-                 year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
-                AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-                AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )  
-                `);
+          SELECT * FROM mgr.v_ar_ledger_gen_inv_manual_web m
+          INNER JOIN mgr.v_assign_approval_level
+          ON m.related_class = mgr.v_assign_approval_level.type_cd
+          WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
+          AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval ) 
+          AND mgr.v_assign_approval_level.email = '${auditUser}'
+          AND mgr.v_assign_approval_level.job_task = 'Maker' 
+          `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
           statusCode: 404,
@@ -678,14 +684,17 @@ export class ApiInvoiceService {
   }
 
   async getProforma(data: generateDto) {
-    const { startDate, endDate } = data;
+    const { startDate, endDate, auditUser } = data;
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                select * from mgr.v_ar_ledger_gen_inv_proforma_web
-                WHERE 
-                 year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
-                AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-                AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )  
+          SELECT * FROM mgr.v_ar_ledger_gen_inv_proforma_web m
+          INNER JOIN mgr.v_assign_approval_level
+          ON m.related_class = mgr.v_assign_approval_level.type_cd
+          WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
+          AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
+          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval ) 
+          AND mgr.v_assign_approval_level.email = '${auditUser}'
+          AND mgr.v_assign_approval_level.job_task = 'Maker'  
                 `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -812,7 +821,7 @@ export class ApiInvoiceService {
             ${doc_no}, ${approvalTable[0].related_class}, ${doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
             ${approvalTable[0].doc_amt}, ${approvalTable[0].invoice_tipe},
             ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${process_id},
-            ${approvalTable[0].audit_user}, ${audit_date})
+            ${approvalTable[0].audit_user}, GETDATE())
             `);
 
           if (result === 0 || insert === 0) {
@@ -920,7 +929,7 @@ export class ApiInvoiceService {
     };
   }
 
-  async getApprovalList() {
+  async getApprovalList(audit_user: string) {
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
         SELECT abia.*,debtor_name = ad.name FROM mgr.ar_blast_inv_approval abia
@@ -929,6 +938,10 @@ export class ApiInvoiceService {
         AND abia.entity_cd = ad.entity_cd
         AND abia.project_no = ad.project_no
         where progress_approval = 0
+        and abia.audit_user = '${audit_user}'
+        AND doc_no NOT LIKE 'OR%'
+          AND doc_no NOT LIKE 'SP%'
+          AND doc_no NOT LIKE 'OF%'
         ORDER BY gen_date DESC
         `)
       return {
@@ -1129,6 +1142,10 @@ export class ApiInvoiceService {
     } = data;
 
     try {
+      let approval_remark = null;
+      if (!this.isEmpty(approval_remarks)) {
+        approval_remark = "'" + approval_remarks + "'";
+      }
       const result = await this.fjiDatabase.$executeRawUnsafe(`
                 INSERT INTO mgr.ar_blast_inv_approval_dtl 
                 (entity_cd, project_no, debtor_acct, 
@@ -1136,9 +1153,8 @@ export class ApiInvoiceService {
                 audit_user)
                 VALUES 
                 ('${entity_cd}', '${project_no}', '${debtor_acct}', 
-                '${doc_no}', '${process_id}', '${approval_level}', '${approval_user}', '${approval_status}', 
-                CASE WHEN '${approval_remarks}' = '' THEN NULL ELSE '${approval_remarks}' END,
-                '${audit_user}')
+                '${doc_no}', '${process_id}', '${approval_level}', '${approval_user}', 
+                '${approval_status}', ${approval_remark}, '${audit_user}')
             `);
 
       const update = await this.fjiDatabase.$executeRawUnsafe(`
@@ -1265,10 +1281,37 @@ export class ApiInvoiceService {
   }
   async getApprovalByUser(approval_user: string) {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT * FROM mgr.v_inv_approval
+        SELECT * FROM mgr.v_inv_approval
+        WHERE approval_user = '${approval_user}'
+          AND approval_status = 'P'
+          AND doc_no NOT LIKE 'OR%'
+          AND doc_no NOT LIKE 'SP%'
+          AND doc_no NOT LIKE 'OF%'
+        ORDER BY gen_date DESC
+    `);
+
+    if (result.length === 0) {
+      throw new NotFoundException({
+        statusCode: 404,
+        message: 'No approval detail data found',
+        data: [],
+      });
+    }
+    return {
+      statusCode: 200,
+      message: 'Approval detail data found',
+      data: result,
+    };
+  }
+  async getApprovalHistory(approval_user: string) {
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl
             WHERE approval_user = '${approval_user}'
-            AND approval_status = 'P'
-            ORDER BY gen_date DESC
+            AND approval_status != 'P'
+            AND doc_no NOT LIKE 'OR%'
+            AND doc_no NOT LIKE 'SP%'
+            AND doc_no NOT LIKE 'OF%'
+            ORDER BY approval_date DESC
             `);
     if (result.length === 0) {
       throw new NotFoundException({
@@ -1377,9 +1420,10 @@ export class ApiInvoiceService {
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.peruri_stamp_file_log WHERE company_cd = '${company_cd}' 
-                AND file_type = 'invoice'
+                AND file_type != 'receipt'
                 AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= '${startDate}' 
                 AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) <= '${endDate}'
+                ORDER BY audit_date DESC
             `);
       if (!result || result.length === 0) {
         console.log(result.length);
@@ -1555,5 +1599,72 @@ export class ApiInvoiceService {
       console.log(error)
       throw new BadRequestException(error.response);
     }
+  }
+
+
+
+
+
+  async invoiceInqueries() {
+    const invSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv
+      WHERE send_status = 'S'
+    `);
+    const invSentWithStatus = invSent.map((row) => ({ ...row, status: 'sent' }));
+
+    const invStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv
+      WHERE status_process_sign = 'N'
+         OR (doc_amt >= 5000000 AND file_status_sign = 's')
+    `);
+    const invStampedWithStatus = invStamped.map((row) => ({ ...row, status: 'stamped' }));
+
+    const invApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv
+      WHERE doc_amt >= 5000000 AND file_status_sign != 's'
+    `);
+    const invApprovedCompletedWithStatus = invApprovedCompleted.map((row) => ({
+      ...row,
+      status: 'approved_completed',
+    }));
+
+    const orSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or
+      WHERE send_status = 'S'
+    `);
+    const orSentWithStatus = orSent.map((row) => ({ ...row, status: 'sent' }));
+
+    const orStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or
+      WHERE status_process_sign = 'N'
+         OR (doc_amt >= 5000000 AND file_status_sign = 's')
+    `);
+    const orStampedWithStatus = orStamped.map((row) => ({ ...row, status: 'stamped' }));
+
+    const orApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or
+      WHERE doc_amt >= 5000000 AND file_status_sign != 's'
+    `);
+    const orApprovedCompletedWithStatus = orApprovedCompleted.map((row) => ({
+      ...row,
+      status: 'approved_completed',
+    }));
+
+    // Combine all results into a single array
+    const combinedResults = [
+      ...invSentWithStatus,
+      ...invStampedWithStatus,
+      ...invApprovedCompletedWithStatus,
+      ...orSentWithStatus,
+      ...orStampedWithStatus,
+      ...orApprovedCompletedWithStatus,
+    ];
+
+    return {
+      statusCode: 200,
+      message: "get invoice and or success",
+      data: combinedResults
+    };
+
   }
 }

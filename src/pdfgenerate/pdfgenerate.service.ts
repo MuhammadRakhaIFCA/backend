@@ -340,13 +340,13 @@ export class PdfgenerateService {
             .text('- Receipt will be given after payment', 35, tableYStart + 340)
             .fontSize(10).font('Times-Bold')
             .text('PT. First Jakarta International', 325, tableYStart + 295)
-            .text(`- ${data.bank_name_rp} `, 140, tableYStart + 305)
-            .text(`- ${data.bank_name_usd} `, 140, tableYStart + 318)
-            .text(`${data.account_rp}`, 350, tableYStart + 305)
-            .text(`${data.account_usd}`, 350, tableYStart + 318)
+            .text(`- ${data.bank_name_rp}   ${data.account_rp}`, 140, tableYStart + 305)
+            .text(`- ${data.bank_name_usd}   ${data.account_usd}`, 140, tableYStart + 318)
+            // .text(`${data.account_rp}`, 350, tableYStart + 305)
+            // .text(`${data.account_usd}`, 350, tableYStart + 318)
             .fontSize(11).font('Times-Roman')
             .text('Authorized officer', 480, tableYStart + 280, { width: 90, align: 'center' })
-        if (total >= 5000000) {
+        if (total >= 5000000 || (data.currency_cd == "USD" && total >= 300)) {
             doc.text('E-meterai', 480, tableYStart + 320, { width: 90, align: 'center' })
         }
         doc.font('Times-Bold')
@@ -796,12 +796,12 @@ export class PdfgenerateService {
 
         const pdfBody = {
             docNo: doc_no,
-            name: result[0]?.name,
-            address1: result[0]?.address1,
-            address2: result[0]?.address2,
-            address3: result[0]?.address3,
-            postCd: result[0]?.post_cd,
-            remarks: result[0]?.remarks,
+            name: result[0]?.name || '',
+            address1: result[0]?.address1 || '',
+            address2: result[0]?.address2 || '',
+            address3: result[0]?.address3 || '',
+            postCd: result[0]?.post_cd || '',
+            remarks: result[0]?.remarks || '',
             startDate: result.map((item: any) => item.start_date),
             endDate: result.map((item: any) => item.end_date),
             currency: result[0]?.currency_cd,
@@ -1052,10 +1052,10 @@ export class PdfgenerateService {
             .text('- Receipt will be given after payment', 35, tableYStart + 340)
             .fontSize(10).font('Times-Bold')
             .text('PT. First Jakarta International', 325, tableYStart + 295)
-            .text(`- ${data.bankNameRp} (IDR)`, 140, tableYStart + 305)
-            .text(`- ${data.bankNameUsd} (USD)`, 140, tableYStart + 318)
-            .text(`${data.acctRp}`, 300, tableYStart + 305)
-            .text(`${data.acctUsd}`, 300, tableYStart + 318)
+            .text(`- ${data.bankNameRp} (IDR)   ${data.acctRp}`, 140, tableYStart + 305)
+            .text(`- ${data.bankNameUsd} (USD)   ${data.acctUsd}`, 140, tableYStart + 318)
+            // .text(`${data.acctRp}`, 300, tableYStart + 305)
+            // .text(`${data.acctUsd}`, 300, tableYStart + 318)
             .fontSize(11).font('Times-Roman')
             .text('Authorized officer', 480, tableYStart + 280)
             .font('Times-Bold')
@@ -1293,9 +1293,18 @@ export class PdfgenerateService {
         let totalTimeConsumptionInMinutes = 0;
         let totalEquivalentHour = 0;
         let totalAmount = 0;
+
+        const dbTimeResult: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT GETDATE() AS currentTime
+        `);
+
+        const dbTime = moment(dbTimeResult[0].currentTime);
+        const localTime = moment();
+        const offsetHours = dbTime.diff(localTime, 'hours')
+        console.log("time difference : " + offsetHours)
         data.startDate.forEach((startDate, idx) => {
-            const start = moment(startDate).subtract(7, 'hours');
-            const end = moment(data.endDate[idx]).subtract(7, 'hours');
+            const start = moment(startDate).subtract(offsetHours, 'hours');
+            const end = moment(data.endDate[idx]).subtract(offsetHours, 'hours');
 
             const diffInMinutes = end.diff(start, 'minutes');
             const timeConsumption = `${Math.floor(diffInMinutes / 60)}:${(diffInMinutes % 60).toString().padStart(2, '0')}`;
@@ -1482,12 +1491,12 @@ export class PdfgenerateService {
             .text(formattedTotal, 460, 470)
 
         doc.text('Please Transfer the amount to our account at :', 30, 400, { underline: true })
-            .text(`${data.bankNameRp}`, 30, 430)
-            .text(`${data.acctRp}`, 190, 430)
+            .text(`${data.bankNameRp}   ${data.acctRp}`, 30, 430)
+            //.text(`${data.acctRp}`, 190, 430)
             .text(`TOTAL`, 310, 470)
         if (data.bankNameUsd !== "" && data.acctUsd !== "") {
-            doc.text(`${data.bankNameUsd}`, 30, 470)
-                .text(`${data.acctUsd}`, 190, 470)
+            doc.text(`${data.bankNameUsd}   ${data.acctUsd}`, 30, 470)
+            //.text(`${data.acctUsd}`, 190, 470)
         }
 
         doc.text('Payment should be made to the form of crossed cheque or giro payable to', 30, 510)
@@ -1503,7 +1512,7 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .moveDown()
-        if (data.docAmount >= 5000000) {
+        if (data.docAmount >= 5000000 || (data.currencyCd == "USD" && data.docAmount >= 300)) {
             doc.text('E-meterai', { width: 190, align: 'center' })
         }
         doc.moveDown()
@@ -1924,7 +1933,7 @@ export class PdfgenerateService {
             .text(':', 170, 370)
         doc.text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)} only`, 190, 300, { width: 365 })
         doc.text(`${data.descs}`, 190, 350)
-        if (raw_fdoc_amt >= 5000000) {
+        if (raw_fdoc_amt >= 5000000 || (data.currency_cd == "USD" && raw_fdoc_amt >= 300)) {
             doc.text('E-meterai', 450, 400, { width: 100, align: 'center' })
         }
         if (data.or_paid_by === 'C') {

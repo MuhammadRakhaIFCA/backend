@@ -9,6 +9,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalFilters(new UnauthorizedExceptionFilter());
+
   //app.useGlobalFilters()
   app.enableCors({
     origin: '*', // Allow requests from any origin

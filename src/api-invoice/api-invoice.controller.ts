@@ -127,6 +127,12 @@ export class ApiInvoiceController {
   ) {
     return this.apiInvoiceService.getApprovalByUser(approval_user);
   }
+  @Get('get-approval-history/:approval_user')
+  async getApprovalHistory(
+    @Param('approval_user') approval_user: string
+  ) {
+    return this.apiInvoiceService.getApprovalHistory(approval_user);
+  }
   @Get('get-approval-dtl/:process_id')
   async getApprovalDtl(
     @Param('process_id') process_id: string
@@ -164,8 +170,14 @@ export class ApiInvoiceController {
   async deleteInvoice(@Param('doc_no') doc_no: string, @Param('process_id') process_id: string) {
     return this.apiInvoiceService.deleteInvoice(doc_no, process_id)
   }
-  @Get('invoice-approval-list')
-  async getInvoiceAppovelList() {
-    return this.apiInvoiceService.getApprovalList()
+  @Get('invoice-approval-list/:audit_user')
+  async getInvoiceAppovelList(@Param('audit_user') audit_user: string) {
+    return this.apiInvoiceService.getApprovalList(audit_user)
+  }
+
+
+  @Get('invoice-inqueries')
+  async getInvoiceInqueries() {
+    return this.apiInvoiceService.invoiceInqueries()
   }
 }

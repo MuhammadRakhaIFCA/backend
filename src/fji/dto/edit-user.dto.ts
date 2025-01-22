@@ -19,4 +19,8 @@ export class EditUserDto {
     @IsString()
     @IsOptional()
     pict: string;
+
+    @IsString()
+    @IsOptional()
+    role: string;
 }

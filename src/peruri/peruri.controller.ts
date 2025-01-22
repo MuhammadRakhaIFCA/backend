@@ -64,4 +64,9 @@ export class PeruriController {
     const qrCodeDataUrl = await QRCode.toDataURL(decodedString);
     return qrCodeDataUrl
   }
+
+  @Get('get-saldo')
+  async getSaldo() {
+    return await this.peruriService.checkSaldo('GQCINV')
+  }
 }

@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
 import { PaymentDto } from './dto/payment.dto';
 import { firstValueFrom } from 'rxjs';
@@ -19,11 +19,15 @@ export class FinpayService {
         const developmentAuth = Buffer.from(auth).toString('base64')
         const productionAuth = Buffer.from(`${process.env.MERCHANT_ID}:${process.env.MERCHANT_KEY_PRODUCTION}`).toString('base64')
 
-        const order_id = Array(6)
+        const order_id = `INV-${moment().format('YYMMDD')}-${Array(6)
             .fill(null)
             .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
-            .join('');
+            .join('')}`;
         dto.order.id = order_id
+        dto.order.timeout = "43200"
+        const { firstName, lastName } = this.splitName(dto.customer.name)
+        dto.customer.firstName = firstName
+        dto.customer.lastName = lastName
         const { customer, order } = dto
         const { callbackUrl } = dto.url
         if (process.env.FINPAY_TYPE === "development") {
@@ -35,33 +39,36 @@ export class FinpayService {
                 const response = await firstValueFrom(
                     this.httpService.post('https://devo.finnet.co.id/pg/payment/card/initiate', dto, { headers })
                 );
+                if (response.data.responseCode !== "2000000") {
+                    throw new InternalServerErrorException({
+                        statusCode: 500,
+                        message: "fail to request payment",
+                        data: []
+                    })
+                }
                 console.log(response.data)
                 const expiry_link = moment(new Date(response.data.expiryLink)).format('YYYYMMDD h:mm:ss')
                 const itemAmount = Number(order.itemAmount)
-                const amount = Number(order.amount)
+                const total = Number(order.amount)
+                const amount = total / itemAmount
                 await this.fjiDatabase.$executeRawUnsafe(`
                     INSERT INTO mgr.finpay_transaction
                     (company_cd, email_addr, name, mobile_number, order_id, order_qty, order_amount,
                      order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date)
                      VALUES 
-                        ('GQCINV', '${customer.email}', '${customer.firstName} ${customer.lastName}', 
+                        ('GQCINV', '${customer.email}', '${customer.name}', 
                      '${customer.mobilePhone}', '${order.id}', '${itemAmount}', ${amount}, '${order.description}',
-                     '${order.amount}', '${callbackUrl}', '${expiry_link}', 'PENDING', GETDATE()
+                     '${total}', '${response.data.redirecturl}', '${expiry_link}', 'PENDING', GETDATE()
                         )
                     `)
-                // await this.databaseService.transaction.create({
-                //     data: {
-                //         customer_email: email,
-                //         amount: Number(amount),
-                //         status: "pending",
-                //         transaction_id: id,
-                //         expiry_date: new Date(response.data.expiryLink)
-                //     }
-                // })
-                return response.data;
+                return ({
+                    statusCode: 201,
+                    message: "payment request success",
+                    data: response.data
+                });
             } catch (error) {
                 console.log(error)
-                throw new BadRequestException()
+                throw error
             }
         } else if (process.env.FINPAY_TYPE === "production") {
             const headers = {
@@ -78,7 +85,7 @@ export class FinpayService {
                     (company_cd, email_addr, name, mobile_number, order_id, order_qty, order_amount,
                      order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date)
                      VALUES 
-                     ('GQCINV', '${customer.email}', '${customer.firstName} ${customer.lastName}', 
+                     ('GQCINV', '${customer.email}', '${customer.name}', 
                      '${customer.mobilePhone}', '${order.id}', '${order.itemAmount}', '${order.description}',
                      '${order.amount}', '${callbackUrl}', '${expiry_link}', 'PENDING', GETDATE()) 
                      )
@@ -180,6 +187,26 @@ export class FinpayService {
         }
     }
 
+    async getTransaction() {
+        try {
+            const response = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.finpay_transaction
+                ORDER BY audit_date DESC
+                `)
+            return ({
+                statusCode: 200,
+                message: "get transaction success",
+                data: response
+            })
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to get transaction",
+                data: []
+            })
+        }
+    }
+
     private validateSignature(payload: NotificationCallbackDto, receivedSignature: string) {
         const { signature, ...fields } = payload;
         if (process.env.FINPAY_TYPE === "development") {
@@ -195,5 +222,13 @@ export class FinpayService {
                 .digest('hex');
             return generatedSignature === receivedSignature;
         }
+    }
+
+    private splitName(name: string): { firstName: string; lastName: string } {
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 1) {
+            return { firstName: parts[0], lastName: '' };
+        }
+        return { firstName: parts[0], lastName: parts[parts.length - 1] };
     }
 }

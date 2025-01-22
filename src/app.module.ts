@@ -12,6 +12,8 @@ import { ReceiptModule } from './receipt/receipt.module';
 import { FjiUserModule } from './fji/fji.module';
 import { AuthModule } from './auth/auth.module';
 import { FinpayModule } from './finpay/finpay.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [PeruriModule, UploadModule, MailModule,
@@ -23,7 +25,11 @@ import { FinpayModule } from './finpay/finpay.module';
     ReceiptModule,
     FjiUserModule,
     AuthModule,
-    FinpayModule
+    FinpayModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'), // Serve files from 'uploads' directory
+      serveRoot: '/uploads', // Serve files at '/uploads' route
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,10 +1,10 @@
-import { IsArray, IsNotEmpty } from "class-validator";
+import { IsArray, IsNotEmpty, IsOptional } from "class-validator";
 
 export class AssignTypeDto {
     @IsNotEmpty()
     user_id: number
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsArray()
     type_id: Array<number>
 }

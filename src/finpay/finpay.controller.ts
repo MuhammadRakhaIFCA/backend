@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { FinpayService } from './finpay.service';
 import { PaymentDto } from './dto/payment.dto';
 import { NotificationCallbackDto } from './dto/notification-callback.dto';
@@ -15,5 +15,10 @@ export class FinpayController {
   @Post('notification')
   async notificationCallback(@Body() dto: NotificationCallbackDto) {
     return await this.finpayService.notificationCallback(dto)
+  }
+
+  @Get('get-transaction')
+  async getTransaction() {
+    return await this.finpayService.getTransaction()
   }
 }

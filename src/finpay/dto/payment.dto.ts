@@ -39,15 +39,20 @@ class CustomerDto {
     @IsEmail()
     email: string;
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
     @MaxLength(50)
     firstName: string;
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsString()
     @MaxLength(50)
     lastName: string;
+
+    @IsNotEmpty()
+    @IsString()
+    @MaxLength(50)
+    name: string;
 
     @IsNotEmpty()
     mobilePhone: string;

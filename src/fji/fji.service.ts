@@ -28,10 +28,6 @@ export class FjiService {
             const result = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.m_user
                 `)
-            const timezone = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT SYSDATETIMEOFFSET() AS CurrentDateTimeOffset
-                `)
-            console.log(timezone)
             return ({
                 statusCode: 201,
                 message: "user get",
@@ -66,7 +62,7 @@ export class FjiService {
     }
 
     async createUser(data: createUserDto) {
-        const { email, name } = data
+        const { email, name, role } = data
         const password = "pass1234"
         const pict = "https://i0.wp.com/www.winhelponline.com/blog/wp-content/uploads/2017/12/user.png?resize=256%2C256&quality=100&ssl=1"
         if (this.isEmpty(email), this.isEmpty(name)) {
@@ -79,9 +75,9 @@ export class FjiService {
         try {
             const encryptedPassword = await bcrypt.hash(("email" + email + "p@ssw0rd" + password), 10)
             const result = await this.fjiDatabase.$executeRawUnsafe(`
-               INSERT into mgr.m_user (email, password, name, pict, created_by, created_at) 
+               INSERT into mgr.m_user (email, password, name, role, pict, created_by, created_at) 
                 VALUES 
-                ('${email}', '${encryptedPassword}', '${name}', '${pict}','MGR', GETDATE()) 
+                ('${email}', '${encryptedPassword}', '${name}', '${role}', '${pict}','MGR', GETDATE()) 
                 `)
         } catch (error) {
             throw new BadRequestException({
@@ -91,15 +87,15 @@ export class FjiService {
             })
         }
 
-        // try {
-        //     await this.mailService.sendAccountCreationEmail(email)
-        // } catch (error) {
-        //     throw new BadRequestException({
-        //         statusCode: 400,
-        //         message: "fail to send account creation email",
-        //         data: []
-        //     })
-        // }
+        try {
+            await this.mailService.sendAccountCreationEmail(email)
+        } catch (error) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to send account creation email",
+                data: []
+            })
+        }
         return ({
             statusCode: 201,
             message: "user created",
@@ -142,7 +138,7 @@ export class FjiService {
         };
     }
     async editUser(data: EditUserDto) {
-        const { email, password, name, pict, user_id, } = data;
+        const { email, password, name, role, pict, user_id, } = data;
         if (this.isEmpty(user_id)) {
             throw new BadRequestException({
                 statusCode: 400,
@@ -161,6 +157,9 @@ export class FjiService {
             }
             if (name) {
                 updates.push(`name = '${name}'`);
+            }
+            if (role) {
+                updates.push(`role = '${role}'`);
             }
             if (pict) {
                 updates.push(`pict = '${pict}'`);
@@ -238,6 +237,7 @@ export class FjiService {
         }
 
     }
+
     private isEmpty(value: any): boolean {
         if (value === undefined || value === null || value === '') {
             return true;
@@ -304,6 +304,27 @@ export class FjiService {
         try {
             const result = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.m_type_invoice
+               WHERE type_cd != 'OR'
+                `)
+            return ({
+                statusCode: 200,
+                message: "type get",
+                data: result
+            })
+        } catch (error) {
+            throw new NotFoundException({
+                statusCode: 404,
+                message: "fail to get type",
+                data: []
+            })
+        }
+    }
+    async getTypeOr() {
+
+        try {
+            const result = await this.fjiDatabase.$queryRawUnsafe(`
+               SELECT * FROM mgr.m_type_invoice
+               WHERE type_cd = 'OR'
                 `)
             return ({
                 statusCode: 200,
@@ -444,6 +465,32 @@ export class FjiService {
         } catch (error) {
             throw new BadRequestException(error.response);
         }
+    }
+
+    async changePhoto(filename: string, email: string) {
+        console.log(email)
+        const imageUrl = `http://localhost:5000/uploads/profilepic/${filename}`;
+        try {
+            const result = await this.fjiDatabase.$executeRawUnsafe(`
+                UPDATE mgr.m_user SET pict = '${imageUrl}'
+                WHERE email = '${email}'
+                `)
+
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: "fail to change picture",
+                    data: []
+                })
+            }
+        } catch (error) {
+            throw error
+        }
+        return ({
+            statusCode: 200,
+            message: "profile picture updated",
+            data: imageUrl
+        })
     }
 
     async assignTypeApproval(data: Record<any, any>) {

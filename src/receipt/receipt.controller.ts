@@ -110,4 +110,51 @@ export class ReceiptController {
     }
   }
 
+
+  //buat approve or
+  @Get('receipt-approve')
+  async approve(
+    @Query('doc_no') doc_no: string,
+    @Query('process_id') process_id: string,
+    @Query('approval_user') approval_user: string,
+    @Query('approval_remarks') approval_remarks: string,
+    @Query('approval_status') approval_status: string,
+  ) {
+    return this.receiptService.approve(doc_no, process_id, approval_user, approval_remarks, approval_status);
+  }
+  @Get('receipt-reject')
+  async reject(
+    @Query('doc_no') doc_no: string,
+    @Query('process_id') process_id: string,
+    @Query('approval_user') approval_user: string,
+  ) {
+    return this.receiptService.reject(doc_no, process_id, approval_user);
+  }
+
+  @Get('receipt/get-approval-user/:approval_user')
+  async getApprovalByUser(
+    @Param('approval_user') approval_user: string
+  ) {
+    return this.receiptService.getApprovalByUser(approval_user);
+  }
+  @Get('receipt/get-approval-history/:approval_user')
+  async getApprovalHistory(
+    @Param('approval_user') approval_user: string
+  ) {
+    return this.receiptService.getApprovalHistory(approval_user);
+  }
+  @Get('receipt/get-approval-dtl/:process_id')
+  async getApprovalDtl(
+    @Param('process_id') process_id: string
+  ) {
+    return this.receiptService.getApprovalDtl(process_id);
+  }
+  @Post('receipt-submit')
+  async submitInvoice(@Body() data: Record<any, any>) {
+    return this.receiptService.submitOr(data);
+  }
+  @Get('receipt-approval-list/:audit_user')
+  async getInvoiceAppovelList(@Param('audit_user') audit_user: string) {
+    return this.receiptService.getApprovalList(audit_user)
+  }
 }

@@ -76,13 +76,18 @@ export class PeruriService {
         data: []
       })
     }
-    // if (!this.checkSaldo(company_cd)) {
-    //   throw new UnauthorizedException({
-    //     statusCode: 404,
-    //     message: "saldo stamping tidak cukup",
-    //     data: []
-    //   })
-    // }
+    try {
+      const response = await this.checkSaldo(company_cd);
+      if (response.data <= 0) {
+        throw new UnauthorizedException({
+          statusCode: 401,
+          message: 'Sorry, you have insufficient balance. Please top up first',
+          data: []
+        });
+      }
+    } catch (error) {
+      throw error;
+    }
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     const upper_file_type = file_type.toUpperCase();
     const doc_no = file_name.slice(0, -4);
@@ -176,7 +181,11 @@ export class PeruriService {
         //process_id: approved_file[0].process_id
       }
 
-      await this.updateBlastInvTable(updateTableBody)
+      if (file_type === 'receipt') {
+        await this.updateBlastOrTable(updateTableBody)
+      } else {
+        await this.updateBlastInvTable(updateTableBody)
+      }
     }
 
     let imagePath;
@@ -290,6 +299,7 @@ export class PeruriService {
     // console.log("pdf path : " + pdfpath)
     // console.log("coordinates : " + coordinates.data[0])
     const { visLLX, visLLY, visURX, visURY } = coordinates.data[0];
+    console.log(coordinates.data[0])
 
     let stamp;
 
@@ -377,7 +387,7 @@ export class PeruriService {
     }
 
     try {
-      await this.useSaldo(company_cd)
+      await this.useSaldo(company_cd, sn)
     } catch (error) {
       throw new BadRequestException(error.response)
     }
@@ -574,17 +584,35 @@ export class PeruriService {
   async checkSaldo(company_cd: string) {
     try {
       const saldo = await this.fjiDatabase.$queryRawUnsafe(`
-        SELECT * FROM mgr.peruri_stamp_balance table
+        SELECT TOP(1) * FROM mgr.peruri_stamp_balance
         WHERE company_cd = '${company_cd}'
         ORDER BY audit_date desc
         `)
 
-      if (saldo && saldo[0]?.saldo > 0) {
-        return true
+      // if (saldo && saldo[0]?.saldo > 0) {
+      //   return true
+      // } else {
+      //   return false
+      // }
+
+      if (saldo && saldo[0]?.saldo) {
+        return {
+          statusCode: 200,
+          message: 'get saldo success',
+          data: Number(saldo[0].saldo)
+        }
       } else {
-        return false
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'saldo not found',
+          data: []
+        })
       }
+
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new BadRequestException({
         statusCode: 400,
         message: 'fail to check mgr.peruri_stamp_balance table',
@@ -593,8 +621,7 @@ export class PeruriService {
     }
   }
 
-  async useSaldo(company_cd: string) {
-    const transaction_number = 'idsnaf'
+  async useSaldo(company_cd: string, sn: string) {
     try {
       const saldo = await this.fjiDatabase.$queryRawUnsafe(`
         SELECT * FROM mgr.peruri_stamp_balance
@@ -604,12 +631,13 @@ export class PeruriService {
 
       const newSaldo = Number(saldo[0].saldo) - 1
       await this.fjiDatabase.$executeRawUnsafe(`
-        INSERT INTO FROM mgr.peruri_stamp_balance
+        INSERT INTO mgr.peruri_stamp_balance
         (company_cd, transaction_number, qty, type, saldo, audit_date)
         VALUES
-        ('${company_cd}', '${transaction_number}', 1, 'K', '${newSaldo}', GETDATE())
+        ('${company_cd}', '${sn}', 1, 'K', '${newSaldo}', GETDATE())
         `)
     } catch (error) {
+      console.log(error)
       throw new BadRequestException({
         statusCode: 400,
         message: 'fail to insert data into mgr.peruri_stamp_balance table',
@@ -632,8 +660,8 @@ export class PeruriService {
         AND company_cd = '${company_cd}'
         `)
       if (!transaction || transaction.length === 0) {
-        throw new BadRequestException({
-          statusCode: 400,
+        throw new NotFoundException({
+          statusCode: 404,
           message: "this order id doesn't exist",
           data: []
         })
@@ -652,7 +680,7 @@ export class PeruriService {
           data: []
         })
       }
-      const qty = transaction[0].order_qty
+      const qty = Number(transaction[0].order_qty)
       let newSaldo: number = 0
       if (!saldo || saldo.length === 0) {
         newSaldo = qty
@@ -667,7 +695,7 @@ export class PeruriService {
         ('${company_cd}', '${transaction_number}', ${qty}, 'D', ${newSaldo}, GETDATE())
         `)
     } catch (error) {
-      throw new BadRequestException(error.response)
+      throw error
     }
 
     try {

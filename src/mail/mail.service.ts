@@ -744,7 +744,7 @@ export class MailService {
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
         '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
-        '${audit_user}', '${audit_date}')
+        '${audit_user}', GETDATE())
         `)
       if (result === 0) {
         throw new BadRequestException({
@@ -773,7 +773,7 @@ export class MailService {
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
         '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
-        '${audit_user}', '${audit_date}')
+        '${audit_user}', GETDATE())
         `)
       if (result === 0) {
         throw new BadRequestException({
