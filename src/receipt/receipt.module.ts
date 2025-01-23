@@ -13,7 +13,7 @@ import { diskStorage } from 'multer';
     //SqlserverDatabaseModule, 
     MulterModule.register({
       storage: diskStorage({
-        destination: 'D:/FAKTUR/',
+        destination: './uploads/FAKTUR',
         // destination: `${process.env.ROOT_PDF_FOLDER}`,
         filename: (req, file, cb) => {
           const uniqueName = `${file.originalname}`;

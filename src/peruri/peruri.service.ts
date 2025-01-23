@@ -2,6 +2,7 @@ import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -247,14 +248,13 @@ export class PeruriService {
         await this.updateBlastInvTable(updateTableBody)
       }
 
+      //this.useStamp(body.company_cd, company[0].nama_company, 1, sn.data.result.sn)
 
       const base64Image = sn.data.result.image;
 
       const folderPath = `${rootFolder}/stamp-images`;
       const fileName = `${file_name.replace(/\.pdf$/, '')}.png`;
       imagePath = path.join(folderPath, fileName);
-
-      //this.useStamp(body.company_cd, company[0].nama_company, 1, sn.data.result.sn)
 
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
@@ -272,25 +272,63 @@ export class PeruriService {
              and file_type = '${file_type}'
              `,
     );
+    //https://stampv2stg.e-meterai.co.id/snqr/qrimage
 
     const sn = snResponse[0]?.file_sn_sign;
-    const folderPath = `${rootFolder}/stamp-images`;
+    try {
+      const getStampImage = await firstValueFrom(
+        this.httpService.get(
+          `https://stampv2stg.e-meterai.co.id/snqr/qrimage?serialnumber=${sn}&onprem=true`,
+          { headers },
+        ),
+      );
+      console.log(getStampImage)
+
+      const base64Image = getStampImage.data.result.base64;
+
+      const folderPath = `${rootFolder}/stamp-images`;
+      const fileName = `${file_name.replace(/\.pdf$/, '')}.png`;
+      imagePath = path.join(folderPath, fileName);
+
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+
+      const stampImage = Buffer.from(base64Image, 'base64');
+      await fs.promises.writeFile(imagePath, stampImage);
+
+
+      // const folderPath = `${rootFolder}/stamp-images`;
+      // const fileName = `${file_name.replace(/\.pdf$/, '')}.png`;
+
+
+      imagePath = path.join(folderPath, fileName);
+      const remoteImagePath = `/STAMP/${company_cd}/${upper_file_type}/${fileName}`;
+
+      try {
+        await this.connect();
+        await this.upload(imagePath, remoteImagePath);
+        await this.disconnect();
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to save image',
+          data: [error],
+        });
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error
+      }
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: 'fail to get or save stamp image',
+        data: [error],
+      })
+    }
+
     const fileName = `${file_name.replace(/\.pdf$/, '')}.png`;
 
-    imagePath = path.join(folderPath, fileName);
-    const remoteImagePath = `/STAMP/${company_cd}/${upper_file_type}/${fileName}`;
-
-    try {
-      await this.connect();
-      await this.upload(imagePath, remoteImagePath);
-      await this.disconnect();
-    } catch (error) {
-      throw new BadRequestException({
-        statusCode: 400,
-        message: 'fail to save image',
-        data: [error],
-      });
-    }
 
     //7. hit api untuk dapat coordinate llx, lly, urx dan ury
     const pdfpath = `${rootFolder}/${file_type}/${file_name}`;

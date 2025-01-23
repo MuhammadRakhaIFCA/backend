@@ -94,7 +94,7 @@ export class ReceiptController {
     const fileBuffer = Buffer.from(base64, 'base64');
 
     // Define a temporary file path to save the decoded file
-    const tempFilePath = `D:/FAKTUR/${file_name}`;
+    const tempFilePath = `./uploads/FAKTUR/${file_name}`;
 
     // Save the buffer to a temporary file
     await fs.promises.writeFile(tempFilePath, fileBuffer);
