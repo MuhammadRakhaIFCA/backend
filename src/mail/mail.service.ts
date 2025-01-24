@@ -543,23 +543,23 @@ export class MailService {
         await this.disconnect()
       }
     }
-    if (result[0].filenames3) {
-      await this.connect()
-      try {
-        await this.download(
-          `UNSIGNED/GQCINV/FAKTUR/${result[0].filenames3}`,
-          `${rootFolder}/FAKTUR/${result[0].filenames3}`
-        )
-      } catch (error) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'fail to download faktur',
-          data: []
-        })
-      } finally {
-        await this.disconnect()
-      }
-    }
+    // if (result[0].filenames3) {
+    //   await this.connect()
+    //   try {
+    //     await this.download(
+    //       `UNSIGNED/GQCINV/FAKTUR/${result[0].filenames3}`,
+    //       `${rootFolder}/FAKTUR/${result[0].filenames3}`
+    //     )
+    //   } catch (error) {
+    //     throw new BadRequestException({
+    //       statusCode: 400,
+    //       message: 'fail to download faktur',
+    //       data: []
+    //     })
+    //   } finally {
+    //     await this.disconnect()
+    //   }
+    // }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,

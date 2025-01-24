@@ -85,6 +85,7 @@ export class ReceiptService {
                 AND file_status_sign IS NULL
                 AND send_id IS NULL
                 OR (doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N') AND send_id IS NULL)
+                ORDER BY rowID desc
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -215,6 +216,7 @@ export class ReceiptService {
                 AND abo.project_no = ad.project_no
                 WHERE doc_amt >= 5000000 
                 AND file_status_sign ${file_status}
+                ORDER BY gen_date desc
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -360,7 +362,7 @@ export class ReceiptService {
             year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${start_date}' 
             AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${end_date}' 
             AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_or ) 
-            AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval )
+            AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval WHERE status_approve != 'C')
             `)
         if (result.length === 0) {
             throw new NotFoundException({
@@ -702,12 +704,70 @@ export class ReceiptService {
                     data: [],
                 });
             }
+            if (approval_status === 'C') {
+                try {
+                    await this.fjiDatabase.$executeRawUnsafe(`
+                        UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
+                        WHERE process_id = '${process_id}' 
+                        `);
+                } catch (error) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: 'fail to update database to C',
+                        data: [],
+                    });
+                }
+                return {
+                    statusCode: 200,
+                    message: 'document cancelled',
+                    data: [],
+                };
+            }
             if (approval_status === 'R') {
                 try {
                     await this.fjiDatabase.$executeRawUnsafe(`
-                            UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
-                            WHERE process_id = '${process_id}' 
-                            `);
+                                UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
+                                WHERE process_id = '${process_id}' 
+                                `);
+                    const lastApproval = await this.fjiDatabase.$queryRawUnsafe(`
+                      SELECT * FROM mgr.ar_blast_inv_approval 
+                      WHERE process_id = '${process_id}' 
+                      AND doc_no = '${doc_no}'
+                    `)
+
+                    const new_process_id = Array(6)
+                        .fill(null)
+                        .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+                        .join('');
+                    const approvalBody = {
+                        entity_cd: lastApproval[0].entity_cd,
+                        project_no: lastApproval[0].project_no,
+                        debtor_acct: lastApproval[0].debtor_acct,
+                        email_addr: lastApproval[0].email_addr,
+                        bill_type: lastApproval[0].bill_type,
+                        doc_no,
+                        related_class: lastApproval[0].related_class,
+                        doc_date: lastApproval[0].doc_date,
+                        descs: lastApproval[0].descs,
+                        doc_amt: lastApproval[0].doc_amt,
+                        filenames: lastApproval[0].filenames,
+                        filenames2: lastApproval[0].filenames2,
+                        process_id: new_process_id,
+                        audit_user: lastApproval[0].audit_user,
+                        invoice_tipe: lastApproval[0].invoice_tipe,
+                        currency_cd: lastApproval[0].currency_cd,
+                    }
+
+                    const approve = await this.addToApproval(approvalBody);
+                    if (approve.statusCode == 400) {
+                        throw new BadRequestException({
+                            statusCode: 400,
+                            message: 'Failed to add to approve',
+                            data: [],
+                        });
+                    }
+
+
                 } catch (error) {
                     throw new BadRequestException({
                         statusCode: 400,

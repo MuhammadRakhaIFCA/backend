@@ -368,7 +368,10 @@ export class PdfgenerateService {
         });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/manual/${data.doc_no}.pdf`;
+        let filePath = `${rootFolder}/manual/${data.doc_no}.pdf`;
+        if (data.revision_count > 0) {
+            filePath = `${rootFolder}/manual/${data.doc_no}_rev_${data.revision_count}.pdf`
+        }
         console.log("manual uploaded in local file in : " + filePath)
         if (!fs.existsSync(`${rootFolder}/manual}`)) {
             fs.mkdirSync(`${rootFolder}/manual`, { recursive: true });
@@ -415,7 +418,10 @@ export class PdfgenerateService {
         });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/${data.doc_no}.pdf`;
+        let filePath = `${rootFolder}/schedule/${data.doc_no}.pdf`;
+        if (data.revision_count > 0) {
+            filePath = `${rootFolder}/schedule/${data.doc_no}_rev_${data.revision_count}.pdf`
+        }
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
@@ -510,12 +516,12 @@ export class PdfgenerateService {
         try {
             await this.connect();
             const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
-            const filePath = `${rootFolder}/proforma/${data.docNo}.pdf`;
+            const filePath = `${rootFolder}/proforma/${data.fileName}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/PROFORMA/${data.docNo}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/PROFORMA/${data.fileName}.pdf`);
 
         } catch (error) {
             console.log("Error during upload:.", error);
@@ -603,7 +609,7 @@ export class PdfgenerateService {
         })
     }
 
-    async generateReferenceG(doc_no: string, debtor_acct: string, doc_date: Date) {
+    async generateReferenceG(doc_no: string, debtor_acct: string, doc_date: Date, filenames2: string) {
         const docDate = moment(doc_date).format('DD MMM YYYY');
         const doc = new PDFDocument({
             size: 'A4',
@@ -611,7 +617,8 @@ export class PdfgenerateService {
         });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/fji_reference_g_${doc_no}.pdf`;
+        const filePath = `${rootFolder}/schedule/${filenames2}.pdf`;
+
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
@@ -649,7 +656,8 @@ export class PdfgenerateService {
             roundingAmount: result.map((item) =>
                 item.as_reduction === 'Y' ? Number(item.rounding) - 1 : Number(item.rounding)
             ),
-            formid: result[0]?.formid || ''
+            formid: result[0]?.formid || '',
+            filenames2
         };
 
 
@@ -660,12 +668,12 @@ export class PdfgenerateService {
         try {
             await this.connect();
             const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
-            const filePath = `${rootFolder}/schedule/fji_reference_g_${doc_no}.pdf`;
+            const filePath = `${rootFolder}/schedule/${filenames2}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_g_${doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${filenames2}.pdf`);
 
         } catch (error) {
             console.log("Error during upload:.", error);
@@ -680,7 +688,7 @@ export class PdfgenerateService {
         }
 
     }
-    async generateReferenceW(doc_no: string, debtor_acct: string, doc_date: Date) {
+    async generateReferenceW(doc_no: string, debtor_acct: string, doc_date: Date, filenames2: string) {
         const docDate = moment(doc_date).format('DD MMM YYYY');
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_ar_ref_water_web
@@ -730,7 +738,8 @@ export class PdfgenerateService {
             trxAmt: result[0]?.trx_amt,
             rounding: result[0]?.rounding,
             currencyCd: result[0].currency_cd,
-            formid: result[0]?.formid || ''
+            formid: result[0]?.formid || '',
+            filenames2
         };
 
         await this.generatePdfFirstJakarta5(pdfBody)
@@ -738,12 +747,12 @@ export class PdfgenerateService {
         try {
             await this.connect();
             const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
-            const filePath = `${rootFolder}/schedule/fji_reference_w_${doc_no}.pdf`;
+            const filePath = `${rootFolder}/schedule/${filenames2}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_w_${doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${filenames2}.pdf`);
 
         } catch (error) {
             console.log("Error during upload:.", error);
@@ -760,7 +769,7 @@ export class PdfgenerateService {
 
     }
     async generateReferenceV(doc_no: string, debtor_acct: string, doc_date: Date,
-        project_no: string, entity_cd: string) {
+        project_no: string, entity_cd: string, filenames2: string) {
         const docDate = moment(doc_date).format('DD MMM YYYY');
         const doc = new PDFDocument({
             size: 'A4',
@@ -768,7 +777,7 @@ export class PdfgenerateService {
         });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/fji_reference_v_${doc_no}.pdf`;
+        const filePath = `${rootFolder}/schedule/${filenames2}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
@@ -810,7 +819,8 @@ export class PdfgenerateService {
             lotNo: result.map((item: any) => String(item.lot_no)),
             startPeriod: result[0]?.start_period,
             endPeriod: result[0]?.end_period,
-            formid: result[0]?.formid || ''
+            formid: result[0]?.formid || '',
+            filenames2
         };
         //console.log(pdfBody)
 
@@ -841,7 +851,7 @@ export class PdfgenerateService {
 
     }
 
-    async generateReferenceE(doc_no: string, debtor_acct: string, doc_date: Date) {
+    async generateReferenceE(doc_no: string, debtor_acct: string, doc_date: Date, filenames2: string) {
         const docDate = moment(doc_date).format('DD MMM YYYY');
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_ar_ref_elec_web
@@ -897,6 +907,7 @@ export class PdfgenerateService {
             rounding: result[0]?.rounding,
             formid: result[0]?.formid || '',
             currencyCd: result[0].currency_cd,
+            filenames2
         };
         console.log(pdfBody)
 
@@ -905,12 +916,12 @@ export class PdfgenerateService {
         try {
             await this.connect();
             const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
-            const filePath = `${rootFolder}/schedule/fji_reference_e_${doc_no}.pdf`;
+            const filePath = `${rootFolder}/schedule/${filenames2}.pdf`;
             if (!fs.existsSync(filePath)) {
                 console.error(`Local file does not exist: ${filePath}`);
             }
 
-            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/fji_reference_e_${doc_no}.pdf`);
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${filenames2}.pdf`);
 
         } catch (error) {
             console.log("Error during upload:.", error);
@@ -1076,7 +1087,7 @@ export class PdfgenerateService {
         const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/fji_reference_g_${data.docNo}.pdf`;
+        const filePath = `${rootFolder}/schedule/${data.filenames2}.pdf`;
 
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
@@ -1236,7 +1247,7 @@ export class PdfgenerateService {
         const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/fji_reference_v_${data.docNo}.pdf`;
+        const filePath = `${rootFolder}/schedule/${data.filenames2}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
@@ -1382,7 +1393,7 @@ export class PdfgenerateService {
         });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/proforma/${data.docNo}.pdf`;
+        const filePath = `${rootFolder}/proforma/${data.fileName}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}/proforma}`)) {
             fs.mkdirSync(`${rootFolder}/proforma`, { recursive: true });
@@ -1512,9 +1523,9 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .moveDown()
-        if (data.docAmount >= 5000000 || (data.currencyCd == "USD" && data.docAmount >= 300)) {
-            doc.text('E-meterai', { width: 190, align: 'center' })
-        }
+        // if (data.docAmount >= 5000000 || (data.currencyCd == "USD" && data.docAmount >= 300)) {
+        //     doc.text('E-meterai', { width: 190, align: 'center' })
+        // }
         doc.moveDown()
             .moveDown()
             .moveDown()
@@ -1541,7 +1552,7 @@ export class PdfgenerateService {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/fji_reference_w_${data.docNo}.pdf`;
+        const filePath = `${rootFolder}/schedule/${data.filenames2}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
@@ -1675,7 +1686,7 @@ export class PdfgenerateService {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
 
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/fji_reference_e_${data.docNo}.pdf`;
+        const filePath = `${rootFolder}/schedule/${data.filenames2}.pdf`;
 
         if (!fs.existsSync(`${rootFolder}/schedule}`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });

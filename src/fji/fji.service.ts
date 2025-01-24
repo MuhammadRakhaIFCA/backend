@@ -301,32 +301,48 @@ export class FjiService {
         }
     }
     async getType() {
-
         try {
-            const result = await this.fjiDatabase.$queryRawUnsafe(`
-               SELECT * FROM mgr.m_type_invoice
-               WHERE type_cd != 'OR'
-                `)
-            return ({
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.m_type_invoice
+                WHERE type_cd != 'OR'
+            `);
+
+            for (const item of result) {
+                const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                    SELECT * FROM mgr.m_type_invoice_dtl
+                    WHERE type_id = ${item.type_id}
+                `);
+                item.detail = details;
+            }
+
+            return {
                 statusCode: 200,
                 message: "type get",
-                data: result
-            })
+                data: result,
+            };
         } catch (error) {
             throw new NotFoundException({
                 statusCode: 404,
                 message: "fail to get type",
-                data: []
-            })
+                data: [],
+            });
         }
     }
+
     async getTypeOr() {
 
         try {
-            const result = await this.fjiDatabase.$queryRawUnsafe(`
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                SELECT * FROM mgr.m_type_invoice
                WHERE type_cd = 'OR'
                 `)
+            for (const item of result) {
+                const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                        SELECT * FROM mgr.m_type_invoice_dtl
+                        WHERE type_id = ${item.type_id}
+                    `);
+                item.detail = details;
+            }
             return ({
                 statusCode: 200,
                 message: "type get",

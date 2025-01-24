@@ -88,6 +88,7 @@ export class ApiInvoiceService {
                 AND send_id IS NULL
                OR (doc_amt >= 5000000 AND status_process_sign IN ('N', null) AND send_id IS NULL)
                OR (doc_amt >= 5000000 AND file_status_sign IN ('S') AND send_id IS NULL)
+               OR (invoice_tipe = 'proforma' AND send_id IS NULL)
 
                 `);
       if (!result || result.length === 0) {
@@ -219,6 +220,12 @@ export class ApiInvoiceService {
             where doc_no = '${doc_no}' 
             and bill_type = '${bill_type}'
             `);
+    const count: Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT count(doc_no) from mgr.ar_blast_inv_approval
+      WHERE doc_no = '${doc_no}'
+      AND related_class = '${related_class}'
+      `)
+    const revision_count = count[0].count
     if (result.length === 0) {
       throw new NotFoundException({
         statusCode: 404,
@@ -263,43 +270,68 @@ export class ApiInvoiceService {
       bill_type,
       meter_type,
       formid: result[0].formid,
-      type: "schedule"
+      type: "schedule",
+      revision_count
     };
 
     try {
       await this.pdfService.generatePdfSchedule(pdfBody);
       let filenames = `${doc_no}.pdf`;
+      if (revision_count > 0) {
+        filenames = `${doc_no}_rev_${revision_count}.pdf`
+      }
       let filenames2 = '';
       if (bill_type === 'E' && meter_type === 'G') {
+        if (revision_count > 0) {
+          filenames2 = `fji_reference_g_${doc_no}_rev_${revision_count}.pdf`;
+        } else {
+          filenames2 = `fji_reference_g_${doc_no}.pdf`;
+        }
         await this.pdfService.generateReferenceG(
           doc_no,
           result[0].debtor_acct,
           result[0].doc_date,
+          filenames2
         );
-        filenames2 = `fji_reference_g_${doc_no}.pdf`;
+
       } else if (bill_type === 'V') {
+        if (revision_count > 0) {
+          filenames2 = `fji_reference_v_${doc_no}_rev_${revision_count}.pdf`;
+        } else {
+          filenames2 = `fji_reference_v_${doc_no}.pdf`;
+        }
         await this.pdfService.generateReferenceV(
           doc_no,
           result[0].debtor_acct,
           result[0].doc_date,
           result[0].project_no,
-          result[0].entity_cd
+          result[0].entity_cd,
+          filenames2
         );
-        filenames2 = `fji_reference_v_${doc_no}.pdf`;
       } else if (bill_type === 'E' && meter_type === 'W') {
+        if (revision_count > 0) {
+          filenames2 = `fji_reference_w_${doc_no}_rev_${revision_count}.pdf`;
+        } else {
+          filenames2 = `fji_reference_w_${doc_no}.pdf`;
+        }
         await this.pdfService.generateReferenceW(
           doc_no,
           result[0].debtor_acct,
           result[0].doc_date,
+          filenames2
         );
-        filenames2 = `fji_reference_w_${doc_no}.pdf`;
       } else if (bill_type === 'E' && meter_type === 'E') {
+        if (revision_count > 0) {
+          filenames2 = `fji_reference_e_${doc_no}_rev_${revision_count}.pdf`;
+        } else {
+          filenames2 = `fji_reference_e_${doc_no}.pdf`;
+        }
         await this.pdfService.generateReferenceE(
           doc_no,
           result[0].debtor_acct,
           result[0].doc_date,
+          filenames2
         );
-        filenames2 = `fji_reference_e_${doc_no}.pdf`;
       }
       const process_id = Array(6)
         .fill(null)
@@ -374,6 +406,16 @@ export class ApiInvoiceService {
             SELECT * FROM mgr.v_ar_inv_entry_post_manual_web
             WHERE doc_no = '${doc_no}' 
             `);
+    const count: Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT count(doc_no) from mgr.ar_blast_inv_approval
+              WHERE doc_no = '${doc_no}'
+              AND related_class = '${related_class}'
+              `)
+    const revision_count = count[0].count
+    let fileName = `${doc_no}.pdf`
+    if (revision_count > 0) {
+      fileName = `${doc_no}_rev_${revision_count}.pdf`
+    }
     if (result.length === 0) {
       throw new NotFoundException({
         statusCode: 404,
@@ -414,7 +456,8 @@ export class ApiInvoiceService {
       group_cd: result[0].group_cd,
       inv_group: result[0].inv_group,
       formid: result[0].formid,
-      type: "manual"
+      type: "manual",
+      revision_count
     };
 
     try {
@@ -438,7 +481,7 @@ export class ApiInvoiceService {
       doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
       descs: result[0].descs,
       doc_amt: result[0].base_amt,
-      filenames: `${doc_no}.pdf`,
+      filenames: fileName,
       filenames2: null,
       process_id,
       audit_user: name,
@@ -548,6 +591,16 @@ export class ApiInvoiceService {
            SELECT * FROM mgr.v_ar_inv_proforma_web
             WHERE doc_no = '${doc_no}'
             `);
+    const count: Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT count(doc_no) from mgr.ar_blast_inv_approval
+              WHERE doc_no = '${doc_no}'
+              AND related_class = '${related_class}'
+              `)
+    const revision_count = count[0].count
+    let fileName = `${doc_no}.pdf`
+    if (revision_count > 0) {
+      fileName = `${doc_no}_rev_${revision_count}.pdf`
+    }
     if (result.length === 0) {
       throw new NotFoundException({
         statusCode: 404,
@@ -576,6 +629,7 @@ export class ApiInvoiceService {
       acctRp: result[0]?.account_rp || '',
       acctUsd: result[0]?.account_usd || '',
       signature: result[0].signature,
+      fileName
     };
 
     await this.pdfService.generatePdfProforma(pdfBody);
@@ -595,7 +649,7 @@ export class ApiInvoiceService {
       doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
       descs: result[0].descs,
       doc_amt: result[0].fdoc_amt,
-      filenames: `${doc_no}.pdf`,
+      filenames: `${fileName}`,
       filenames2: null,
       process_id,
       audit_user: name,
@@ -630,7 +684,7 @@ export class ApiInvoiceService {
             ON mgr.v_ar_ledger_gen_bill_sch_web.related_class = mgr.v_assign_approval_level.type_cd
             WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
               AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-              AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval ) 
+              AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval WHERE status_approve != 'C') 
               AND mgr.v_assign_approval_level.email = '${auditUser}'
               AND mgr.v_assign_approval_level.job_task = 'Maker' 
             `);
@@ -661,7 +715,7 @@ export class ApiInvoiceService {
           ON m.related_class = mgr.v_assign_approval_level.type_cd
           WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
           AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval ) 
+          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval WHERE status_approve != 'C') 
           AND mgr.v_assign_approval_level.email = '${auditUser}'
           AND mgr.v_assign_approval_level.job_task = 'Maker' 
           `);
@@ -692,7 +746,7 @@ export class ApiInvoiceService {
           ON m.related_class = mgr.v_assign_approval_level.type_cd
           WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
           AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval ) 
+          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval WHERE status_approve != 'C') 
           AND mgr.v_assign_approval_level.email = '${auditUser}'
           AND mgr.v_assign_approval_level.job_task = 'Maker'  
                 `);
@@ -736,6 +790,7 @@ export class ApiInvoiceService {
     }
     let approval_remark = null;
     if (!this.isEmpty(approval_remarks)) {
+      console.log("inside not empty remarks : " + approval_remarks)
       approval_remark = "'" + approval_remarks + "'";
     }
     console.log('approval remark = ' + approval_remark);
@@ -759,12 +814,73 @@ export class ApiInvoiceService {
           data: [],
         });
       }
+      if (approval_status === 'C') {
+        try {
+          await this.fjiDatabase.$executeRawUnsafe(`
+                        UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
+                        WHERE process_id = '${process_id}' 
+                        `);
+
+
+
+        } catch (error) {
+          throw new BadRequestException({
+            statusCode: 400,
+            message: 'fail to update database to C',
+            data: [],
+          });
+        }
+        return {
+          statusCode: 200,
+          message: 'document cancelled',
+          data: [],
+        };
+      }
       if (approval_status === 'R') {
         try {
           await this.fjiDatabase.$executeRawUnsafe(`
                         UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
                         WHERE process_id = '${process_id}' 
                         `);
+          const lastApproval = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.ar_blast_inv_approval 
+              WHERE process_id = '${process_id}' 
+              AND doc_no = '${doc_no}'
+            `)
+
+          const new_process_id = Array(6)
+            .fill(null)
+            .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+            .join('');
+          const approvalBody = {
+            entity_cd: lastApproval[0].entity_cd,
+            project_no: lastApproval[0].project_no,
+            debtor_acct: lastApproval[0].debtor_acct,
+            email_addr: lastApproval[0].email_addr,
+            bill_type: lastApproval[0].bill_type,
+            doc_no,
+            related_class: lastApproval[0].related_class,
+            doc_date: lastApproval[0].doc_date,
+            descs: lastApproval[0].descs,
+            doc_amt: lastApproval[0].doc_amt,
+            filenames: lastApproval[0].filenames,
+            filenames2: lastApproval[0].filenames2,
+            process_id: new_process_id,
+            audit_user: lastApproval[0].audit_user,
+            invoice_tipe: lastApproval[0].invoice_tipe,
+            currency_cd: lastApproval[0].currency_cd,
+          }
+
+          const approve = await this.addToApproval(approvalBody);
+          if (approve.statusCode == 400) {
+            throw new BadRequestException({
+              statusCode: 400,
+              message: 'Failed to add to approve',
+              data: [],
+            });
+          }
+
+
         } catch (error) {
           throw new BadRequestException({
             statusCode: 400,
@@ -1036,7 +1152,7 @@ export class ApiInvoiceService {
       if (approvalDtl.statusCode == 400) {
         throw new BadRequestException({
           statusCode: 400,
-          message: 'Failed to add to approvals',
+          message: 'Failed to add to approvals ',
           data: [],
         });
       }
@@ -1384,6 +1500,7 @@ export class ApiInvoiceService {
                 AND abia.entity_cd = ad.entity_cd
                 AND abia.project_no = ad.project_no
                 WHERE doc_amt >= 5000000 
+                AND invoice_tipe != 'proforma'
                 AND file_status_sign ${file_status}
             `);
       if (!result || result.length === 0) {
@@ -1628,6 +1745,22 @@ export class ApiInvoiceService {
       status: 'approved_completed',
     }));
 
+    const approvalPending: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.v_inv_approval
+      WHERE approval_status = 'P'
+      AND doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
+      AND doc_no NOT IN (SELECT doc_no from mgr.ar_blast_or)
+      `)
+
+    const approvalPendingWithStatus = approvalPending.map((row) => ({ ...row, status: 'approval pending' }))
+
+    const generated: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv_approval 
+      WHERE progress_approval = 0
+      `)
+
+    const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated' }))
+
     const orSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_or
       WHERE send_status = 'S'
@@ -1658,6 +1791,8 @@ export class ApiInvoiceService {
       ...orSentWithStatus,
       ...orStampedWithStatus,
       ...orApprovedCompletedWithStatus,
+      ...approvalPendingWithStatus,
+      ...generatedWithStatus
     ];
 
     return {
