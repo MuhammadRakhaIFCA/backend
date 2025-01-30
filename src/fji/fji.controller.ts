@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FjiService } from './fji.service';
 import { createUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
@@ -92,5 +92,11 @@ export class FjiUserController {
   @Delete('type/delete/:type_id')
   async deleteType(@Param('type_id') type_id: string) {
     return await this.fjiService.deleteType(+type_id)
+  }
+  @Get('menu-list')
+  async getMenu(
+    @Query('email') email: string,
+    @Query('role') role: string) {
+    return await this.fjiService.getMenu(email, role)
   }
 }

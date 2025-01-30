@@ -91,16 +91,15 @@ export class PeruriService {
     }
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     const upper_file_type = file_type.toUpperCase();
-    const doc_no = file_name.slice(0, -4);
     let approved_file: Array<any>
     if (file_type === 'receipt') {
       approved_file = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}'
-          `);
+        SELECT * FROM mgr.ar_blast_or WHERE filenames = '${file_name}'
+        `);
     } else {
       approved_file = await this.fjiDatabase.$queryRawUnsafe(`
-        SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
-    `);
+          SELECT * FROM mgr.ar_blast_inv WHERE filenames = '${file_name}'
+          `);
     }
 
     if (!approved_file[0]) {
@@ -110,6 +109,7 @@ export class PeruriService {
         data: [],
       });
     }
+    const doc_no = approved_file[0]?.doc_no;
 
     //1. ambil data dari peruri account usesrname dan password
 

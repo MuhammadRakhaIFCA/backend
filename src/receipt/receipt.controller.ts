@@ -157,4 +157,8 @@ export class ReceiptController {
   async getInvoiceAppovelList(@Param('audit_user') audit_user: string) {
     return this.receiptService.getApprovalList(audit_user)
   }
+  @Get('receipt-inqueries')
+  async getInvoiceInqueries() {
+    return this.receiptService.receiptInqueries()
+  }
 }

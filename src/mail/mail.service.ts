@@ -657,7 +657,6 @@ export class MailService {
         doc_no,
         status_code,
         response_message,
-        send_date,
         send_id,
         result[0].audit_user,
         moment(result[0].audit_date).format('YYYYMMDD h:mm:ss')
@@ -763,7 +762,7 @@ export class MailService {
   async insertToInvMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_date: string, send_id: string, audit_user: string, audit_date: string
+    send_id: string, audit_user: string, audit_date: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
@@ -772,7 +771,7 @@ export class MailService {
         send_date, send_id, audit_user, audit_date)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
-        '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
+        '${doc_no}', ${status_code}, '${response_message}', GETDATE(), '${send_id}',
         '${audit_user}', GETDATE())
         `)
       if (result === 0) {

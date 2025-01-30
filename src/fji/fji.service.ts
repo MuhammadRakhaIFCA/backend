@@ -557,4 +557,50 @@ export class FjiService {
             throw new BadRequestException(error.response)
         }
     }
+
+    async getMenu(email: string, role: string) {
+        let invoice: Array<any> = [];
+        let or: Array<any> = [];
+        if (role == 'maker and blaster') {
+            invoice = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+                AND type_cd <> 'OR' 
+                AND job_task = 'Maker'
+          `)) as Array<any>;
+
+            or = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+                AND type_cd = 'OR' 
+                AND job_task like '%Maker%'
+          `)) as Array<any>;
+        } else if (role == 'approver') {
+            invoice = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+              AND type_cd <> 'OR' 
+              AND job_task like '%Approval%'
+          `)) as Array<any>;
+
+            or = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+                AND type_cd = 'OR' 
+                AND job_task like '%Approval%'
+          `)) as Array<any>;
+        }
+
+        const hasInvoiceData = invoice.length > 0;
+        const hasOrData = or.length > 0;
+
+        return {
+            statusCode: 200,
+            message: 'success',
+            data: {
+                hasInvoiceData,
+                hasOrData,
+            },
+        };
+    }
 }

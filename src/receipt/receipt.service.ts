@@ -137,15 +137,21 @@ export class ReceiptService {
         const { startDate, endDate, status } = data
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = name FROM mgr.ar_blast_or abia 
+                SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+                FROM mgr.ar_blast_or abia 
                 INNER JOIN mgr.ar_debtor ad 
-                ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
+                    ON abia.debtor_acct = ad.debtor_acct
+                    AND abia.entity_cd = ad.entity_cd
+                    AND abia.project_no = ad.project_no
+                INNER JOIN mgr.cf_entity ent
+                    ON abia.entity_cd = ent.entity_cd
+                INNER JOIN mgr.pl_project prj
+                    ON abia.entity_cd = prj.entity_cd
+                    AND abia.project_no = prj.project_no
                 WHERE send_id IS NOT NULL 
-                AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-                AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-                AND send_status = '${status}'
+                    AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+                    AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+                    AND send_status = '${status}'
                 ORDER BY send_date DESC
             `)
             if (!result || result.length === 0) {
@@ -362,7 +368,10 @@ export class ReceiptService {
             year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${start_date}' 
             AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${end_date}' 
             AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_or ) 
-            AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval WHERE status_approve != 'C')
+            AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval 
+                                  WHERE status_approve != 'C'
+                                  OR status_approve IS NULL
+                                  ) 
             `)
         if (result.length === 0) {
             throw new NotFoundException({
@@ -402,6 +411,16 @@ export class ReceiptService {
                 data: [],
             })
         }
+        const count: Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT count(doc_no) from mgr.ar_blast_inv_approval
+            WHERE doc_no = '${doc_no}'
+            AND related_class = 'OR'
+            `)
+        const revision_count = count[0].count
+        let filename = `${doc_no}.pdf`
+        if (revision_count > 0) {
+            filename = `${doc_no}_rev_${revision_count}.pdf`
+        }
         const pdfBody = {
             doc_no: result[0].doc_no,
             doc_date: result[0].doc_date,
@@ -410,6 +429,8 @@ export class ReceiptService {
             name: result[0].name,
             descs: result[0].descs,
             or_paid_by: result[0].or_paid_by,
+            formid: result[0]?.formid || '',
+            filename
         }
 
         try {
@@ -422,14 +443,14 @@ export class ReceiptService {
             entity_cd: result[0].entity_cd,
             project_no: result[0].project_no,
             debtor_acct: result[0].debtor_acct,
-            email_addr: 'm.rakha@ifca.co.id',
+            email_addr: result[0].email_addr,
             bill_type: null,
             doc_no,
             related_class: "OR",
             doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
             descs: result[0].descs,
             doc_amt: result[0].fdoc_amt,
-            filenames: `${doc_no}.pdf`,
+            filenames: filename,
             filenames2: null,
             process_id,
             audit_user: audit_user,
@@ -619,15 +640,15 @@ export class ReceiptService {
             if (!this.isEmptyString(approval_remarks)) {
                 approval_remark = "'" + approval_remarks + "'";
             }
-            const result = await this.fjiDatabase.$executeRawUnsafe(`
+            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                     INSERT INTO mgr.ar_blast_inv_approval_dtl 
                     (entity_cd, project_no, debtor_acct, 
                     doc_no, process_id, approval_level, approval_user, approval_status, approval_remarks,
                     audit_user)
                     VALUES 
-                    ('${entity_cd}', '${project_no}', '${debtor_acct}', 
-                    '${doc_no}', '${process_id}', '${approval_level}', '${approval_user}', 
-                    '${approval_status}', ${approval_remark}, '${audit_user}')
+                    (${entity_cd}, ${project_no}, ${debtor_acct}, 
+                    ${doc_no}, ${process_id}, ${approval_level}, ${approval_user}, 
+                    ${approval_status}, ${approval_remarks}, ${audit_user})
                 `);
 
             const update = await this.fjiDatabase.$executeRawUnsafe(`
@@ -689,12 +710,12 @@ export class ReceiptService {
                 WHERE process_id = '${process_id}' AND doc_no = '${doc_no}'
                 `);
         try {
-            const result = await this.fjiDatabase.$executeRawUnsafe(`
-                    UPDATE mgr.ar_blast_inv_approval_dtl
-                    SET approval_status = '${approval_status}', approval_date = GETDATE(), 
-                    approval_remarks = ${approval_remark}
-                    WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' 
-                    AND approval_user = '${approval_user}'
+            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+                UPDATE mgr.ar_blast_inv_approval_dtl
+                SET approval_status = ${approval_status}, approval_date = GETDATE(), 
+                approval_remarks = ${approval_remarks}
+                WHERE doc_no = ${doc_no} AND process_id = ${process_id} 
+                AND approval_user = ${approval_user}
                     
                     `);
             if (result === 0) {
@@ -733,6 +754,7 @@ export class ReceiptService {
                       SELECT * FROM mgr.ar_blast_inv_approval 
                       WHERE process_id = '${process_id}' 
                       AND doc_no = '${doc_no}'
+                      ORDER BY rowID desc
                     `)
 
                     const new_process_id = Array(6)
@@ -814,7 +836,7 @@ export class ReceiptService {
                         doc_date: moment(result[0].doc_date).format('YYYYMMDD'),
                         currency_cd: result[0].currency_cd,
                         doc_amt: result[0].doc_amt,
-                        filenames: `${doc_no}.pdf`,
+                        filenames: result[0].filenames,
                         process_id,
                         audit_user: result[0].audit_user,
                     }
@@ -1023,14 +1045,22 @@ export class ReceiptService {
     }
     async getApprovalHistory(approval_user: string) {
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.ar_blast_inv_approval_dtl
+                SELECT * FROM mgr.v_inv_approval_history
                 WHERE approval_user = '${approval_user}'
                 AND approval_status != 'P'
-                AND (doc_no LIKE 'OR%'
-                OR doc_no LIKE 'SP%'
-                OR doc_no LIKE 'OF%')
+                AND doc_no LIKE 'OR%'
+                AND doc_no LIKE 'SP%'
+                AND doc_no LIKE 'OF%'
                 ORDER BY approval_date DESC
                 `);
+
+        for (const item of result) {
+            const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.ar_blast_inv_approval_dtl
+              WHERE process_id = '${item.process_id}'
+          `);
+            item.detail = details;
+        }
         if (result.length === 0) {
             throw new NotFoundException({
                 statusCode: 404,
@@ -1066,16 +1096,21 @@ export class ReceiptService {
     async getApprovalList(audit_user: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT abia.*,debtor_name = ad.name FROM mgr.ar_blast_inv_approval abia
+            SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs FROM mgr.ar_blast_inv_approval abia
             INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-            AND abia.entity_cd = ad.entity_cd
-            AND abia.project_no = ad.project_no
+                ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
             where progress_approval = 0
-            and abia.audit_user = '${audit_user}'
-            AND (doc_no LIKE 'OR%'
-                OR doc_no LIKE 'SP%'
-                OR doc_no LIKE 'OF%') 
+                AND abia.audit_user = '${audit_user}'
+            AND (abia.doc_no LIKE 'OR%'
+                OR abia.doc_no LIKE 'SP%'
+                OR abia.doc_no LIKE 'OF%') 
             ORDER BY gen_date DESC
             `)
             return {
@@ -1090,5 +1125,181 @@ export class ReceiptService {
                 data: [],
             })
         }
+    }
+
+
+    async receiptInqueries() {
+        const orNotStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_or abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE status_process_sign = 'N'
+          AND send_id IS NULL
+        `);
+        const orNotStampedWithStatus = orNotStamped.map((row) => ({ ...row, status: 'no stamp' }));
+
+        const orFailStamp: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_or abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE file_status_sign = 'F'
+          AND send_id IS NULL
+        `);
+        const orFailStampWithStatus = orFailStamp.map((row) => ({ ...row, status: 'fail stamp' }));
+
+        const approvalPending: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_inv_approval abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE status_approve = 'P'
+          AND progress_approval > 0
+          AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_or)
+          AND related_class = 'OR'
+          `)
+
+        const approvalPendingWithStatus = approvalPending.map((row) => ({
+            ...row,
+            status: `approval pending (${row.progress_approval})`,
+            file_status_sign: null,
+        }));
+        const cancelled: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_inv_approval abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+              AND abia.entity_cd = ad.entity_cd
+              AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+              ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+              ON abia.entity_cd = prj.entity_cd
+              AND abia.project_no = prj.project_no
+            WHERE status_approve = 'C'
+              AND progress_approval > 0
+              AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
+              AND related_class <> 'OR'
+            ORDER BY rowID desc
+        `)
+
+        const cancelledWithStatus = cancelled.map((row) => ({
+            ...row,
+            status: `cancelled`,
+            file_status_sign: null,
+        }));
+
+        const generated: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_inv_approval abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE progress_approval = 0
+          AND related_class = 'OR'
+          `)
+
+        const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated' }))
+
+        const orSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_or abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE send_status = 'S'
+        `);
+        const orSentWithStatus = orSent.map((row) => ({ ...row, status: 'sent' }));
+
+        const orStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_or abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE doc_amt >= 5000000 
+          AND status_process_sign = 'Y'
+          AND file_status_sign = 'S' 
+          AND send_id IS NULL
+        `);
+        const orStampedWithStatus = orStamped.map((row) => ({ ...row, status: 'stamped' }));
+
+        const orApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_or abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+                AND abia.entity_cd = ad.entity_cd
+                AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+                ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+                ON abia.entity_cd = prj.entity_cd
+                AND abia.project_no = prj.project_no
+          WHERE status_process_sign IS NULL
+        `);
+        const orApprovedCompletedWithStatus = orApprovedCompleted.map((row) => ({
+            ...row,
+            status: 'approved_completed',
+        }));
+
+        // Combine all results into a single array
+        const combinedResults = [
+            ...generatedWithStatus,
+            ...approvalPendingWithStatus,
+            ...cancelledWithStatus,
+            ...orApprovedCompletedWithStatus,
+            ...orFailStampWithStatus,
+            ...orNotStampedWithStatus,
+            ...orStampedWithStatus,
+            ...orSentWithStatus,
+        ];
+
+        return {
+            statusCode: 200,
+            message: "get invoice and or success",
+            data: combinedResults
+        };
+
     }
 }
