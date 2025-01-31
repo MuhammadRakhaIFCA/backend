@@ -566,7 +566,7 @@ export class ReceiptService {
 
         return {
             statusCode: 200,
-            message: 'invoice submitted',
+            message: 'OR submitted',
             data: []
         }
 
@@ -1227,7 +1227,7 @@ export class ReceiptService {
           AND related_class = 'OR'
           `)
 
-        const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated' }))
+        const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated', file_status_sign: null, }))
 
         const orSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
@@ -1277,10 +1277,12 @@ export class ReceiptService {
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
           WHERE status_process_sign IS NULL
+          AND send_id IS NULL
+          AND send_status IS NULL
         `);
         const orApprovedCompletedWithStatus = orApprovedCompleted.map((row) => ({
             ...row,
-            status: 'approved_completed',
+            status: 'approved completed',
         }));
 
         // Combine all results into a single array
@@ -1297,7 +1299,7 @@ export class ReceiptService {
 
         return {
             statusCode: 200,
-            message: "get invoice and or success",
+            message: "get or success",
             data: combinedResults
         };
 

@@ -258,7 +258,7 @@ export class MailService {
     let send_status: string
     let status_code: number
     let response_message: string
-    const send_date = moment().format('YYYYMMDD h:mm:ss')
+    const send_date = moment().format('YYYYMMDD HH:mm:ss')
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
@@ -394,7 +394,7 @@ export class MailService {
     let send_status: string
     let status_code: number
     let response_message: string
-    const send_date = moment().format('YYYYMMDD h:mm:ss');
+    const send_date = moment().format('YYYYMMDD HH:mm:ss');
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
@@ -423,7 +423,7 @@ export class MailService {
     // Update the ar_blast_or table
     await this.updateArBlastOrTable(
       doc_no,
-      moment().format('YYYYMMDD h:mm:ss'),
+      moment().format('YYYYMMDD HH:mm:ss'),
       send_status,
       send_id,
       result[0].entity_cd,
@@ -446,7 +446,7 @@ export class MailService {
         send_date,
         send_id,
         result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD h:mm:ss')
+        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss')
       );
     }
 
@@ -608,7 +608,7 @@ export class MailService {
     let send_status: string
     let status_code: number
     let response_message: string
-    const send_date = moment().format('YYYYMMDD h:mm:ss');
+    const send_date = moment().format('YYYYMMDD HH:mm:ss');
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
@@ -638,7 +638,7 @@ export class MailService {
     // Update the ar_blast_inv table
     await this.updateArBlastInvTable(
       doc_no,
-      moment().format('YYYYMMDD h:mm:ss'),
+      moment().format('YYYYMMDD HH:mm:ss'),
       send_status,
       send_id,
       result[0].entity_cd,
@@ -659,7 +659,8 @@ export class MailService {
         response_message,
         send_id,
         result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD h:mm:ss')
+        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
+        send_date
       );
     }
     if (status_code === 408) {
@@ -762,7 +763,7 @@ export class MailService {
   async insertToInvMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_id: string, audit_user: string, audit_date: string
+    send_id: string, audit_user: string, audit_date: string, send_date: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
@@ -771,7 +772,7 @@ export class MailService {
         send_date, send_id, audit_user, audit_date)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
-        '${doc_no}', ${status_code}, '${response_message}', GETDATE(), '${send_id}',
+        '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
         '${audit_user}', GETDATE())
         `)
       if (result === 0) {

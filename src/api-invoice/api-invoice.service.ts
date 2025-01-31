@@ -1862,6 +1862,8 @@ export class ApiInvoiceService {
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
       WHERE status_process_sign IS NULL
+      AND send_id IS NULL
+      and send_status IS NULL
       ORDER BY rowID desc
     `);
     const invApprovedCompletedWithStatus = invApprovedCompleted.map((row) => ({
@@ -1953,7 +1955,7 @@ export class ApiInvoiceService {
 
     return {
       statusCode: 200,
-      message: "get invoice and or success",
+      message: "get invoice success",
       data: combinedResults
     };
 

@@ -1936,7 +1936,12 @@ export class PdfgenerateService {
             .text(':', 170, 300)
             .text(':', 170, 350)
             .text(':', 170, 370)
-        doc.text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)} only`, 190, 300, { width: 365 })
+        if (data.currency_cd == "USD") {
+            doc.text(`United States Dollar ${this.numberToWords(raw_fdoc_amt)} only`, 190, 300, { width: 365 })
+        } else if (data.currency_cd == "RP") {
+            doc.text(`Indonesian Rupiah ${this.numberToWords(raw_fdoc_amt)} only`, 190, 300, { width: 365 })
+
+        }
         doc.text(`${data.descs}`, 190, 350)
         if (raw_fdoc_amt >= 5000000 || (data.currency_cd == "USD" && raw_fdoc_amt >= 300)) {
             doc.text('E-meterai', 450, 450, { width: 100, align: 'center' })
