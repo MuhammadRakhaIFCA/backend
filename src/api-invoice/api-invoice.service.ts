@@ -374,7 +374,7 @@ export class ApiInvoiceService {
         related_class,
         doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
         descs: result[0].descs,
-        doc_amt: result[0].base_amt,
+        doc_amt: Number(result[0].base_amt) + Number(result[0].tax_amt),
         filenames,
         filenames2,
         process_id,
@@ -508,7 +508,7 @@ export class ApiInvoiceService {
       related_class,
       doc_date: moment(result[0].doc_date).format('DD MMM YYYY'),
       descs: result[0].descs,
-      doc_amt: result[0].base_amt,
+      doc_amt: Number(result[0].base_amt) + Number(result[0].tax_amt),
       filenames: fileName,
       filenames2: null,
       process_id,
@@ -1789,6 +1789,8 @@ export class ApiInvoiceService {
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
       WHERE send_status = 'S'
+      AND send_date IS NOT NULL
+      AND send_id IS NOT NULL
       ORDER BY rowID desc
     `);
     const invSentWithStatus = invSent.map((row) => ({ ...row, status: 'sent' }));

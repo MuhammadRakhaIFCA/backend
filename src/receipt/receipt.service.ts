@@ -1201,7 +1201,7 @@ export class ReceiptService {
             WHERE status_approve = 'C'
               AND progress_approval > 0
               AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
-              AND related_class <> 'OR'
+              AND related_class = 'OR'
             ORDER BY rowID desc
         `)
 

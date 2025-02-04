@@ -346,7 +346,7 @@ export class PdfgenerateService {
             // .text(`${data.account_usd}`, 350, tableYStart + 318)
             .fontSize(11).font('Times-Roman')
             .text('Authorized officer', 480, tableYStart + 280, { width: 90, align: 'center' })
-        if (total >= 5000000 || (data.currency_cd == "USD" && total >= 300)) {
+        if (baseAmt + taxAmt >= 5000000 || (data.currency_cd == "USD" && baseAmt + taxAmt >= 300)) {
             doc.text('E-meterai', 480, tableYStart + 320, { width: 90, align: 'center' })
         }
         doc.font('Times-Bold')
@@ -1920,7 +1920,7 @@ export class PdfgenerateService {
             .rect(20, 240, 150, 25).stroke()
             .rect(20, 240, 300, 25).stroke()
 
-            .fontSize(12).font('Times-Bold')
+            .fontSize(11).font('Times-Bold')
             .text('RECEIVED FROM', 30, 215)
             .text('AMOUNT', 30, 250)
             .font('Times-Roman')
