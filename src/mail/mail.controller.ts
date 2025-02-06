@@ -26,6 +26,12 @@ export class MailController {
     return await this.mailService.sendEmail(to, subject, text, html, cc, bcc, attachments);
   }
 
+  // @Post('test-checkfile')
+  // async checkFile(@Body() data: Record<any, any>) {
+  //   return this.mailService.checkFileExists("https://nfsdev.property365.co.id:4422/SIGNED/GQCINV/MANUAL/IN24000538_signed.pdf")
+  // }
+
+
   @Get('blast-email-inv/:doc_no')
   async blastEmailInv(@Param('doc_no') doc_no: string) {
     return this.mailService.blastEmailInv(doc_no)

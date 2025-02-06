@@ -1794,6 +1794,22 @@ export class ApiInvoiceService {
       ORDER BY rowID desc
     `);
     const invSentWithStatus = invSent.map((row) => ({ ...row, status: 'sent' }));
+    const invFailSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      FROM mgr.ar_blast_inv abia
+      INNER JOIN mgr.ar_debtor ad 
+      ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+      INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+      INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+      WHERE send_status = 'F'
+      ORDER BY rowID desc
+    `);
+    const invFailSentWithStatus = invFailSent.map((row) => ({ ...row, status: 'fail to send' }));
 
     const invStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
@@ -1868,10 +1884,20 @@ export class ApiInvoiceService {
       and send_status IS NULL
       ORDER BY rowID desc
     `);
-    const invApprovedCompletedWithStatus = invApprovedCompleted.map((row) => ({
-      ...row,
-      status: 'approve completed',
-    }));
+    const invApprovedCompletedWithStatus = await Promise.all(
+      invApprovedCompleted.map(async (row) => {
+        const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = '${row.process_id}'
+          `);
+
+        return {
+          ...row,
+          status: `approve completed`,
+          details,
+          file_status_sign: null,
+        };
+      })
+    )
 
     const approvalPending: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
@@ -1892,11 +1918,20 @@ export class ApiInvoiceService {
           ORDER BY rowID desc
       `)
 
-    const approvalPendingWithStatus = approvalPending.map((row) => ({
-      ...row,
-      status: `approval pending (${row.progress_approval})`,
-      file_status_sign: null,
-    }));
+    const approvalPendingWithStatus = await Promise.all(
+      approvalPending.map(async (row) => {
+        const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = '${row.process_id}'
+          `);
+
+        return {
+          ...row,
+          status: `approval pending (${row.progress_approval})`,
+          details,
+          file_status_sign: null,
+        };
+      })
+    )
     const cancelled: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
           FROM mgr.ar_blast_inv_approval abia
@@ -1916,11 +1951,20 @@ export class ApiInvoiceService {
           ORDER BY rowID desc
       `)
 
-    const cancelledWithStatus = cancelled.map((row) => ({
-      ...row,
-      status: `cancelled`,
-      file_status_sign: null,
-    }));
+    const cancelledWithStatus = await Promise.all(
+      cancelled.map(async (row) => {
+        const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = '${row.process_id}'
+            `);
+
+        return {
+          ...row,
+          status: `cancelled`,
+          details,
+          file_status_sign: null,
+        };
+      })
+    )
 
     const generated: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
@@ -1953,6 +1997,7 @@ export class ApiInvoiceService {
       ...invFailStampWithStatus,
       ...invNotStampedWithStatus,
       ...invSentWithStatus,
+      ...invFailSentWithStatus
     ];
 
     return {

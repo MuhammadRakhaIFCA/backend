@@ -347,7 +347,7 @@ export class PeruriService {
       //8. ambil sn dari nomer 5, ambil token dari nomer 2 lalu lakukan stamping
       stamp = await firstValueFrom(
         this.httpService.post(
-          'http://103.84.193.221:8010/adapter/pdfsigning/rest/docSigningZ',
+          'http://emstag.property365.co.id:8080/adapter/pdfsigning/rest/docSigningZ',
           {
             certificatelevel: 'NOT_CERTIFIED',
             dest: `/sharefolder/SIGNED/${company_cd}/${upper_file_type}/${signedFileName}`,

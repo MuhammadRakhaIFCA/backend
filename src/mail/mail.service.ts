@@ -11,11 +11,12 @@ import * as crypto from 'crypto';
 import * as ftp from 'basic-ftp';
 import * as fs from 'fs';
 import * as path from 'path';
+import axios from 'axios';
+
 
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
-  private client: ftp.Client
 
   constructor(private readonly fjiDatabase: FjiDatabaseService) {
     // Initialize the transporter
@@ -26,54 +27,39 @@ export class MailService {
         pass: process.env.MAIL_PASSWORD
       },
     });
-    this.client = new ftp.Client();
-    this.client.ftp.verbose = true;
   }
 
-  async connect(): Promise<void> {
-    console.log(this.client.closed)
-    if (this.client.closed) {
-      console.log('Reconnecting to FTP server...');
-      await this.client.access({
-        host: process.env.FTP_HOST,
-        user: process.env.FTP_USERNAME,
-        password: process.env.FTP_PASSWORD,
-        secure: false,
-        port: 21,
-      });
-    }
-    console.log('Connected to FTP server.');
-  }
-  async download(remoteFilePath: string, localFilePath: string): Promise<void> {
+  // async download(remoteFilePath: string, localFilePath: string): Promise<void> {
+  //   try {
+  //     await this.client.downloadTo(localFilePath, remoteFilePath);
+  //     console.log('File downloaded successfully');
+  //   } catch (error) {
+  //     throw new Error(`Failed to download file: ${error.message}`);
+  //   }
+  // }
+  async download(remoteFileUrl: string, localFilePath: string): Promise<void> {
     try {
-      await this.client.downloadTo(localFilePath, remoteFilePath);
+      // Make sure the destination folder exists
+      await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true });
+
+      // Download the file as a stream
+      const response = await axios.get(remoteFileUrl, { responseType: 'stream' });
+
+      // Create a write stream to the local file
+      const writer = fs.createWriteStream(localFilePath);
+
+      // Pipe the response data to the file
+      response.data.pipe(writer);
+
+      // Return a promise that resolves when the download is complete
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
       console.log('File downloaded successfully');
     } catch (error) {
       throw new Error(`Failed to download file: ${error.message}`);
-    }
-  }
-  async upload(localFilePath: string, remoteFilePath: string): Promise<void> {
-    try {
-      if (!fs.existsSync(localFilePath)) {
-        throw new Error(`Local file does not exist: ${localFilePath}`);
-      }
-      const remoteDirPath = path.dirname(remoteFilePath);
-      await this.client.ensureDir(remoteDirPath);
-      await this.client.uploadFrom(localFilePath, remoteFilePath);
-      console.log('File uploaded successfully');
-    } catch (error) {
-      throw new Error(`Failed to upload file: ${error.message}`);
-      throw new BadRequestException(error);
-    }
-  }
-
-  async disconnect() {
-    try {
-      this.client.close();
-      console.log('Disconnected from FTP server');
-    } catch (err) {
-      console.error('Failed to disconnect', err);
-      throw err;
     }
   }
 
@@ -110,6 +96,7 @@ export class MailService {
     senderEmail: string,
     recipientEmail: string,
     invoiceNumber: string,
+    type: string
   ): string {
     return `
       <!DOCTYPE html>
@@ -164,12 +151,12 @@ export class MailService {
         <body>
           <div class="email-container">
             <div class="email-header">
-              <h1>Invoice from ${senderName}</h1>
+              <h1>${type} from ${senderName}</h1>
             </div>
             <div class="email-body">
               <p>Dear ${recipientEmail},</p>
-              <p>Thank you for your business. Please find the attached invoice for your reference.</p>
-              <p><strong>Invoice Number:</strong> #${invoiceNumber}</p>
+              <p>Thank you for your business. Please find the attached ${type} for your reference.</p>
+              <p><strong>${type} Number:</strong> #${invoiceNumber}</p>
               <p>If you have any questions, feel free to contact us at <a href="mailto:${senderEmail}">${senderEmail}</a>.</p>
               <p>Best regards,<br>${senderName}</p>
             </div>
@@ -294,6 +281,7 @@ export class MailService {
   }
 
   async blastEmailOr(doc_no: string) {
+    const baseUrl = process.env.FTP_BASE_URL
 
     const send_id = Array(6)
       .fill(null)
@@ -323,10 +311,9 @@ export class MailService {
     console.log(`sending or, unsigned file from local : ${rootFolder}/receipt/${result[0].filenames}`)
 
     if (result[0].file_name_sign) {
-      await this.connect()
       try {
         await this.download(
-          `SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
+          `${baseUrl}/SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
           `${rootFolder}/receipt/${result[0].file_name_sign}`)
       } catch (error) {
         throw new BadRequestException({
@@ -334,14 +321,11 @@ export class MailService {
           message: 'fail to download signed file',
           data: []
         })
-      } finally {
-        this.disconnect()
       }
     } else {
-      await this.connect()
       try {
         await this.download(
-          `UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
+          `${baseUrl}/UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
           `${rootFolder}/receipt/${result[0].filenames}`)
       } catch (error) {
         throw new BadRequestException({
@@ -349,8 +333,6 @@ export class MailService {
           message: 'fail to download unsigned file',
           data: []
         })
-      } finally {
-        this.disconnect()
       }
     }
 
@@ -364,6 +346,7 @@ export class MailService {
         mailConfig.data[0].sender_email,
         result[0].email_addr,
         result[0].doc_no,
+        'Receipt'
       ),
       attachments: [
         ...(result[0].file_name_sign
@@ -464,7 +447,24 @@ export class MailService {
       data: result[0]
     }
   }
+
+  // async checkFileExists(filePath: string): Promise<{ error: boolean; message: string }> {
+  //   try {
+  //     const response = await axios.head(filePath);
+  //     console.log(response)
+
+  //     if (response.status === 200) {
+  //       return { error: false, message: 'File exists' };
+  //     }
+  //   } catch (error) {
+  //     return { error: true, message: 'Unable to process email, because the file does not exist' };
+  //   }
+
+  //   return { error: true, message: 'Unable to process email, because the file does not exist' };
+  // }
+
   async blastEmailInv(doc_no: string) {
+    const baseUrl = process.env.FTP_BASE_URL
     const send_id = Array(6)
       .fill(null)
       .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
@@ -493,10 +493,9 @@ export class MailService {
     const upper_file_type = result[0].invoice_tipe.toUpperCase()
 
     if (result[0].file_name_sign) {
-      await this.connect()
       try {
         await this.download(
-          `SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
+          `${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
           `${rootFolder}/${result[0].invoice_tipe}/${result[0].file_name_sign}`
         )
       } catch (error) {
@@ -505,14 +504,12 @@ export class MailService {
           message: 'fail to download signed file',
           data: []
         })
-      } finally {
-        await this.disconnect()
       }
     } else {
-      await this.connect()
+
       try {
         await this.download(
-          `UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames}`,
+          `${baseUrl}/UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames}`,
           `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`
         )
       } catch (error) {
@@ -521,16 +518,14 @@ export class MailService {
           message: 'fail to download unsigned file',
           data: []
         })
-      } finally {
-        await this.disconnect()
       }
     }
 
     if (result[0].filenames2) {
-      await this.connect()
+
       try {
         await this.download(
-          `UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames2}`,
+          `${baseUrl}/UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames2}`,
           `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`
         )
       } catch (error) {
@@ -539,27 +534,23 @@ export class MailService {
           message: 'fail to download reference file',
           data: []
         })
-      } finally {
-        await this.disconnect()
       }
     }
-    // if (result[0].filenames3) {
-    //   await this.connect()
-    //   try {
-    //     await this.download(
-    //       `UNSIGNED/GQCINV/FAKTUR/${result[0].filenames3}`,
-    //       `${rootFolder}/FAKTUR/${result[0].filenames3}`
-    //     )
-    //   } catch (error) {
-    //     throw new BadRequestException({
-    //       statusCode: 400,
-    //       message: 'fail to download faktur',
-    //       data: []
-    //     })
-    //   } finally {
-    //     await this.disconnect()
-    //   }
-    // }
+    if (result[0].filenames3) {
+
+      try {
+        await this.download(
+          `${baseUrl}/UNSIGNED/GQCINV/FAKTUR/${result[0].filenames3}`,
+          `${rootFolder}/FAKTUR/${result[0].filenames3}`
+        )
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download faktur',
+          data: []
+        })
+      }
+    }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
@@ -571,6 +562,7 @@ export class MailService {
         mailConfig.data[0].sender_email,
         result[0].email_addr,
         result[0].doc_no,
+        'Invoice'
       ),
       attachments: [
         ...(result[0].file_name_sign

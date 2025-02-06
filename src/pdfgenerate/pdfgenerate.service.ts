@@ -1078,78 +1078,85 @@ export class PdfgenerateService {
     }
     async generatePdfFirstJakarta2(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
-        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
+        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`;
 
-        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
         const filePath = `${rootFolder}/schedule/${data.filenames2}`;
 
-
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
 
+        // --- Header Section (Company, Recipient, etc.) ---
         doc.font('Times-Roman').fontSize(12)
             .text('PT First Jakarta International', 0, 20, { align: 'center' })
             .text('Indonesia Stock Exchange Building, Lot 2 (SCBD)', { align: 'center' })
             .text('Jl. Jend Sudirman kav 52-53', { align: 'center' })
-            .text('Jakarta 12190 - Indonesia', { align: 'center' })
+            .text('Jakarta 12190 - Indonesia', { align: 'center' });
 
-        doc.rect(10, 80, 550, 1).stroke()
+        doc.rect(10, 80, 550, 1).stroke();
         doc.fontSize(10)
             .text('TO : ', 20, 90)
             .text(`${data.name}`, 20, 90, { indent: 20 })
             .text(`${data.address1}`, { indent: 20 })
             .text(`${data.address2}`, { indent: 20 })
-            .text(`${data.address3} ${data.postCd}`, { indent: 20 })
-        doc.rect(10, 150, 550, 1).stroke()
+            .text(`${data.address3} ${data.postCd}`, { indent: 20 });
+        doc.rect(10, 150, 550, 1).stroke();
 
         doc.fontSize(12).font('Times-Bold')
-            .text('CHILLED WATER FCU CHARGE CALCULATION', 0, 170, { align: 'center', underline: true })
+            .text('CHILLED WATER FCU CHARGE CALCULATION', 0, 170, { align: 'center', underline: true });
+
         // Calculations
         const totalHours = data.currRead.map((curr, idx) => curr - data.lastRead[idx]);
         const totalTotalHours = totalHours.reduce((sum, hours) => sum + hours, 0).toFixed(2);
 
         const formattedCapacity = data.capacity.map(cap => cap.toLocaleString('id-ID', { minimumFractionDigits: 2 }));
-        const totalCapacity = data.capacity.reduce((sum, cap) => sum + cap, 0).toLocaleString('id-ID', { minimumFractionDigits: 2 });
+        const totalCapacity = data.capacity.reduce((sum, cap) => sum + cap, 0)
+            .toLocaleString('id-ID', { minimumFractionDigits: 2 });
 
         const totalMultiplier = data.multiplier.reduce((sum, mul) => sum + mul, 0).toFixed(2);
 
         const formattedUsageRate = data.usageRate.map(rate => rate.toLocaleString('id-ID', { minimumFractionDigits: 2 }));
         const formattedApportionPercent = data.apportionPercent.map(percent => `${percent.toFixed(2)}%`);
 
-        const billingTotal = data.billingAmount.reduce((sum, amount) => sum + amount, 0).toLocaleString('id-ID', { minimumFractionDigits: 2 });
+        const billingTotal = data.billingAmount.reduce((sum, amount) => sum + amount, 0)
+            .toLocaleString('id-ID', { minimumFractionDigits: 2 });
         const roundedTo = data.roundingAmount.map(amount => amount.toLocaleString('id-ID', { minimumFractionDigits: 2 }));
-        const totalRoundedTo = data.billingAmount.reduce((sum, amount) => sum + Math.round(amount), 0).toLocaleString('id-ID', { minimumFractionDigits: 2 });
-        const rawTotalRoundedTo = data.billingAmount.reduce((sum, amount) => sum + Math.round(amount), 0)
+        const totalRoundedTo = data.billingAmount.reduce((sum, amount) => sum + Math.round(amount), 0)
+            .toLocaleString('id-ID', { minimumFractionDigits: 2 });
+        const rawTotalRoundedTo = data.billingAmount.reduce((sum, amount) => sum + Math.round(amount), 0);
 
         // First and Last Meter ID
         const firstMeterId = data.meterId[0];
         const lastMeterId = data.meterId[data.meterId.length - 1];
 
-        const period = moment(data.docDate).format('MMMM YYYY')
+        const period = moment(data.docDate).format('MMMM YYYY');
         doc.fontSize(10).font('Times-Roman')
             .text(`Hourly Basis Chilled Water, Fan Coil Unit (FCU) No : ${firstMeterId} tp ${lastMeterId}`, 10, 200)
-            .text(`Period : ${period}`)
+            .text(`Period : ${period}`, 10, 215);
 
+        // --- Table Header Setup ---
+        let tableYStart = 250;
+        let textYStart = 257;
+        // Define reserved space at bottom for totals/disclaimer
+        const reservedBottomSpace = 150;
+        const pageHeight = doc.page.height; // e.g. 842 for A4
 
-        let tableYStart = 250
-        let textYStart = 257
-
-
-        doc.rect(100, tableYStart - 20, 150, 20)
-        doc.rect(10, tableYStart, 20, 20)
-        doc.rect(30, tableYStart, 70, 20)
-        doc.rect(100, tableYStart, 50, 20)
-        doc.rect(150, tableYStart, 50, 20)
-        doc.rect(200, tableYStart, 50, 20)
-        doc.rect(250, tableYStart, 60, 20)
-        doc.rect(310, tableYStart, 30, 20)
-        doc.rect(340, tableYStart, 40, 20)
-        doc.rect(380, tableYStart, 100, 20)
-        doc.rect(480, tableYStart, 70, 20).stroke()
+        // Draw the table header (rectangles and text)
+        doc.rect(100, tableYStart - 20, 150, 20);
+        doc.rect(10, tableYStart, 20, 20);
+        doc.rect(30, tableYStart, 70, 20);
+        doc.rect(100, tableYStart, 50, 20);
+        doc.rect(150, tableYStart, 50, 20);
+        doc.rect(200, tableYStart, 50, 20);
+        doc.rect(250, tableYStart, 60, 20);
+        doc.rect(310, tableYStart, 30, 20);
+        doc.rect(340, tableYStart, 40, 20);
+        doc.rect(380, tableYStart, 100, 20);
+        doc.rect(480, tableYStart, 70, 20).stroke();
         doc.fontSize(8).font('Times-Roman')
             .text('Operation', 100, textYStart - 20, { align: 'center', width: 150 })
             .text('No', 10, textYStart, { align: 'center', width: 20 })
@@ -1161,24 +1168,65 @@ export class PdfgenerateService {
             .text(`TR`, 310, textYStart, { align: 'center', width: 30 })
             .text(`Rate`, 340, textYStart, { align: 'center', width: 40 })
             .text(`Billing Apportionment`, 380, textYStart, { align: 'center', width: 100 })
-            .text(`Rounded to`, 480, textYStart, { align: 'center', width: 70 })
-        tableYStart += 20
-        textYStart += 20
-        data.meterId.forEach((meter, idx) => {
-            doc.rect(10, tableYStart, 20, 20)
-            doc.rect(30, tableYStart, 70, 20)
-            doc.rect(100, tableYStart, 50, 20)
-            doc.rect(150, tableYStart, 50, 20)
-            doc.rect(200, tableYStart, 50, 20)
-            doc.rect(250, tableYStart, 60, 20)
-            doc.rect(310, tableYStart, 30, 20)
-            doc.rect(340, tableYStart, 40, 20)
-            doc.rect(380, tableYStart, 100, 20)
-            doc.rect(480, tableYStart, 70, 20).stroke()
-            doc.text(idx + 1, 10, textYStart, { align: 'center', width: 20 })
-                .text(`${meter}`, 35, textYStart, { align: 'left', width: 70 })
+            .text(`Rounded to`, 480, textYStart, { align: 'center', width: 70 });
+        tableYStart += 20;
+        textYStart += 20;
+
+        // --- Table Rows (with page break if too close to bottom) ---
+        for (let idx = 0; idx < data.meterId.length; idx++) {
+            // Check if the next row will be too close to the bottom.
+            if (textYStart + 20 > pageHeight - reservedBottomSpace) {
+                // Instead of drawing an empty row, just add a new page.
+                doc.addPage({ size: 'a4', margin: 0 });
+                // Reset y positions for the new page (adjust as desired)
+                tableYStart = 50;
+                textYStart = 57;
+                // Re-draw table header on the new page:
+                doc.rect(100, tableYStart - 20, 150, 20);
+                doc.rect(10, tableYStart, 20, 20);
+                doc.rect(30, tableYStart, 70, 20);
+                doc.rect(100, tableYStart, 50, 20);
+                doc.rect(150, tableYStart, 50, 20);
+                doc.rect(200, tableYStart, 50, 20);
+                doc.rect(250, tableYStart, 60, 20);
+                doc.rect(310, tableYStart, 30, 20);
+                doc.rect(340, tableYStart, 40, 20);
+                doc.rect(380, tableYStart, 100, 20);
+                doc.rect(480, tableYStart, 70, 20).stroke();
+                doc.fontSize(8).font('Times-Roman')
+                    .text('Operation', 100, textYStart - 20, { align: 'center', width: 150 })
+                    .text('No', 10, textYStart, { align: 'center', width: 20 })
+                    .text(`No FCU`, 30, textYStart, { align: 'center', width: 70 })
+                    .text(`Start`, 100, textYStart, { align: 'center', width: 50 })
+                    .text(`Stop`, 150, textYStart, { align: 'center', width: 50 })
+                    .text(`Total Hours`, 200, textYStart, { align: 'center', width: 50 })
+                    .text(`Cooling Cap`, 250, textYStart, { align: 'center', width: 60 })
+                    .text(`TR`, 310, textYStart, { align: 'center', width: 30 })
+                    .text(`Rate`, 340, textYStart, { align: 'center', width: 40 })
+                    .text(`Billing Apportionment`, 380, textYStart, { align: 'center', width: 100 })
+                    .text(`Rounded to`, 480, textYStart, { align: 'center', width: 70 });
+                tableYStart += 20;
+                textYStart += 20;
+            }
+
+            // Draw the row rectangles
+            doc.rect(10, tableYStart, 20, 20);
+            doc.rect(30, tableYStart, 70, 20);
+            doc.rect(100, tableYStart, 50, 20);
+            doc.rect(150, tableYStart, 50, 20);
+            doc.rect(200, tableYStart, 50, 20);
+            doc.rect(250, tableYStart, 60, 20);
+            doc.rect(310, tableYStart, 30, 20);
+            doc.rect(340, tableYStart, 40, 20);
+            doc.rect(380, tableYStart, 100, 20);
+            doc.rect(480, tableYStart, 70, 20).stroke();
+
+            // Draw the row text
+            doc.fontSize(8)
+                .text(idx + 1, 10, textYStart, { align: 'center', width: 20 })
+                .text(`${data.meterId[idx]}`, 35, textYStart, { align: 'left', width: 70 })
                 .text(`${data.lastRead[idx]}`, 105, textYStart, { align: 'right', width: 40 })
-                .text(` ${data.currRead[idx]}`, 155, textYStart, { align: 'right', width: 40 })
+                .text(`${data.currRead[idx]}`, 155, textYStart, { align: 'right', width: 40 })
                 .text(`${totalHours[idx].toFixed(2)}`, 205, textYStart, { align: 'right', width: 40 })
                 .text(`${formattedCapacity[idx]}`, 255, textYStart, { align: 'right', width: 50 })
                 .text(`${data.multiplier[idx].toFixed(2)}`, 315, textYStart, { align: 'right', width: 20 })
@@ -1186,79 +1234,91 @@ export class PdfgenerateService {
                 .text(`${formattedApportionPercent[idx]}`, 385, textYStart, { align: 'left', width: 90 })
                 .text(`${data.billingAmount[idx].toLocaleString('id-ID', { minimumFractionDigits: 2 })}`, 385, textYStart, { align: 'right', width: 90 })
                 .text(`RP`, 485, textYStart, { align: 'left', width: 60 })
-                .text(`${roundedTo[idx]}`, 485, textYStart, { align: 'right', width: 60 })
+                .text(`${roundedTo[idx]}`, 485, textYStart, { align: 'right', width: 60 });
 
-            // .moveDown();
-            tableYStart += 20
-            textYStart += 20
-        });
+            tableYStart += 20;
+            textYStart += 20;
+        }
+
+        // --- Totals Section (only on the last page) ---
+        // If there isn’t enough room for totals, add a new page.
+        if (textYStart + 40 > pageHeight - reservedBottomSpace) {
+            doc.addPage({ size: 'a4', margin: 0 });
+            tableYStart = 50;
+            textYStart = 57;
+        }
         doc.rect(10, tableYStart, 190, 20)
             .rect(200, tableYStart, 50, 20)
             .rect(250, tableYStart, 60, 20)
             .rect(310, tableYStart, 30, 20)
             .rect(340, tableYStart, 40, 20)
             .rect(380, tableYStart, 100, 20)
-            .rect(480, tableYStart, 70, 20).stroke()
+            .rect(480, tableYStart, 70, 20).stroke();
 
-        doc
+        doc.fontSize(8)
             .text(`Total`, 10, textYStart, { align: 'center', width: 70 })
             .text(totalTotalHours, 205, textYStart, { align: 'right', width: 40 })
             .text(totalCapacity, 255, textYStart, { align: 'right', width: 50 })
             .text(totalMultiplier, 315, textYStart, { align: 'right', width: 20 })
             .text(billingTotal, 385, textYStart, { align: 'right', width: 90 })
-            .text(totalRoundedTo, 485, textYStart, { align: 'right', width: 60 })
+            .text(totalRoundedTo, 485, textYStart, { align: 'right', width: 60 });
 
         doc.fontSize(10)
-            .text('In Words : ', 10, textYStart + 20)
-        if (data.currencyCd == "RP") {
-            doc.text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15, width: 400 })
-        }
-        else if (data.currencyCd == "USD") {
-            doc.text(`United States Dollar ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15, width: 400 })
+            .text('In Words : ', 10, textYStart + 20);
+        if (data.currencyCd === "RP") {
+            doc.text(`Indonesian Rupiah ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15, width: 400 });
+        } else if (data.currencyCd === "USD") {
+            doc.text(`United States Dollar ${this.numberToWords(rawTotalRoundedTo)} only`, { indent: 15, width: 400 });
         }
 
         doc.rect(10, tableYStart + 70, 550, 1).stroke()
             .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
             .fontSize(9)
-            .text('Note : This letter is an explanation of the Chilled Water, FCU calculation for Debit/Credit Note', 10, tableYStart + 85)
-        //.text('xxxxx', 150, tableYStart + 85)
+            .text('Note : This letter is an explanation of the Chilled Water, FCU calculation for Debit/Credit Note', 10, tableYStart + 85);
 
         doc.fontSize(8).font('Times-Bold')
             .text('Disclaimer : ', 225, tableYStart + 150)
             .font('Times-Italic')
-            .text('This document does not need to be signed', 270, tableYStart + 150)
+            .text('This document does not need to be signed', 270, tableYStart + 150);
+
         doc.end();
 
-
-        return ({
+        return {
             statusCode: 201,
             message: "invoice created",
             data: filePathPublic
-        })
+        };
     }
-    async generatePdfFirstJakarta3(data: Record<any, any>) {
-        const doc = new PDFDocument({ margin: 0, size: 'a4' });
-        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`
 
-        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+
+    async generatePdfFirstJakarta3(data: Record<any, any>) {
+        const doc = new PDFDocument({ margin: 0, size: 'a4', bufferPages: true });
+        const filePathPublic = `http://192.168.0.212:3001/first_jakarta_2_${data.docNo}.pdf`;
+
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
         const filePath = `${rootFolder}/schedule/${data.filenames2}`;
 
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
 
+        let pageCount = 1
+
+        // --- FIRST PAGE HEADER (only appears on first page) ---
         doc.font('Times-Roman').fontSize(12)
             .text('PT First Jakarta International', 0, 20, { align: 'center' })
             .text('Indonesia Stock Exchange Building, Lot 2 (SCBD)', { align: 'center' })
             .text('Jl. Jend Sudirman kav 52-53', { align: 'center' })
             .text('Jakarta 12190 - Indonesia', { align: 'center' })
-            .text('Tel No : 5151515 Fax No : 5150909', { align: 'center' })
+            .text('Tel No : 5151515 Fax No : 5150909', { align: 'center' });
 
-        console.log("3")
-        doc.rect(10, 90, 550, 1).stroke()
+        // Draw a line for separation
+        doc.rect(10, 90, 550, 1).stroke();
+
+        // Recipient details
         doc.fontSize(10)
             .text('TO : ', 42, 110)
             .text(`${data.name}`, 42, 110, { indent: 29 })
@@ -1266,17 +1326,21 @@ export class PdfgenerateService {
             .text(`${data.address2}`, { indent: 29 })
             .text(`${data.address3} ${data.postCd}`, { indent: 29 })
             .text(`Remarks : `, 20, 180)
-            .text(`${data.remarks}`, 70, 180)
+            .text(`${data.remarks}`, 70, 180);
 
+        // Table title on first page (do not add page numbering here)
         doc.font('Times-Bold').fontSize(11)
-            .text('CALCULATION OF OVERTIME', 20, 210, { align: 'left', width: 550 })
-            .text('Page 1 of 1', 20, 210, { align: 'right', width: 550 })
-        // Calculations
+            .text('CALCULATION OF OVERTIME', 20, 210, { align: 'left', width: 550 });
 
-
+        // Starting coordinates for table (first page)
         let tableYStart = 250;
         let textYStart = 257;
 
+        // Define reserved space at the bottom of each page for disclaimer/formid.
+        const reservedBottomSpace = 100; // adjust as needed
+        const pageHeight = doc.page.height; // usually 842 for A4
+
+        // Draw header line for table columns on first page
         doc.rect(10, tableYStart - 20, 550, 1).stroke();
         doc.fontSize(8).font('Times-Bold')
             .text('No', 10, textYStart, { align: 'center', width: 20 })
@@ -1293,6 +1357,7 @@ export class PdfgenerateService {
         tableYStart += 20;
         textYStart += 20;
 
+        // Draw a line after the header
         doc.rect(10, tableYStart, 550, 1).stroke();
 
         let totalTimeConsumptionInMinutes = 0;
@@ -1302,13 +1367,50 @@ export class PdfgenerateService {
         const dbTimeResult: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT GETDATE() AS currentTime
         `);
-
         const dbTime = moment(dbTimeResult[0].currentTime);
         const localTime = moment();
-        const offsetHours = dbTime.diff(localTime, 'hours')
-        console.log("time difference : " + offsetHours)
-        data.startDate.forEach((startDate, idx) => {
-            const start = moment(startDate).subtract(offsetHours, 'hours');
+        const offsetHours = dbTime.diff(localTime, 'hours');
+        console.log("time difference : " + offsetHours);
+
+        // Loop through each data row
+        for (let idx = 0; idx < data.startDate.length; idx++) {
+            // Before drawing the next row, check if there is enough space.
+            // Each row is assumed to take about 20 points.
+            if (textYStart + 20 > pageHeight - reservedBottomSpace) {
+                // Draw bottom line for table on current page
+                doc.rect(10, tableYStart, 550, 1).stroke();
+
+                // Add a new page (no header on these pages)
+                doc.addPage({ size: 'a4', margin: 0 })
+                    .font('Times-Bold').fontSize(11)
+                    .text('CALCULATION OF OVERTIME', 20, 50, { align: 'left', width: 550 });
+
+                pageCount++
+                // Reset y positions for the new page (you set these positions as desired)
+                tableYStart = 90;
+                textYStart = 97;
+
+                // Redraw table header on the new page:
+                doc.rect(10, tableYStart - 20, 550, 1).stroke();
+                doc.fontSize(8).font('Times-Bold')
+                    .text('No', 10, textYStart, { align: 'center', width: 20 })
+                    .text('Start', 30, textYStart, { align: 'center', width: 70 })
+                    .text('Overtime', 70, textYStart - 15, { align: 'center', width: 70 })
+                    .text('End', 100, textYStart, { align: 'center', width: 70 })
+                    .text('Time Consumption', 175, textYStart - 10, { align: 'center', width: 55 })
+                    .text('Equivalent Hour', 230, textYStart - 10, { align: 'center', width: 45 })
+                    .text('Rate', 280, textYStart, { align: 'center', width: 65 })
+                    .text('Currency', 345, textYStart, { align: 'center', width: 50 })
+                    .text('Amount', 380, textYStart, { align: 'right', width: 80 })
+                    .text('Remarks', 495, textYStart, { align: 'left', width: 95 });
+
+                tableYStart += 20;
+                textYStart += 20;
+                // Draw a line after the header on the new page.
+                doc.rect(10, tableYStart, 550, 1).stroke();
+            }
+
+            const start = moment(data.startDate[idx]).subtract(offsetHours, 'hours');
             const end = moment(data.endDate[idx]).subtract(offsetHours, 'hours');
 
             const diffInMinutes = end.diff(start, 'minutes');
@@ -1316,12 +1418,12 @@ export class PdfgenerateService {
             const equivalentHour = parseFloat((diffInMinutes / 60).toFixed(2));
 
             const rate = data.rate[idx];
-            // const amount = (equivalentHour * rate).toLocaleString('id-ID', { minimumFractionDigits: 2 });
             const amount = data.amount[idx];
             totalTimeConsumptionInMinutes += diffInMinutes;
             totalEquivalentHour += equivalentHour;
             totalAmount += amount;
 
+            // Draw the row
             doc.fontSize(8).font('Times-Roman')
                 .text(idx + 1, 10, textYStart, { align: 'center', width: 20 })
                 .text(start.format('DD/MM/YYYY HH:mm'), 35, textYStart, { align: 'center', width: 70 })
@@ -1335,11 +1437,12 @@ export class PdfgenerateService {
 
             tableYStart += 20;
             textYStart += 20;
-        });
+        }
 
-
+        // Draw bottom line for table on current (final) page
         doc.rect(10, tableYStart, 550, 1).stroke();
 
+        // Calculate totals
         const totalHours = `${Math.floor(totalTimeConsumptionInMinutes / 60)}:${totalTimeConsumptionInMinutes % 60}`;
         const totalEquivalentHourFormatted = totalEquivalentHour.toFixed(2);
         const totalAmountFormatted = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1351,35 +1454,63 @@ export class PdfgenerateService {
             .text(data.currency, 340, textYStart, { align: 'center', width: 50 })
             .text(totalAmountFormatted, 390, textYStart, { align: 'right', width: 70 });
 
+        // Add period text and amount in words on the final page
         doc.fontSize(10)
-            .text(`Periode Date ${moment(data.startPeriod).format('DD/MM/YYYY')} to ${moment(data.endPeriod).format('DD/MM/YYYY')}`, 20, textYStart + 20)
-        if (data.currency == "RP") {
-            doc.text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40, { width: 365 })
+            .text(`Periode Date ${moment(data.startPeriod).format('DD/MM/YYYY')} to ${moment(data.endPeriod).format('DD/MM/YYYY')}`, 20, textYStart + 20);
+
+        if (data.currency === "RP") {
+            doc.text(`In Words : Indonesian Rupiah ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40, { width: 365 });
+        } else if (data.currency === "USD") {
+            doc.text(`In Words : United States Dollar ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40, { width: 365 });
         }
-        else if (data.currency == "USD") {
-            doc.text(`In Words : United States Dollar ${this.numberToWords(parseFloat(totalAmount.toFixed(2)))} only`, 20, textYStart + 40, { width: 365 })
+
+        // Ensure formid is always at y=800 on the final page.
+        if (800 < textYStart + reservedBottomSpace) {
+            doc.addPage({ size: 'a4', margin: 0 });
         }
-        // .text(`In Words : ${this.numberToWords(Math.round(totalAmount))}`, 20, textYStart + 40)
+        // Place formid at y = 800
+        doc.fontSize(9)
+            .text(`${data.formid}`, 0, 800, { width: 550, align: 'right' });
 
-
-
-        doc.text(`${data.formid}`, 0, 800, { width: 550, align: 'right' })
-            .fontSize(9)
-
+        // Add disclaimer on the final page at textYStart + 90.
         doc.fontSize(8).font('Times-Bold')
-            .text('Disclaimer : ', 225, tableYStart + 120)
+            .text('Disclaimer : ', 225, textYStart + 90)
             .font('Times-Italic')
-            .text('This document does not need to be signed', 270, tableYStart + 120)
+            .text('This document does not need to be signed', 270, textYStart + 90);
+
+        // for (let i = 0; i < pageCount; i++) {
+        //     console.log("page : " + i)
+        //     doc.switchToPage(i);
+        //     doc.font('Times-Bold').fontSize(11)
+        //         .text(`Page ${i + 1} of ${pageCount}`, 20, 210, { align: 'right', width: 550 });
+        // }
+
+        const pageRange = doc.bufferedPageRange();
+        for (let i = pageRange.start; i < pageRange.start + pageRange.count; i++) {
+            console.log(pageRange)
+            doc.switchToPage(i);
+            if (i - pageRange.start + 1 == 1) {
+                doc.font('Times-Bold').fontSize(11)
+                    .text(`Page ${i - pageRange.start + 1} of ${pageRange.count}`, 20, 210, { align: 'right', width: 550 });
+            } else {
+                doc.font('Times-Bold').fontSize(11)
+                    .text(`Page ${i - pageRange.start + 1} of ${pageRange.count}`, 20, 50, { align: 'right', width: 550 });
+            }
+        }
+
+
+
         doc.end();
 
-        console.log(totalAmount)
+        console.log(totalAmount);
 
-        return ({
+        return {
             statusCode: 201,
             message: "invoice created",
             data: filePathPublic
-        })
+        };
     }
+
     async generatePdfFirstJakarta4(data: Record<any, any>) {
         const doc = new PDFDocument({
             size: 'A4',
