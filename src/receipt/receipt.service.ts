@@ -221,11 +221,17 @@ export class ReceiptService {
         }
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abo.*, debtor_name = name FROM mgr.ar_blast_or abo 
+                SELECT abo.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs
+                FROM mgr.ar_blast_or abo 
                     INNER JOIN mgr.ar_debtor ad 
                         ON abo.debtor_acct = ad.debtor_acct
-                        AND abo.entity_cd = ad.entity_cd
-                        AND abo.project_no = ad.project_no
+                            AND abo.entity_cd = ad.entity_cd
+                            AND abo.project_no = ad.project_no
+                    INNER JOIN mgr.cf_entity ent
+                        ON abo.entity_cd = ent.entity_cd
+                    INNER JOIN mgr.pl_project prj
+                        ON abo.entity_cd = prj.entity_cd
+                            AND abo.project_no = prj.project_no
                     WHERE doc_amt >= 5000000 
                         AND file_status_sign ${file_status}
                 ORDER BY gen_date desc
