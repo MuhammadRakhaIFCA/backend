@@ -76,16 +76,22 @@ export class ReceiptService {
     async getReceipt() {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abo.*, debtor_name = name FROM mgr.ar_blast_or abo 
-                INNER JOIN mgr.ar_debtor ad 
-                ON abo.debtor_acct = ad.debtor_acct
-                AND abo.entity_cd = ad.entity_cd
-                AND abo.project_no = ad.project_no
-                WHERE doc_amt <= 5000000
-                AND file_status_sign IS NULL
-                AND send_id IS NULL
-                OR (doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N') AND send_id IS NULL)
-                ORDER BY rowID desc
+                SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+                FROM mgr.ar_blast_or abia 
+                    INNER JOIN mgr.ar_debtor ad 
+                        ON abia.debtor_acct = ad.debtor_acct
+                        AND abia.entity_cd = ad.entity_cd
+                        AND abia.project_no = ad.project_no
+                    INNER JOIN mgr.cf_entity ent
+                        ON abia.entity_cd = ent.entity_cd
+                    INNER JOIN mgr.pl_project prj
+                        ON abia.entity_cd = prj.entity_cd
+                        AND abia.project_no = prj.project_no
+                    WHERE abia.doc_amt <= 5000000
+                        AND abia.file_status_sign IS NULL
+                        AND abia.send_id IS NULL
+                        OR (abia.doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N') AND send_id IS NULL)
+                    ORDER BY rowID desc
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -139,20 +145,20 @@ export class ReceiptService {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
                 FROM mgr.ar_blast_or abia 
-                INNER JOIN mgr.ar_debtor ad 
-                    ON abia.debtor_acct = ad.debtor_acct
-                    AND abia.entity_cd = ad.entity_cd
-                    AND abia.project_no = ad.project_no
-                INNER JOIN mgr.cf_entity ent
-                    ON abia.entity_cd = ent.entity_cd
-                INNER JOIN mgr.pl_project prj
-                    ON abia.entity_cd = prj.entity_cd
-                    AND abia.project_no = prj.project_no
-                WHERE send_id IS NOT NULL 
-                    AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-                    AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-                    AND send_status = '${status}'
-                ORDER BY send_date DESC
+                    INNER JOIN mgr.ar_debtor ad 
+                        ON abia.debtor_acct = ad.debtor_acct
+                        AND abia.entity_cd = ad.entity_cd
+                        AND abia.project_no = ad.project_no
+                    INNER JOIN mgr.cf_entity ent
+                        ON abia.entity_cd = ent.entity_cd
+                    INNER JOIN mgr.pl_project prj
+                        ON abia.entity_cd = prj.entity_cd
+                        AND abia.project_no = prj.project_no
+                    WHERE send_id IS NOT NULL 
+                        AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
+                        AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
+                        AND send_status = '${status}'
+                    ORDER BY send_date DESC
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -177,8 +183,8 @@ export class ReceiptService {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.ar_blast_or
-                WHERE doc_no = '${doc_no}'
-                AND email_addr LIKE '%${email_addr}%'
+                    WHERE doc_no = '${doc_no}'
+                    AND email_addr LIKE '%${email_addr}%'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -215,13 +221,13 @@ export class ReceiptService {
         }
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                 SELECT abo.*, debtor_name = name FROM mgr.ar_blast_or abo 
-                INNER JOIN mgr.ar_debtor ad 
-                ON abo.debtor_acct = ad.debtor_acct
-                AND abo.entity_cd = ad.entity_cd
-                AND abo.project_no = ad.project_no
-                WHERE doc_amt >= 5000000 
-                AND file_status_sign ${file_status}
+                SELECT abo.*, debtor_name = name FROM mgr.ar_blast_or abo 
+                    INNER JOIN mgr.ar_debtor ad 
+                        ON abo.debtor_acct = ad.debtor_acct
+                        AND abo.entity_cd = ad.entity_cd
+                        AND abo.project_no = ad.project_no
+                    WHERE doc_amt >= 5000000 
+                        AND file_status_sign ${file_status}
                 ORDER BY gen_date desc
             `)
             if (!result || result.length === 0) {

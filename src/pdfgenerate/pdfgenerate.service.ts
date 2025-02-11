@@ -417,7 +417,7 @@ export class PdfgenerateService {
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
         let filePath = `${rootFolder}/schedule/${data.filenames}`;
 
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
@@ -614,7 +614,7 @@ export class PdfgenerateService {
         const filePath = `${rootFolder}/schedule/${filenames2}`;
 
 
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
@@ -690,53 +690,71 @@ export class PdfgenerateService {
             and doc_date  = '${docDate}'
         `);
 
-        const pdfBody = {
-            docNo: doc_no,
-            name: result[0]?.name,
-            address1: result[0]?.address1,
-            address2: result[0]?.address2,
-            address3: result[0]?.address3,
-            postCd: result[0]?.post_cd,
-            docDate: moment(result[0]?.doc_date).format('DD/MM/YYYY'),
-            readDate: moment(result[0]?.read_date).format('DD/MM/YYYY'),
-            startDate: moment(result[0]?.start_date).format('DD/MM/YYYY'),
-            endDate: moment(result[0]?.end_date).format('DD/MM/YYYY'),
-            currency: result[0]?.currency_cd,
-            descs: result[0]?.descs,
-            trxType: result[0]?.trx_type,
-            categoryCd: result[0]?.category_cd,
-            meterId: result[0]?.meter_id,
-            calculationMethod: result[0]?.calculation_method,
-            capacity: result[0]?.capacity,
-            capacityRate: result[0]?.capacity_rate,
-            currRead: result[0]?.curr_read,
-            lastRead: result[0]?.last_read,
-            multiplier: result[0]?.multiplier,
-            usage: result[0]?.usage,
-            usageRate1: result[0]?.usage_rate1,
-            usage11: result[0]?.usage_11,
-            currReadHigh: result[0]?.curr_read_high,
-            lastReadHigh: result[0]?.last_read_high,
-            highMultiplier: result[0]?.high_multiplier,
-            usageHigh: result[0]?.usage_high,
-            usageRate2: result[0]?.usage_rate2,
-            usage21: result[0]?.usage_21,
-            minimumUsage: result[0]?.minimum_usage,
-            baseAmt1: result[0]?.base_amt1,
-            genRate: result[0]?.gen_rate,
-            genAmt1: result[0]?.gen_amt1,
-            deductMarkupP: result[0]?.deduct_markup_p,
-            deductMarkupN: result[0]?.deduct_markup_n,
-            apportionPercent: result[0]?.apportion_percent,
-            asReduction: result[0]?.as_reduction,
-            trxAmt: result[0]?.trx_amt,
-            rounding: result[0]?.rounding,
-            currencyCd: result[0].currency_cd,
-            formid: result[0]?.formid || '',
-            filenames2
-        };
+        const doc = new PDFDocument({ margin: 0, size: 'a4', bufferPages: true });
 
-        await this.generatePdfFirstJakarta5(pdfBody)
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/${filenames2}`;
+
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
+        }
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+        for (let i = 0; i < result.length; i++) {
+            if (i > 0) {
+                doc.addPage({ size: 'a4', margin: 0 })
+                console.log("added new page")
+            }
+            const pdfBody = {
+                docNo: doc_no,
+                name: result[i]?.name,
+                address1: result[i]?.address1,
+                address2: result[i]?.address2,
+                address3: result[i]?.address3,
+                postCd: result[i]?.post_cd,
+                docDate: moment(result[i]?.doc_date).format('DD/MM/YYYY'),
+                readDate: moment(result[i]?.read_date).format('DD/MM/YYYY'),
+                startDate: moment(result[i]?.start_date).format('DD/MM/YYYY'),
+                endDate: moment(result[i]?.end_date).format('DD/MM/YYYY'),
+                currency: result[i]?.currency_cd,
+                descs: result[i]?.descs,
+                trxType: result[i]?.trx_type,
+                categoryCd: result[i]?.category_cd,
+                meterId: result[i]?.meter_id,
+                calculationMethod: result[i]?.calculation_method,
+                capacity: result[i]?.capacity,
+                capacityRate: result[i]?.capacity_rate,
+                currRead: result[i]?.curr_read,
+                lastRead: result[i]?.last_read,
+                multiplier: result[i]?.multiplier,
+                usage: result[i]?.usage,
+                usageRate1: result[i]?.usage_rate1,
+                usage11: result[i]?.usage_11,
+                currReadHigh: result[i]?.curr_read_high,
+                lastReadHigh: result[i]?.last_read_high,
+                highMultiplier: result[i]?.high_multiplier,
+                usageHigh: result[i]?.usage_high,
+                usageRate2: result[i]?.usage_rate2,
+                usage21: result[i]?.usage_21,
+                minimumUsage: result[i]?.minimum_usage,
+                baseAmt1: result[i]?.base_amt1,
+                genRate: result[i]?.gen_rate,
+                genAmt1: result[i]?.gen_amt1,
+                deductMarkupP: result[i]?.deduct_markup_p,
+                deductMarkupN: result[i]?.deduct_markup_n,
+                apportionPercent: result[i]?.apportion_percent,
+                asReduction: result[i]?.as_reduction,
+                trxAmt: result[i]?.trx_amt,
+                rounding: result[i]?.rounding,
+                currencyCd: result[i].currency_cd,
+                formid: result[i]?.formid || '',
+                filenames2
+            };
+
+            await this.generatePdfFirstJakarta5(doc, pdfBody)
+        }
+
+        doc.end();
 
         try {
             await this.connect();
@@ -773,7 +791,7 @@ export class PdfgenerateService {
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
         const filePath = `${rootFolder}/schedule/${filenames2}`;
 
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
             fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
         }
 
@@ -853,59 +871,136 @@ export class PdfgenerateService {
             and doc_date  = '${docDate}'
         `);
 
-        const pdfBody = {
-            docNo: doc_no,
-            name: result[0]?.name,
-            address1: result[0]?.address1 || '',
-            address2: result[0]?.address2 || '',
-            address3: result[0]?.address3 || '',
-            postCd: result[0]?.post_cd || '',
-            docDate: moment(result[0]?.doc_date).format('DD/MM/YYYY'),
-            readDate: moment(result[0]?.read_date).format('DD/MM/YYYY'),
-            startDate: moment(result[0]?.start_date).format('DD/MM/YYYY'),
-            endDate: moment(result[0]?.end_date).format('DD/MM/YYYY'),
-            currency: result[0]?.currency_cd,
-            descs: result[0]?.descs,
-            trxType: result[0]?.trx_type,
-            categoryCd: result[0]?.category_cd,
-            meterId: result[0]?.meter_id,
-            calculationMethod: result[0]?.calculation_method,
-            capacity: result[0]?.capacity,
-            capacityRate: result[0]?.capacity_rate,
-            currRead: result[0]?.curr_read,
-            lastRead: result[0]?.last_read,
-            multiplier: result[0]?.multiplier,
-            usage: result[0]?.usage,
-            usageRate1: result[0]?.usage_rate1,
-            usage11: result[0]?.usage_11,
-            currReadHigh: result[0]?.curr_read_high,
-            lastReadHigh: result[0]?.last_read_high,
-            highMultiplier: result[0]?.high_multiplier,
-            usageHigh: result[0]?.usage_high,
-            usageRate2: result[0]?.usage_rate2,
-            usage21: result[0]?.usage_21,
-            minimumUsage: result[0]?.minimum_usage,
-            baseAmt1: result[0]?.base_amt1,
-            genRate: result[0]?.gen_rate,
-            genAmt1: result[0]?.gen_amt1,
-            deductMarkupP: result[0]?.deduct_markup_p,
-            deductMarkupN: result[0]?.deduct_markup_n,
-            apportionPercent: result[0]?.apportion_percent,
-            asReduction: result[0]?.as_reduction,
-            trxAmt: result[0]?.trx_amt,
-            flashHours: result[0]?.flash_hours,
-            kwh: result[0]?.kwh,
-            usageKwh11: result[0]?.usage_kwh_11,
-            usageKwh21: result[0]?.usage_kwh_21,
-            minUsageHour: result[0]?.min_usage_hour,
-            rounding: result[0]?.rounding,
-            formid: result[0]?.formid || '',
-            currencyCd: result[0].currency_cd,
-            filenames2
-        };
-        console.log(pdfBody)
+        const doc = new PDFDocument({ margin: 0, size: 'a4' });
 
-        await this.generatePdfFirstJakarta6(pdfBody)
+        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+        const filePath = `${rootFolder}/schedule/${filenames2}`;
+
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
+        }
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+
+        // for (let i = 0; i < result.length; i++) {
+        //     if (i > 0) {
+        //         doc.addPage({ size: 'a4', margin: 0 })
+        //         console.log("added new page")
+        //     }
+        //     const pdfBody = {
+        //         docNo: doc_no,
+        //         name: result[i]?.name,
+        //         address1: result[i]?.address1 || '',
+        //         address2: result[i]?.address2 || '',
+        //         address3: result[i]?.address3 || '',
+        //         postCd: result[i]?.post_cd || '',
+        //         docDate: moment(result[i]?.doc_date).format('DD/MM/YYYY'),
+        //         readDate: moment(result[i]?.read_date).format('DD/MM/YYYY'),
+        //         startDate: moment(result[i]?.start_date).format('DD/MM/YYYY'),
+        //         endDate: moment(result[i]?.end_date).format('DD/MM/YYYY'),
+        //         currency: result[i]?.currency_cd,
+        //         descs: result[i]?.descs,
+        //         trxType: result[i]?.trx_type,
+        //         categoryCd: result[i]?.category_cd,
+        //         meterId: result[i]?.meter_id,
+        //         calculationMethod: result[i]?.calculation_method,
+        //         capacity: result[i]?.capacity,
+        //         capacityRate: result[i]?.capacity_rate,
+        //         currRead: result[i]?.curr_read,
+        //         lastRead: result[i]?.last_read,
+        //         multiplier: result[i]?.multiplier,
+        //         usage: result[i]?.usage,
+        //         usageRate1: result[i]?.usage_rate1,
+        //         usage11: result[i]?.usage_11,
+        //         currReadHigh: result[i]?.curr_read_high,
+        //         lastReadHigh: result[i]?.last_read_high,
+        //         highMultiplier: result[i]?.high_multiplier,
+        //         usageHigh: result[i]?.usage_high,
+        //         usageRate2: result[i]?.usage_rate2,
+        //         usage21: result[i]?.usage_21,
+        //         minimumUsage: result[i]?.minimum_usage,
+        //         baseAmt1: result[i]?.base_amt1,
+        //         genRate: result[i]?.gen_rate,
+        //         genAmt1: result[i]?.gen_amt1,
+        //         deductMarkupP: result[i]?.deduct_markup_p,
+        //         deductMarkupN: result[i]?.deduct_markup_n,
+        //         apportionPercent: result[i]?.apportion_percent,
+        //         asReduction: result[i]?.as_reduction,
+        //         trxAmt: result[i]?.trx_amt,
+        //         flashHours: result[i]?.flash_hours,
+        //         kwh: result[i]?.kwh,
+        //         usageKwh11: result[i]?.usage_kwh_11,
+        //         usageKwh21: result[i]?.usage_kwh_21,
+        //         minUsageHour: result[i]?.min_usage_hour,
+        //         rounding: result[i]?.rounding,
+        //         formid: result[i]?.formid || '',
+        //         currencyCd: result[i].currency_cd,
+        //         filenames2
+        //     }
+        //     console.log(result[i]?.apportion_percent)
+        //     this.generatePdfFirstJakarta6(doc, pdfBody)
+        // }
+
+        let isFirst = true;
+        for (const item of result) {
+            if (!isFirst) {
+                doc.addPage({ size: 'a4', margin: 0 });
+            }
+            isFirst = false;
+            const pdfBody = {
+                docNo: doc_no,
+                name: item?.name,
+                address1: item?.address1 || '',
+                address2: item?.address2 || '',
+                address3: item?.address3 || '',
+                postCd: item?.post_cd || '',
+                docDate: moment(item?.doc_date).format('DD/MM/YYYY'),
+                readDate: moment(item?.read_date).format('DD/MM/YYYY'),
+                startDate: moment(item?.start_date).format('DD/MM/YYYY'),
+                endDate: moment(item?.end_date).format('DD/MM/YYYY'),
+                currency: item?.currency_cd,
+                descs: item?.descs,
+                trxType: item?.trx_type,
+                categoryCd: item?.category_cd,
+                meterId: item?.meter_id,
+                calculationMethod: item?.calculation_method,
+                capacity: item?.capacity,
+                capacityRate: item?.capacity_rate,
+                currRead: item?.curr_read,
+                lastRead: item?.last_read,
+                multiplier: item?.multiplier,
+                usage: item?.usage,
+                usageRate1: item?.usage_rate1,
+                usage11: item?.usage_11,
+                currReadHigh: item?.curr_read_high,
+                lastReadHigh: item?.last_read_high,
+                highMultiplier: item?.high_multiplier,
+                usageHigh: item?.usage_high,
+                usageRate2: item?.usage_rate2,
+                usage21: item?.usage_21,
+                minimumUsage: item?.minimum_usage,
+                baseAmt1: item?.base_amt1,
+                genRate: item?.gen_rate,
+                genAmt1: item?.gen_amt1,
+                deductMarkupP: item?.deduct_markup_p,
+                deductMarkupN: item?.deduct_markup_n,
+                apportionPercent: item?.apportion_percent || 0,
+                asReduction: item?.as_reduction,
+                trxAmt: item?.trx_amt,
+                flashHours: item?.flash_hours,
+                kwh: item?.kwh,
+                usageKwh11: item?.usage_kwh_11,
+                usageKwh21: item?.usage_kwh_21,
+                minUsageHour: item?.min_usage_hour,
+                rounding: item?.rounding,
+                formid: item?.formid || '',
+                currencyCd: item?.currency_cd,
+                filenames2
+            };
+            this.generatePdfFirstJakarta6(doc, pdfBody);
+        }
+
+        doc.end();
 
         try {
             await this.connect();
@@ -1485,6 +1580,7 @@ export class PdfgenerateService {
         //         .text(`Page ${i + 1} of ${pageCount}`, 20, 210, { align: 'right', width: 550 });
         // }
 
+
         const pageRange = doc.bufferedPageRange();
         for (let i = pageRange.start; i < pageRange.start + pageRange.count; i++) {
             console.log(pageRange)
@@ -1665,7 +1761,6 @@ export class PdfgenerateService {
             .text('This document does not need to be signed', 270, 700)
         doc.end();
 
-
         return ({
             statusCode: 201,
             message: "invoice created",
@@ -1673,17 +1768,8 @@ export class PdfgenerateService {
         })
     }
 
-    async generatePdfFirstJakarta5(data: Record<any, any>) {
-        const doc = new PDFDocument({ margin: 0, size: 'a4' });
+    async generatePdfFirstJakarta5(doc, data: Record<any, any>) {
 
-        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/${data.filenames2}`;
-
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
-            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
-        }
-        const writeStream = fs.createWriteStream(filePath);
-        doc.pipe(writeStream);
         doc.font('Times-Roman').fontSize(12)
             .text('PT First Jakarta International', 0, 20, { align: 'center' })
             .text('Indonesia Stock Exchange Building, Lot 2 (SCBD)', { align: 'center' })
@@ -1800,24 +1886,9 @@ export class PdfgenerateService {
             .text('Disclaimer : ', 225, 540)
             .font('Times-Italic')
             .text('This document does not need to be signed', 270, 540)
-        doc.end();
-
-        return ({
-            statusCode: 201,
-            message: "invoice created",
-        })
     }
-    async generatePdfFirstJakarta6(data: Record<any, any>) {
-        const doc = new PDFDocument({ margin: 0, size: 'a4' });
+    async generatePdfFirstJakarta6(doc, data: Record<any, any>) {
 
-        const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-        const filePath = `${rootFolder}/schedule/${data.filenames2}`;
-
-        if (!fs.existsSync(`${rootFolder}/schedule}`)) {
-            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
-        }
-        const writeStream = fs.createWriteStream(filePath);
-        doc.pipe(writeStream);
         doc.font('Times-Roman').fontSize(12)
             .text('PT First Jakarta International', 0, 20, { align: 'center' })
             .text('Indonesia Stock Exchange Building, Lot 2 (SCBD)', { align: 'center' })
@@ -1825,7 +1896,7 @@ export class PdfgenerateService {
             .text('Jakarta 12190 - Indonesia', { align: 'center' })
             .text('Tel No : 5151515 Fax No : 5150909', { align: 'center' })
 
-        console.log("5")
+
         doc.rect(20, 90, 550, 1).stroke()
         doc.fontSize(10)
             .text('TO : ', 42, 110)
@@ -1992,12 +2063,9 @@ export class PdfgenerateService {
             .text('Disclaimer : ', 225, 640)
             .font('Times-Italic')
             .text('This document does not need to be signed', 270, 640)
-        doc.end();
 
-        return ({
-            statusCode: 201,
-            message: "invoice created",
-        })
+        console.log("6")
+
     }
 
     async generateOR(data: Record<any, any>) {

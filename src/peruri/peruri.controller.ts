@@ -25,6 +25,11 @@ export class PeruriController {
     return await this.peruriService.noStampOr(doc_no)
   }
 
+  @Get('sync')
+  async sync() {
+    return await this.peruriService.sycnOrTable()
+  }
+
   @Post('manual-stamp')
   @UseInterceptors(
     FileFieldsInterceptor([

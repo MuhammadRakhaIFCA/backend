@@ -27,7 +27,7 @@ export class ApiInvoiceService {
     private readonly pdfService: PdfgenerateService,
   ) {
     this.client = new ftp.Client();
-    this.client.ftp.verbose = true;
+    ///this.client.ftp.verbose = true;
   }
   async connect(): Promise<void> {
     console.log(this.client.closed);
@@ -1626,9 +1626,10 @@ export class ApiInvoiceService {
     const ftpBaseUrl = process.env.FTP_BASE_URL
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-               SELECT * FROM mgr.ar_blast_inv
-               WHERE year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= ${start_date}
-               AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= ${end_date}
+               SELECT * FROM mgr.peruri_stamp_file_log
+               WHERE year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= ${start_date}
+               AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) <= ${end_date}
+               AND file_type != 'receipt'
                 `);
       if (result.length === 0) {
         throw new NotFoundException({
@@ -1638,11 +1639,14 @@ export class ApiInvoiceService {
         });
       }
 
+      console.log(result)
+
       const zip = new AdmZip();
       for (let i = 0; i < result.length; i++) {
-        const filenames = `${result[i].filenames.slice(0, -4)}_signed.pdf`;
+        const filenames = `${result[i].file_name_sign}`;
         const invoice_tipe = result[i].invoice_tipe.toUpperCase();
-        const fileUrl = `${ftpBaseUrl}SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
+        const fileUrl = `${ftpBaseUrl}/SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
+        console.log("file url : " + fileUrl)
         try {
           // Download the PDF file
           const response = await firstValueFrom(this.httpService.get(fileUrl, { responseType: 'arraybuffer' }));
@@ -1655,7 +1659,7 @@ export class ApiInvoiceService {
       }
 
       const localFolderPath = `${rootFolder}/download/`;
-      const zipFileName = `stamped_${start_date}_to_${end_date}.zip`;
+      const zipFileName = `stampedInv_${start_date}_to_${end_date}.zip`;
       const zipFilePath = `${localFolderPath}${zipFileName}`;
       const remoteFolderPath = `/SIGNED/GQCINV/DOWNLOAD/`;
       const remoteZipPath = `${remoteFolderPath}${zipFileName}`;
@@ -1704,9 +1708,10 @@ export class ApiInvoiceService {
     const ftpBaseUrl = process.env.FTP_BASE_URL
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-               SELECT * FROM mgr.ar_blast_or
-               WHERE year(gen_date)*10000+month(gen_date)*100+day(gen_date) >= ${start_date}
-               AND year(gen_date)*10000+month(gen_date)*100+day(gen_date) <= ${end_date}
+               SELECT * FROM mgr.peruri_stamp_file_log
+               WHERE year(audit_date)*10000+month(audit_date)*100+day(audit_date) >= ${start_date}
+               AND year(audit_date)*10000+month(audit_date)*100+day(audit_date) <= ${end_date}
+               AND file_type = 'receipt'
                 `);
       if (result.length === 0) {
         throw new NotFoundException({
@@ -1718,9 +1723,9 @@ export class ApiInvoiceService {
 
       const zip = new AdmZip();
       for (let i = 0; i < result.length; i++) {
-        const filenames = `${result[i].filenames.slice(0, -4)}_signed.pdf`;
-        const invoice_tipe = result[i].invoice_tipe.toUpperCase();
-        const fileUrl = `${ftpBaseUrl}SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
+        const filenames = `${result[i].file_name_sign}`;
+        const invoice_tipe = result[i].file_type.toUpperCase();
+        const fileUrl = `${ftpBaseUrl}/SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
         try {
           // Download the PDF file
           const response = await firstValueFrom(this.httpService.get(fileUrl, { responseType: 'arraybuffer' }));
@@ -1733,7 +1738,7 @@ export class ApiInvoiceService {
       }
 
       const localFolderPath = `${rootFolder}/download/`;
-      const zipFileName = `stamped_${start_date}_to_${end_date}.zip`;
+      const zipFileName = `stampedOr_${start_date}_to_${end_date}.zip`;
       const zipFilePath = `${localFolderPath}${zipFileName}`;
       const remoteFolderPath = `/SIGNED/GQCINV/DOWNLOAD/`;
       const remoteZipPath = `${remoteFolderPath}${zipFileName}`;

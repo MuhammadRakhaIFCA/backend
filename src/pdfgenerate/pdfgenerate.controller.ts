@@ -53,10 +53,10 @@ export class PdfgenerateController {
   async generatePdfFirstJakarta4(@Body() body: Record<any, any>) {
     return await this.pdfgenerateService.generatePdfFirstJakarta4(body)
   }
-  @Post('first-jakarta-5')
-  async generatePdfFirstJakarta5(@Body() body: Record<any, any>) {
-    return await this.pdfgenerateService.generatePdfFirstJakarta5(body)
-  }
+  // @Post('first-jakarta-5')
+  // async generatePdfFirstJakarta5(@Body() body: Record<any, any>) {
+  //   return await this.pdfgenerateService.generatePdfFirstJakarta5(body)
+  // }
   @Post('test')
   async autoGenerate(@Body() body: Record<any, any>) {
     return await this.pdfgenerateService.testAutoGenerate(body)

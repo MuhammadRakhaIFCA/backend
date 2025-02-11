@@ -26,8 +26,12 @@ export class FinpayService {
         dto.order.id = order_id
         dto.order.timeout = "43200"
         const { firstName, lastName } = this.splitName(dto.customer.name)
-        dto.customer.firstName = firstName
-        dto.customer.lastName = lastName
+        dto.customer.firstName = firstName;
+        if (lastName) {
+            dto.customer.lastName = lastName;
+        } else {
+            dto.customer.lastName = '-'
+        }
         const { customer, order } = dto
         const { callbackUrl } = dto.url
         if (process.env.FINPAY_TYPE === "development") {
@@ -36,17 +40,11 @@ export class FinpayService {
                 'Authorization': `Basic ${developmentAuth}`
             };
             try {
+                console.log(dto)
                 const response = await firstValueFrom(
                     this.httpService.post('https://devo.finnet.co.id/pg/payment/card/initiate', dto, { headers })
                 );
-                if (response.data.responseCode !== "2000000") {
-                    throw new InternalServerErrorException({
-                        statusCode: 500,
-                        message: "fail to request payment",
-                        data: []
-                    })
-                }
-                console.log(response.data)
+
                 const expiry_link = moment(new Date(response.data.expiryLink)).format('YYYYMMDD h:mm:ss')
                 const itemAmount = Number(order.itemAmount)
                 const total = Number(order.amount)
@@ -67,8 +65,24 @@ export class FinpayService {
                     data: response.data
                 });
             } catch (error) {
-                console.log(error)
-                throw error
+                // console.log(error.data.responseCode)
+                // if (error.data.responseCode == '4000001') {
+                //     console.log('inside bad request')
+                //     throw new BadRequestException({
+                //         statusCode: 400,
+                //         message: error.data.responseMessage,
+                //         data: []
+                //     })
+                // }
+                // if (error.data.responseCode !== "2000000") {
+                //     throw new InternalServerErrorException({
+                //         statusCode: 500,
+                //         message: error.data.responseMessage,
+                //         data: []
+                //     })
+                // }
+                console.log(error.response.data)
+                return error.response.data
             }
         } else if (process.env.FINPAY_TYPE === "production") {
             const headers = {
@@ -79,16 +93,19 @@ export class FinpayService {
                 const response = await firstValueFrom(
                     this.httpService.post('https://live.finnet.co.id/pg/payment/card/initiate', dto, { headers })
                 );
-                const expiry_link = new Date(response.data.expiryLink)
+                const expiry_link = moment(new Date(response.data.expiryLink)).format('YYYYMMDD h:mm:ss')
+                const itemAmount = Number(order.itemAmount)
+                const total = Number(order.amount)
+                const amount = total / itemAmount
                 await this.fjiDatabase.$executeRawUnsafe(`
                     INSERT INTO mgr.finpay_transaction
                     (company_cd, email_addr, name, mobile_number, order_id, order_qty, order_amount,
                      order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date)
                      VALUES 
-                     ('GQCINV', '${customer.email}', '${customer.name}', 
-                     '${customer.mobilePhone}', '${order.id}', '${order.itemAmount}', '${order.description}',
-                     '${order.amount}', '${callbackUrl}', '${expiry_link}', 'PENDING', GETDATE()) 
-                     )
+                        ('GQCINV', '${customer.email}', '${customer.name}', 
+                     '${customer.mobilePhone}', '${order.id}', '${itemAmount}', ${amount}, '${order.description}',
+                     '${total}', '${response.data.redirecturl}', '${expiry_link}', 'PENDING', GETDATE()
+                        )
                     `)
                 return ({
                     statusCode: 201,
@@ -227,7 +244,7 @@ export class FinpayService {
     private splitName(name: string): { firstName: string; lastName: string } {
         const parts = name.trim().split(/\s+/);
         if (parts.length === 1) {
-            return { firstName: parts[0], lastName: '' };
+            return { firstName: parts[0], lastName: '-' };
         }
         return { firstName: parts[0], lastName: parts[parts.length - 1] };
     }

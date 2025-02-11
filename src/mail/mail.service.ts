@@ -39,19 +39,11 @@ export class MailService {
   // }
   async download(remoteFileUrl: string, localFilePath: string): Promise<void> {
     try {
-      // Make sure the destination folder exists
       await fs.promises.mkdir(path.dirname(localFilePath), { recursive: true });
-
-      // Download the file as a stream
       const response = await axios.get(remoteFileUrl, { responseType: 'stream' });
-
-      // Create a write stream to the local file
       const writer = fs.createWriteStream(localFilePath);
-
-      // Pipe the response data to the file
       response.data.pipe(writer);
 
-      // Return a promise that resolves when the download is complete
       await new Promise<void>((resolve, reject) => {
         writer.on('finish', resolve);
         writer.on('error', reject);
@@ -91,84 +83,104 @@ export class MailService {
     return decrypted;
   }
 
-  private generateEmailTemplate(
+  private generateBaseTemplate(title: string, bodyContent: string): string {
+    return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+          }
+          .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .email-header {
+            background-color: #007BFF;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+          }
+          .email-header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .email-body {
+            padding: 20px;
+          }
+          .email-body p {
+            margin: 10px 0;
+            line-height: 1.6;
+          }
+          .email-footer {
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            padding: 10px 20px;
+            border-top: 1px solid #ddd;
+          }
+          .email-footer a {
+            color: #007BFF;
+            text-decoration: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <div class="email-header">
+            <h1>${title}</h1>
+          </div>
+          <div class="email-body">
+            ${bodyContent}
+          </div>
+          <div class="email-footer">
+            <p>&copy; ${new Date().getFullYear()} FJI. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+    `;
+  }
+
+
+  private generateInvoiceTemplate(
     senderName: string,
     senderEmail: string,
     recipientEmail: string,
     invoiceNumber: string,
-    type: string
+    type: string  // This could be either "Invoice" or "Receipt"
   ): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 0;
-              background-color: #f9f9f9;
-              color: #333;
-            }
-            .email-container {
-              max-width: 600px;
-              margin: 20px auto;
-              background-color: #ffffff;
-              border: 1px solid #ddd;
-              border-radius: 8px;
-              overflow: hidden;
-            }
-            .email-header {
-              background-color: #007BFF;
-              color: #ffffff;
-              text-align: center;
-              padding: 20px;
-            }
-            .email-header h1 {
-              margin: 0;
-              font-size: 24px;
-            }
-            .email-body {
-              padding: 20px;
-            }
-            .email-body p {
-              margin: 10px 0;
-              line-height: 1.6;
-            }
-            .email-footer {
-              text-align: center;
-              font-size: 12px;
-              color: #888;
-              padding: 10px 20px;
-              border-top: 1px solid #ddd;
-            }
-            .email-footer a {
-              color: #007BFF;
-              text-decoration: none;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="email-container">
-            <div class="email-header">
-              <h1>${type} from ${senderName}</h1>
-            </div>
-            <div class="email-body">
-              <p>Dear ${recipientEmail},</p>
-              <p>Thank you for your business. Please find the attached ${type} for your reference.</p>
-              <p><strong>${type} Number:</strong> #${invoiceNumber}</p>
-              <p>If you have any questions, feel free to contact us at <a href="mailto:${senderEmail}">${senderEmail}</a>.</p>
-              <p>Best regards,<br>${senderName}</p>
-            </div>
-            <div class="email-footer">
-              <p>&copy; ${new Date().getFullYear()} ${senderName}. All rights reserved.</p>
-              <p><a href="#">Unsubscribe</a> | <a href="#">Privacy Policy</a></p>
-            </div>
-          </div>
-        </body>
-      </html>
+    const content = `
+      <p>Dear ${recipientEmail},</p>
+      <p>Thank you for your business. Please find the attached ${type.toLowerCase()} for your reference.</p>
+      <p><strong>${type} Number:</strong> #${invoiceNumber}</p>
+      <p>If you have any questions, feel free to contact us at <a href="mailto:${senderEmail}">${senderEmail}</a>.</p>
+      <p>Best regards,<br>${senderName}</p>
     `;
+    const title = `${type} from ${senderName}`;
+    return this.generateBaseTemplate(title, content);
   }
+
+  private generateAccountCreationTemplate(recipientEmail: string): string {
+    const content = `
+      <p>Dear ${recipientEmail},</p>
+      <p>You have created an account. Below are your default login credentials:</p>
+      <p><strong>Email:</strong> ${recipientEmail}</p>
+      <p><strong>Password:</strong> pass1234</p>
+    `;
+    const title = "Account Created";
+    return this.generateBaseTemplate(title, content);
+  }
+
 
   private async getSmtpTransporter(): Promise<any> {
     const mailConfig = await this.getEmailConfig();
@@ -239,7 +251,7 @@ export class MailService {
       to: email,
       subject: `Account creation`,
       text: 'You have created an account, your default password is pass1234', // Fallback for plain text clients
-      html: '<p>You have created an account, your default password is pass1234</p>'
+      html: this.generateAccountCreationTemplate(email)
     }
 
     let send_status: string
@@ -310,11 +322,14 @@ export class MailService {
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
     console.log(`sending or, unsigned file from local : ${rootFolder}/receipt/${result[0].filenames}`)
 
+    let attachment
     if (result[0].file_name_sign) {
       try {
-        await this.download(
-          `${baseUrl}/SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
-          `${rootFolder}/receipt/${result[0].file_name_sign}`)
+        const response = await axios.get(`${baseUrl}/SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`, { responseType: 'arraybuffer' });
+        attachment = {
+          filename: result[0].file_name_sign,
+          content: Buffer.from(response.data),
+        };
       } catch (error) {
         throw new BadRequestException({
           statusCode: 400,
@@ -322,26 +337,27 @@ export class MailService {
           data: []
         })
       }
-    } else {
-      try {
-        await this.download(
-          `${baseUrl}/UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
-          `${rootFolder}/receipt/${result[0].filenames}`)
-      } catch (error) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'fail to download unsigned file',
-          data: []
-        })
-      }
     }
+    // else {
+    //   try {
+    //     await this.download(
+    //       `${baseUrl}/UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
+    //       `${rootFolder}/receipt/${result[0].filenames}`)
+    //   } catch (error) {
+    //     throw new BadRequestException({
+    //       statusCode: 400,
+    //       message: 'fail to download unsigned file',
+    //       data: []
+    //     })
+    //   }
+    // }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: result[0].email_addr,
       subject: `OR ${doc_no}`,
-      text: "Please find the attached invoice ", // Fallback for plain text clients
-      html: this.generateEmailTemplate(
+      text: "Please find the attached receipt ",
+      html: this.generateInvoiceTemplate(
         mailConfig.data[0].sender_name,
         mailConfig.data[0].sender_email,
         result[0].email_addr,
@@ -351,10 +367,7 @@ export class MailService {
       attachments: [
         ...(result[0].file_name_sign
           ? [
-            {
-              filename: result[0].file_name_sign,
-              path: `${rootFolder}/receipt/${result[0].file_name_sign}`,
-            },
+            attachment,
           ]
           : [
             {
@@ -492,61 +505,18 @@ export class MailService {
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
     const upper_file_type = result[0].invoice_tipe.toUpperCase()
 
+    let signedFileAttachment
     if (result[0].file_name_sign) {
       try {
-        await this.download(
-          `${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
-          `${rootFolder}/${result[0].invoice_tipe}/${result[0].file_name_sign}`
-        )
+        const response = await axios.get(`${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`, { responseType: 'arraybuffer' });
+        signedFileAttachment = {
+          filename: result[0].file_name_sign,
+          content: Buffer.from(response.data),
+        };
       } catch (error) {
         throw new BadRequestException({
           statusCode: 400,
-          message: 'fail to download signed file',
-          data: []
-        })
-      }
-    } else {
-
-      try {
-        await this.download(
-          `${baseUrl}/UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames}`,
-          `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`
-        )
-      } catch (error) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'fail to download unsigned file',
-          data: []
-        })
-      }
-    }
-
-    if (result[0].filenames2) {
-
-      try {
-        await this.download(
-          `${baseUrl}/UNSIGNED/GQCINV/${upper_file_type}/${result[0].filenames2}`,
-          `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`
-        )
-      } catch (error) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'fail to download reference file',
-          data: []
-        })
-      }
-    }
-    if (result[0].filenames3) {
-
-      try {
-        await this.download(
-          `${baseUrl}/UNSIGNED/GQCINV/FAKTUR/${result[0].filenames3}`,
-          `${rootFolder}/FAKTUR/${result[0].filenames3}`
-        )
-      } catch (error) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'fail to download faktur',
+          message: 'fail to get signed file',
           data: []
         })
       }
@@ -557,7 +527,7 @@ export class MailService {
       to: result[0].email_addr,
       subject: `invoice ${doc_no}`,
       text: "text",
-      html: this.generateEmailTemplate(
+      html: this.generateInvoiceTemplate(
         mailConfig.data[0].sender_name,
         mailConfig.data[0].sender_email,
         result[0].email_addr,
@@ -567,10 +537,7 @@ export class MailService {
       attachments: [
         ...(result[0].file_name_sign
           ? [
-            {
-              filename: result[0].file_name_sign,
-              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].file_name_sign}`,
-            },
+            signedFileAttachment,
           ]
           : [
             {

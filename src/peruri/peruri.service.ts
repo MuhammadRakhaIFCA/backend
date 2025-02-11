@@ -69,7 +69,7 @@ export class PeruriService {
   }
 
   async stamping(body: Record<any, any>) {
-    const { company_cd, file_name, file_type } = body;
+    const { company_cd, file_name, file_type, audit_user } = body;
     if (this.isEmpty(company_cd) || this.isEmpty(file_name) || this.isEmpty(file_type)) {
       throw new BadRequestException({
         statusCode: 400,
@@ -165,7 +165,7 @@ export class PeruriService {
                 (file_type, file_name_sign, file_status_sign,
                 company_cd, file_token_sign, audit_date, audit_user) 
                 VALUES 
-                (${file_type}, ${file_name}, 'P', ${company_cd}, ${token}, GETDATE(), 'audit user')
+                (${file_type}, ${file_name}, 'P', ${company_cd}, ${token}, GETDATE(), ${audit_user})
             `);
       file = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.peruri_stamp_file_log
@@ -754,5 +754,24 @@ export class PeruriService {
       message: "top up success",
       data: []
     })
+  }
+
+  async sycnOrTable() {
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or
+      WHERE file_status_sign = 'S'
+      AND rowID < 38
+      `)
+    for (let i = 0; i < result.length; i++) {
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+          INSERT INTO mgr.peruri_stamp_file_log
+          (file_type, file_name_sign, file_status_sign,
+          company_cd, file_token_sign, file_sn_sign, audit_date, audit_user) 
+          VALUES 
+          (${result[i].invoice_tipe}, ${result[i].file_name_sign}, 'S', 
+          'GQCINV', ${result[i].file_token_sign}, ${result[i].file_sn_sign},
+          ${result[i].audit_date}, ${result[i].audit_user})
+      `);
+    }
   }
 }
