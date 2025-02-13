@@ -92,8 +92,10 @@ export class ApiInvoiceService {
                 WHERE doc_amt <= 5000000
                   AND file_status_sign IS NULL
                   AND send_id IS NULL
-                OR (doc_amt >= 5000000 AND status_process_sign IN ('N', null) AND send_id IS NULL)
-                OR (doc_amt >= 5000000 AND file_status_sign IN ('S') AND send_id IS NULL)
+                OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND status_process_sign IN ('N', null) AND send_id IS NULL)
+                OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND status_process_sign IN ('N', null) AND send_id IS NULL)
+                OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND file_status_sign IN ('S') AND send_id IS NULL)
+                OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND file_status_sign IN ('S') AND send_id IS NULL)
                 OR (invoice_tipe = 'proforma' AND send_id IS NULL)
 
                 `);
@@ -1552,9 +1554,13 @@ export class ApiInvoiceService {
                 INNER JOIN mgr.pl_project prj
                   ON abia.entity_cd = prj.entity_cd
                   AND abia.project_no = prj.project_no
-                WHERE doc_amt >= 5000000 
-                AND invoice_tipe != 'proforma'
-                AND file_status_sign ${file_status}
+                WHERE 
+                  (doc_amt >= 5000000 AND abia.currency_cd = 'RP'
+                  OR
+                  doc_amt >= 300 AND abia.currency_cd = 'USD')
+                  AND invoice_tipe != 'proforma'
+                  AND file_status_sign ${file_status}
+                  ORDER BY gen_date desc
             `);
       if (!result || result.length === 0) {
         console.log(result.length);
@@ -1644,7 +1650,7 @@ export class ApiInvoiceService {
       const zip = new AdmZip();
       for (let i = 0; i < result.length; i++) {
         const filenames = `${result[i].file_name_sign}`;
-        const invoice_tipe = result[i].invoice_tipe.toUpperCase();
+        const invoice_tipe = result[i].file_type.toUpperCase();
         const fileUrl = `${ftpBaseUrl}/SIGNED/GQCINV/${invoice_tipe}/${filenames}`;
         console.log("file url : " + fileUrl)
         try {
@@ -1828,7 +1834,11 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
-      WHERE doc_amt >= 5000000 
+      WHERE (
+            doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
+            OR 
+            doc_amt >= 300 AND abia.currency_cd = 'USD'
+            ) 
         AND status_process_sign = 'Y'
         AND file_status_sign = 'S' 
         AND send_id IS NULL

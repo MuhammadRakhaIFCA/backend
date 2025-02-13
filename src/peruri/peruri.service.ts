@@ -70,10 +70,10 @@ export class PeruriService {
 
   async stamping(body: Record<any, any>) {
     const { company_cd, file_name, file_type, audit_user } = body;
-    if (this.isEmpty(company_cd) || this.isEmpty(file_name) || this.isEmpty(file_type)) {
+    if (this.isEmpty(company_cd) || this.isEmpty(file_name) || this.isEmpty(file_type) || this.isEmpty(audit_user)) {
       throw new BadRequestException({
         statusCode: 400,
-        message: 'Company CD, File Name, File Type are required',
+        message: 'Company CD, File Name, File Type and audit user are required ',
         data: []
       })
     }

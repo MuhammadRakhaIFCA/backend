@@ -88,9 +88,12 @@ export class ReceiptService {
                         ON abia.entity_cd = prj.entity_cd
                         AND abia.project_no = prj.project_no
                     WHERE abia.doc_amt <= 5000000
-                        AND abia.file_status_sign IS NULL
-                        AND abia.send_id IS NULL
-                        OR (abia.doc_amt >= 5000000 AND status_process_sign IN ('Y', 'N') AND send_id IS NULL)
+                        AND file_status_sign IS NULL
+                        AND send_id IS NULL
+                        OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND status_process_sign IN ('N', null) AND send_id IS NULL)
+                        OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND status_process_sign IN ('N', null) AND send_id IS NULL)
+                        OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND file_status_sign IN ('S') AND send_id IS NULL)
+                        OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND file_status_sign IN ('S') AND send_id IS NULL)
                     ORDER BY rowID desc
             `)
             if (!result || result.length === 0) {
@@ -232,8 +235,12 @@ export class ReceiptService {
                     INNER JOIN mgr.pl_project prj
                         ON abo.entity_cd = prj.entity_cd
                             AND abo.project_no = prj.project_no
-                    WHERE doc_amt >= 5000000 
-                        AND file_status_sign ${file_status}
+                    WHERE (
+                        doc_amt >= 5000000 AND abo.currency_cd = 'RP'
+                        OR
+                        doc_amt >= 300 AND abo.currency_cd = 'USD'
+                    )
+                    AND file_status_sign ${file_status}
                 ORDER BY gen_date desc
             `)
             if (!result || result.length === 0) {
@@ -1060,9 +1067,9 @@ export class ReceiptService {
                 SELECT * FROM mgr.v_inv_approval_history
                 WHERE approval_user = '${approval_user}'
                 AND approval_status != 'P'
-                AND doc_no LIKE 'OR%'
-                AND doc_no LIKE 'SP%'
-                AND doc_no LIKE 'OF%'
+                AND (doc_no LIKE 'OR%'
+                OR doc_no LIKE 'SP%'
+                OR doc_no LIKE 'OF%')
                 ORDER BY approval_date DESC
                 `);
 
@@ -1302,7 +1309,11 @@ export class ReceiptService {
             INNER JOIN mgr.pl_project prj
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
-          WHERE doc_amt >= 5000000 
+          WHERE (
+            doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
+            OR 
+            doc_amt >= 300 AND abia.currency_cd = 'USD'
+            )
           AND status_process_sign = 'Y'
           AND file_status_sign = 'S' 
           AND send_id IS NULL
