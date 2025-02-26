@@ -83,73 +83,74 @@ export class MailService {
     return decrypted;
   }
 
-  private generateBaseTemplate(title: string, bodyContent: string): string {
+  private generateBaseTemplate(type: string, from: string, bodyContent: string): string {
     return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-            color: #333;
-          }
-          .email-container {
-            max-width: 600px;
-            margin: 20px auto;
-            background-color: #ffffff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-          }
-          .email-header {
-            background-color: #007BFF;
-            color: #ffffff;
-            text-align: center;
-            padding: 20px;
-          }
-          .email-header h1 {
-            margin: 0;
-            font-size: 24px;
-          }
-          .email-body {
-            padding: 20px;
-          }
-          .email-body p {
-            margin: 10px 0;
-            line-height: 1.6;
-          }
-          .email-footer {
-            text-align: center;
-            font-size: 12px;
-            color: #888;
-            padding: 10px 20px;
-            border-top: 1px solid #ddd;
-          }
-          .email-footer a {
-            color: #007BFF;
-            text-decoration: none;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="email-container">
-          <div class="email-header">
-            <h1>${title}</h1>
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body {
+              margin: 0;
+              padding: 0;
+              background-color: #f9f9f9;
+              color: #333;
+            }
+            .email-container {
+              max-width: 600px;
+              margin: 20px auto;
+              background-color: #ffffff;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            .email-header {
+              background-color: #007BFF;
+              color: #ffffff;
+              text-align: center;
+              padding: 20px;
+            }
+            .email-header h1 {
+              margin: 0;
+              font-size: 24px;
+            }
+            .email-body {
+              padding: 20px;
+            }
+            .email-body p {
+              margin: 10px 0;
+              line-height: 1.6;
+            }
+            .email-footer {
+              text-align: center;
+              font-size: 12px;
+              color: #888;
+              padding: 10px 20px;
+              border-top: 1px solid #ddd;
+            }
+            .email-footer a {
+              color: #007BFF;
+              text-decoration: none;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="email-container">
+            <div class="email-header">
+              <h1>${type}</h1>
+              <h1>${from}</h1>
+            </div>
+            <div class="email-body">
+              ${bodyContent}
+            </div>
+            <div class="email-footer">
+              <p>&copy; ${new Date().getFullYear()} FJI. All rights reserved.</p>
+            </div>
           </div>
-          <div class="email-body">
-            ${bodyContent}
-          </div>
-          <div class="email-footer">
-            <p>&copy; ${new Date().getFullYear()} FJI. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-    </html>
+        </body>
+      </html>
     `;
   }
+  
 
 
   private generateInvoiceTemplate(
@@ -166,8 +167,8 @@ export class MailService {
       <p>If you have any questions, feel free to contact us at <a href="mailto:${senderEmail}">${senderEmail}</a>.</p>
       <p>Best regards,<br>${senderName}</p>
     `;
-    const title = `${type} from ${senderName}`;
-    return this.generateBaseTemplate(title, content);
+    const title = `${type.toUpperCase()} FROM ${senderName}`;
+    return this.generateBaseTemplate(`${type.toUpperCase()} FROM`, senderName, content);
   }
 
   private generateAccountCreationTemplate(recipientEmail: string): string {
@@ -178,7 +179,7 @@ export class MailService {
       <p><strong>Password:</strong> pass1234</p>
     `;
     const title = "Account Created";
-    return this.generateBaseTemplate(title, content);
+    return this.generateBaseTemplate(title, '', content);
   }
 
 
@@ -193,6 +194,9 @@ export class MailService {
         user: mailConfig.data[0].username,
         pass: decryptedPassword,
       },
+      connectionTimeout: 2 * 60 * 1000, 
+      greetingTimeout: 60 * 1000,       
+      socketTimeout: 2 * 60 * 1000,
     });
   }
 
@@ -808,9 +812,12 @@ export class MailService {
 
   async getEmailConfig() {
     try {
-      const result = await this.fjiDatabase.$queryRawUnsafe(`
+      const result:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
         SELECT * FROM mgr.email_configuration
         `)
+        if (result.length > 0) {
+          result[0].password = this.decrypt(result[0].password);
+        }
       return ({
         statusCode: 200,
         message: 'succesfully get email configuration',
