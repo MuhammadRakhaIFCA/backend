@@ -185,14 +185,14 @@ export class MailService {
 
   private async getSmtpTransporter(): Promise<any> {
     const mailConfig = await this.getEmailConfig();
-    const decryptedPassword = this.decrypt(mailConfig.data[0].password)
+    // const decryptedPassword = this.decrypt(mailConfig.data[0].password)
     return nodemailer.createTransport({
       host: mailConfig.data[0].host, // SMTP server
       port: mailConfig.data[0].port, // Port number
       secure: false, // Use TLS (false for port 587)
       auth: {
         user: mailConfig.data[0].username,
-        pass: decryptedPassword,
+        pass: mailConfig.data[0].password,
       },
       connectionTimeout: 2 * 60 * 1000, 
       greetingTimeout: 60 * 1000,       
