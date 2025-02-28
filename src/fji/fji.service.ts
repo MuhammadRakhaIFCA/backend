@@ -564,47 +564,108 @@ export class FjiService {
     }
 
     async getMenu(email: string, role: string) {
-        let invoice: Array<any> = [];
-        let or: Array<any> = [];
+        // console.log("email : " + email)
+        // console.log("role : " + role)
+        let invoiceMaker: Array<any> = [];
+        let orMaker: Array<any> = [];
+        let invoiceBlaster: Array<any> = [];
+        let orBlaster: Array<any> = [];
+        let invoiceApprover: Array<any> = [];
+        let orApprover: Array<any> = [];
         if (role == 'maker and blaster') {
-            invoice = (await this.fjiDatabase.$queryRawUnsafe(`
+            invoiceMaker = (await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_assign_approval_level 
               WHERE email = '${email}' 
-                AND type_cd <> 'OR' 
-                AND job_task = 'Maker'
+              AND type_cd <> 'OR' 
+              AND 
+              job_task = 'Maker'
+          `)) as Array<any>;
+            invoiceBlaster = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+              AND type_cd <> 'OR' 
+              AND 
+              job_task = 'Stamp & Blast'
           `)) as Array<any>;
 
-            or = (await this.fjiDatabase.$queryRawUnsafe(`
+          orMaker = (await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_assign_approval_level 
               WHERE email = '${email}' 
-                AND type_cd = 'OR' 
-                AND job_task like '%Maker%'
+              AND type_cd = 'OR' 
+              AND 
+              job_task = 'Maker'
+          `)) as Array<any>;
+          orBlaster = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+              AND type_cd = 'OR' 
+              AND 
+              job_task = 'Stamp & Blast'
           `)) as Array<any>;
         } else if (role == 'approver') {
-            invoice = (await this.fjiDatabase.$queryRawUnsafe(`
+            invoiceApprover = (await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_assign_approval_level 
               WHERE email = '${email}' 
               AND type_cd <> 'OR' 
               AND job_task like '%Approval%'
           `)) as Array<any>;
 
-            or = (await this.fjiDatabase.$queryRawUnsafe(`
+            orApprover = (await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_assign_approval_level 
               WHERE email = '${email}' 
                 AND type_cd = 'OR' 
                 AND job_task like '%Approval%'
           `)) as Array<any>;
+        } else if (role == 'maker') {
+            invoiceMaker = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+                AND type_cd <> 'OR' 
+                AND job_task = 'Maker'
+          `)) as Array<any>;
+
+            orMaker = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+                AND type_cd = 'OR' 
+                AND job_task like '%Maker%'
+          `)) as Array<any>;
+        } else if (role == 'blaster') {
+            invoiceBlaster = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+              AND type_cd <> 'OR' 
+              AND job_task = 'Stamp & Blast'
+          `)) as Array<any>;
+
+            orBlaster = (await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_assign_approval_level 
+              WHERE email = '${email}' 
+                AND type_cd = 'OR' 
+                AND job_task = 'Stamp & Blast'
+          `)) as Array<any>;
         }
 
-        const hasInvoiceData = invoice.length > 0;
-        const hasOrData = or.length > 0;
+        // console.log("invoice length : " + invoice.length)
+        // console.log("or length : " + or.length)
+
+        const hasInvoiceDataMaker = invoiceMaker.length > 0;
+        const hasOrDataMaker = orMaker.length > 0;
+        const hasInvoiceDataBlaster = invoiceBlaster.length > 0;
+        const hasOrDataBlaster = orBlaster.length > 0;
+        const hasInvoiceDataApprover = invoiceApprover.length > 0;
+        const hasOrDataApprover = orApprover.length > 0;
 
         return {
             statusCode: 200,
             message: 'success',
             data: {
-                hasInvoiceData,
-                hasOrData,
+                hasInvoiceDataMaker,
+                hasOrDataMaker,
+                hasInvoiceDataBlaster,
+                hasOrDataBlaster,
+                hasInvoiceDataApprover,
+                hasOrDataApprover
             },
         };
     }

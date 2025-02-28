@@ -8,9 +8,12 @@ import { Response } from 'express';
 export class ApiInvoiceController {
   constructor(private readonly apiInvoiceService: ApiInvoiceService) { }
 
-  @Get('invoice/stamp/:status')
-  async getStamp(@Param('status') status: string) {
-    return this.apiInvoiceService.getStamp(status)
+  @Get('invoice/stamp/:status/:audit_user')
+  async getStamp(
+    @Param('status') status: string,
+    @Param('audit_user') audit_user: string
+  ) {
+    return this.apiInvoiceService.getStamp(status, audit_user)
   }
 
   @Post('invoice/stamp-history')
@@ -20,10 +23,10 @@ export class ApiInvoiceController {
     return this.apiInvoiceService.getStampHistory(data)
   }
 
-  @Get('invoice/email')
+  @Get('invoice/email/:audit_user')
   //@UseGuards(AuthGuard('jwt'))
-  async getInvoice() {
-    return this.apiInvoiceService.getInvoice();
+  async getInvoice(@Param('audit_user') audit_user: string) {
+    return this.apiInvoiceService.getInvoice(audit_user);
   }
   @Get('invoice/email-detail/:doc_no')
   //@UseGuards(AuthGuard('jwt'))

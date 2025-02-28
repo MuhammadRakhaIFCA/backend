@@ -8,10 +8,12 @@ import * as fs from 'fs'
 export class ReceiptController {
   constructor(private readonly receiptService: ReceiptService) { }
 
-  @Get('receipt/email')
+  @Get('receipt/email/:audit_user')
   //@UseGuards(AuthGuard('jwt'))
-  async getReceipt() {
-    return await this.receiptService.getReceipt()
+  async getReceipt(
+    @Param('audit_user') audit_user: string,
+  ) {
+    return await this.receiptService.getReceipt(audit_user)
   }
 
   @Get('receipt/email-detail/:doc_no')
@@ -32,10 +34,13 @@ export class ReceiptController {
     return this.receiptService.getHistoryDetail(email_addr, doc_no);
   }
 
-  @Get('receipt/stamp/:status')
+  @Get('receipt/stamp/:status/:audit_user')
   //@UseGuards(AuthGuard('jwt'))
-  async getStamp(@Param('status') status: string) {
-    return this.receiptService.getStamp(status);
+  async getStamp(
+    @Param('status') status: string,
+    @Param('audit_user') audit_user: string
+  ) {
+    return this.receiptService.getStamp(status, audit_user);
   }
   // @Post('stamp')
   // async getStamps(@Body() data: Record<any, any>) {

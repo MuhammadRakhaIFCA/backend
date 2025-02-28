@@ -73,28 +73,34 @@ export class ReceiptService {
         }
     }
 
-    async getReceipt() {
+    async getReceipt(audit_user:string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+                SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
                 FROM mgr.ar_blast_or abia 
-                    INNER JOIN mgr.ar_debtor ad 
-                        ON abia.debtor_acct = ad.debtor_acct
-                        AND abia.entity_cd = ad.entity_cd
-                        AND abia.project_no = ad.project_no
-                    INNER JOIN mgr.cf_entity ent
-                        ON abia.entity_cd = ent.entity_cd
-                    INNER JOIN mgr.pl_project prj
-                        ON abia.entity_cd = prj.entity_cd
-                        AND abia.project_no = prj.project_no
-                    WHERE abia.doc_amt <= 5000000
-                        AND file_status_sign IS NULL
-                        AND send_id IS NULL
-                        OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND status_process_sign IN ('N', null) AND send_id IS NULL)
-                        OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND status_process_sign IN ('N', null) AND send_id IS NULL)
-                        OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND file_status_sign IN ('S') AND send_id IS NULL)
-                        OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND file_status_sign IN ('S') AND send_id IS NULL)
-                    ORDER BY rowID desc
+                INNER JOIN mgr.ar_debtor ad 
+                  ON abia.debtor_acct = ad.debtor_acct
+                  AND abia.entity_cd = ad.entity_cd
+                  AND abia.project_no = ad.project_no
+                INNER JOIN mgr.cf_entity ent
+                  ON abia.entity_cd = ent.entity_cd
+                INNER JOIN mgr.pl_project prj
+                  ON abia.entity_cd = prj.entity_cd
+                  AND abia.project_no = prj.project_no
+                INNER JOIN mgr.v_assign_approval_level aal
+                  ON aal.type_cd = 'OR'
+                WHERE ( 
+                  doc_amt <= 5000000
+                  AND file_status_sign IS NULL
+                  AND send_id IS NULL
+                  OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND status_process_sign IN ('N', null) AND send_id IS NULL)
+                  OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND status_process_sign IN ('N', null) AND send_id IS NULL)
+                  OR (doc_amt >= 5000000 AND abia.currency_cd = 'RP' AND file_status_sign IN ('S') AND send_id IS NULL)
+                  OR (doc_amt >= 300 AND abia.currency_cd = 'USD' AND file_status_sign IN ('S') AND send_id IS NULL)
+                  OR (invoice_tipe = 'proforma' AND send_id IS NULL)
+                )
+                AND aal.email = '${audit_user}' 
+                AND aal.job_task = 'Stamp & Blaster'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -143,10 +149,10 @@ export class ReceiptService {
     }
 
     async getHistory(data: Record<any, any>) {
-        const { startDate, endDate, status } = data
+        const { startDate, endDate, status, auditUser } = data
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+                SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
                 FROM mgr.ar_blast_or abia 
                     INNER JOIN mgr.ar_debtor ad 
                         ON abia.debtor_acct = ad.debtor_acct
@@ -161,6 +167,7 @@ export class ReceiptService {
                         AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
                         AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
                         AND send_status = '${status}'
+                        AND abia.audit_user = '${auditUser}'
                     ORDER BY send_date DESC
             `)
             if (!result || result.length === 0) {
@@ -209,7 +216,7 @@ export class ReceiptService {
         }
     }
 
-    async getStamp(status: string) {
+    async getStamp(status: string, audit_user: string) {
         let file_status = ''
         if (status === "S") {
             file_status = "IS NULL AND send_id IS NULL"
@@ -224,7 +231,7 @@ export class ReceiptService {
         }
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abo.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs
+                SELECT abo.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs
                 FROM mgr.ar_blast_or abo 
                     INNER JOIN mgr.ar_debtor ad 
                         ON abo.debtor_acct = ad.debtor_acct
@@ -235,12 +242,16 @@ export class ReceiptService {
                     INNER JOIN mgr.pl_project prj
                         ON abo.entity_cd = prj.entity_cd
                             AND abo.project_no = prj.project_no
+                    INNER JOIN mgr.v_assign_approval_level aal
+                        ON aal.type_cd = 'OR'
                     WHERE (
                         doc_amt >= 5000000 AND abo.currency_cd = 'RP'
                         OR
                         doc_amt >= 300 AND abo.currency_cd = 'USD'
                     )
                     AND file_status_sign ${file_status}
+                    AND aal.job_task = 'Stamp & Blast'
+                    AND aal.email = '${audit_user}'
                 ORDER BY gen_date desc
             `)
             if (!result || result.length === 0) {
