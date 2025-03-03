@@ -102,7 +102,7 @@ export class ApiInvoiceService {
                   OR (invoice_tipe = 'proforma' AND send_id IS NULL)
                 )
                 AND aal.email = '${audit_user}' 
-                AND aal.job_task = 'Stamp & Blaster' 
+                AND aal.job_task = 'Stamp & Blast' 
 
                 `);
       if (!result || result.length === 0) {

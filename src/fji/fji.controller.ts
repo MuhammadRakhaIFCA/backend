@@ -99,4 +99,8 @@ export class FjiUserController {
     @Query('role') role: string) {
     return await this.fjiService.getMenu(email, role)
   }
+  @Get('type-by-email')
+  async getTypeByEmail(@Query('email') email: string) {
+    return await this.fjiService.getTypeByEmail(email);
+  }
 }

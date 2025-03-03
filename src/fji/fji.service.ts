@@ -669,4 +669,26 @@ export class FjiService {
             },
         };
     }
+
+    async getTypeByEmail(email: string) {
+        try {
+          const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                    SELECT * FROM mgr.v_assign_approval_level
+                    WHERE email = '${email}'
+                        AND job_task = 'Maker'
+                `);
+    
+          return {
+            statusCode: 200,
+            message: 'type get',
+            data: result,
+          };
+        } catch (error) {
+          throw new NotFoundException({
+            statusCode: 404,
+            message: 'fail to get type',
+            data: [],
+          });
+        }
+      }
 }
