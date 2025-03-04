@@ -291,7 +291,7 @@ export class PdfgenerateService {
         tableYStart -= 15
         if (taxRate > 0) {
             doc
-                .text(`VAT ${formattedTaxRate}%`, 35, tableYStart + 150)
+                .text(`VAT`, 35, tableYStart + 150)
                 .text(data.currency_cd, 435, tableYStart + 150, { width: 130, align: 'left' })
                 .text((formattedTaxAmt), 435, tableYStart + 150, { width: 130, align: 'right' })
         }

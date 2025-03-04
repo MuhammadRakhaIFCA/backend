@@ -119,7 +119,7 @@ export class ApiInvoiceService {
         data: result,
       };
     } catch (error) {
-      throw new error
+      throw error
     }
   }
 
