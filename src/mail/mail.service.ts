@@ -297,18 +297,17 @@ export class MailService {
   }
 
   async blastEmailOr(doc_no: string) {
-    const baseUrl = process.env.FTP_BASE_URL
-
+    const baseUrl = process.env.FTP_BASE_URL;
     const send_id = Array(6)
       .fill(null)
       .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
       .join('');
-
+  
     // Fetch the record for the given doc_no
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}'
     `);
-
+  
     if (!result || result.length === 0) {
       throw new NotFoundException({
         statusCode: 404,
@@ -316,15 +315,493 @@ export class MailService {
         data: []
       });
     }
-
+  
     // Split the email_addr column into an array of strings
     const email_addrs = result[0].email_addr
       ? result[0].email_addr.split(';').map((email: string) => email.trim())
       : [];
+  
+    const mailConfig = await this.getEmailConfig();
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+    const upper_file_type = result[0].invoice_tipe.toUpperCase();
+  
+    let signedFileAttachment;
+    if (result[0].file_name_sign) {
+      try {
+        const response = await axios.get(
+          `${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
+          { responseType: 'arraybuffer' }
+        );
+        signedFileAttachment = {
+          filename: result[0].file_name_sign,
+          content: Buffer.from(response.data),
+        };
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to get signed file',
+          data: []
+        });
+      }
+    }
+  
+    // Base mail options (common for all emails)
+    const baseMailOptions: any = {
+      from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
+      subject: `OFFICIAL RECEIPT ${doc_no}`,
+      text: "text",
+      attachments: [
+        ...(result[0].file_name_sign
+          ? [signedFileAttachment]
+          : [{
+              filename: result[0].filenames,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`,
+            }]
+        ),
+        ...(result[0].filenames2
+          ? [{
+              filename: result[0].filenames2,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`,
+            }]
+          : []),
+        ...(result[0].filenames3
+          ? [{
+              filename: result[0].filenames3,
+              path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
+            }]
+          : []),
+      ],
+    };
+  
+    // Prepare arrays to hold the status for each email sent
+    let send_statuses: string[] = [];
+    let status_codes: number[] = [];
+    let response_messages: string[] = [];
+    let send_dates: string[] = [];
+  
+    // Get the SMTP transporter once
+    const smtptransporter = await this.getSmtpTransporter();
+  
+    // Loop through each email and send the email individually
+    for (const email of email_addrs) {
+      // Create a new mail options object for this specific email
+      const mailOptions = {
+        ...baseMailOptions,
+        to: email,
+        html: this.generateInvoiceTemplate(
+          mailConfig.data[0].sender_name,
+          mailConfig.data[0].sender_email,
+          email, // use the individual email address here
+          result[0].doc_no,
+          'Receipt'
+        ),
+      };
+  
+      // Get current send date for this email and add to the array
+      const currentSendDate = moment().format('YYYYMMDD HH:mm:ss');
+      send_dates.push(currentSendDate);
+  
+      try {
+        const info = await smtptransporter.sendMail(mailOptions);
+        if (info.accepted.includes(email)) {
+          send_statuses.push('S');
+          status_codes.push(200);
+          response_messages.push('Email sent successfully');
+        } else if (info.pending.includes(email)) {
+          send_statuses.push('P');
+          status_codes.push(202);
+          response_messages.push('Email is pending');
+        } else if (info.rejected.includes(email)) {
+          send_statuses.push('F');
+          status_codes.push(400);
+          response_messages.push('Email not accepted by server');
+        } else {
+          // Fallback if the email address is not in any list
+          send_statuses.push('F');
+          status_codes.push(400);
+          response_messages.push('Email not accepted by server');
+        }
+      } catch (error) {
+        console.log(error);
+        send_statuses.push('F');
+        status_codes.push(408);
+        response_messages.push('Email not accepted by server');
+      }
+    }
+  
+    let final_send_status: string;
+    if (send_statuses.every(status => status === 'S')) {
+      final_send_status = 'S';
+    } else if (send_statuses.includes('F')) {
+      final_send_status = 'F';
+    } 
+    await this.updateArBlastInvTable(
+      doc_no,
+      moment().format('YYYYMMDD HH:mm:ss'),
+      final_send_status,
+      send_id,
+      result[0].entity_cd,
+      result[0].project_no,
+      result[0].debtor_acct,
+      result[0].invoice_tipe
+    );
+  
+    // Loop through the email addresses to insert a log for each email
+    for (let i = 0; i < email_addrs.length; i++) {
+      await this.insertToOrMsgLog(
+        result[0].entity_cd,
+        result[0].project_no,
+        result[0].debtor_acct,
+        email_addrs[i],
+        doc_no,
+        status_codes[i],
+        response_messages[i],
+        send_id,
+        result[0].audit_user,
+        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
+        send_dates[i]
+      );
+    }
+  
+    // If any email resulted in a timeout (status code 408), throw an exception
+    if (status_codes.includes(408)) {
+      throw new RequestTimeoutException({
+        statusCode: 408,
+        message: 'failed to send email',
+        data: []
+      });
+    }
+  
+    return {
+      statusCodes: status_codes,
+      messages: response_messages,
+      data: result[0]
+    };
+  }
 
+  // async checkFileExists(filePath: string): Promise<{ error: boolean; message: string }> {
+  //   try {
+  //     const response = await axios.head(filePath);
+  //     console.log(response)
+
+  //     if (response.status === 200) {
+  //       return { error: false, message: 'File exists' };
+  //     }
+  //   } catch (error) {
+  //     return { error: true, message: 'Unable to process email, because the file does not exist' };
+  //   }
+
+  //   return { error: true, message: 'Unable to process email, because the file does not exist' };
+  // }
+
+  async blastEmailInv(doc_no: string) {
+    const baseUrl = process.env.FTP_BASE_URL;
+    const send_id = Array(6)
+      .fill(null)
+      .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+      .join('');
+  
+    // Fetch the record for the given doc_no
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
+    `);
+  
+    if (!result || result.length === 0) {
+      throw new NotFoundException({
+        statusCode: 404,
+        message: 'No record found',
+        data: []
+      });
+    }
+  
+    // Split the email_addr column into an array of strings
+    const email_addrs = result[0].email_addr
+      ? result[0].email_addr.split(';').map((email: string) => email.trim())
+      : [];
+  
+    const mailConfig = await this.getEmailConfig();
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+    const upper_file_type = result[0].invoice_tipe.toUpperCase();
+  
+    let signedFileAttachment;
+    if (result[0].file_name_sign) {
+      try {
+        const response = await axios.get(
+          `${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
+          { responseType: 'arraybuffer' }
+        );
+        signedFileAttachment = {
+          filename: result[0].file_name_sign,
+          content: Buffer.from(response.data),
+        };
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to get signed file',
+          data: []
+        });
+      }
+    }
+  
+    // Base mail options (common for all emails)
+    const baseMailOptions: any = {
+      from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
+      subject: `INVOICE ${doc_no}`,
+      text: "text",
+      attachments: [
+        ...(result[0].file_name_sign
+          ? [signedFileAttachment]
+          : [{
+              filename: result[0].filenames,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`,
+            }]
+        ),
+        ...(result[0].filenames2
+          ? [{
+              filename: result[0].filenames2,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`,
+            }]
+          : []),
+        ...(result[0].filenames3
+          ? [{
+              filename: result[0].filenames3,
+              path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
+            }]
+          : []),
+      ],
+    };
+  
+    // Prepare arrays to hold the status for each email sent
+    let send_statuses: string[] = [];
+    let status_codes: number[] = [];
+    let response_messages: string[] = [];
+    let send_dates: string[] = [];
+  
+    // Get the SMTP transporter once
+    const smtptransporter = await this.getSmtpTransporter();
+  
+    // Loop through each email and send the email individually
+    for (const email of email_addrs) {
+      // Create a new mail options object for this specific email
+      const mailOptions = {
+        ...baseMailOptions,
+        to: email,
+        html: this.generateInvoiceTemplate(
+          mailConfig.data[0].sender_name,
+          mailConfig.data[0].sender_email,
+          email, // use the individual email address here
+          result[0].doc_no,
+          'Invoice'
+        ),
+      };
+  
+      // Get current send date for this email and add to the array
+      const currentSendDate = moment().format('YYYYMMDD HH:mm:ss');
+      send_dates.push(currentSendDate);
+  
+      try {
+        const info = await smtptransporter.sendMail(mailOptions);
+        if (info.accepted.includes(email)) {
+          send_statuses.push('S');
+          status_codes.push(200);
+          response_messages.push('Email sent successfully');
+        } else if (info.pending.includes(email)) {
+          send_statuses.push('P');
+          status_codes.push(202);
+          response_messages.push('Email is pending');
+        } else if (info.rejected.includes(email)) {
+          send_statuses.push('F');
+          status_codes.push(400);
+          response_messages.push('Email not accepted by server');
+        } else {
+          // Fallback if the email address is not in any list
+          send_statuses.push('F');
+          status_codes.push(400);
+          response_messages.push('Email not accepted by server');
+        }
+      } catch (error) {
+        console.log(error);
+        send_statuses.push('F');
+        status_codes.push(408);
+        response_messages.push('Email not accepted by server');
+      }
+    }
+  
+    let final_send_status: string;
+    if (send_statuses.every(status => status === 'S')) {
+      final_send_status = 'S';
+    } else if (send_statuses.includes('F')) {
+      final_send_status = 'F';
+    } 
+    await this.updateArBlastInvTable(
+      doc_no,
+      moment().format('YYYYMMDD HH:mm:ss'),
+      final_send_status,
+      send_id,
+      result[0].entity_cd,
+      result[0].project_no,
+      result[0].debtor_acct,
+      result[0].invoice_tipe
+    );
+  
+    // Loop through the email addresses to insert a log for each email
+    for (let i = 0; i < email_addrs.length; i++) {
+      await this.insertToInvMsgLog(
+        result[0].entity_cd,
+        result[0].project_no,
+        result[0].debtor_acct,
+        email_addrs[i],
+        doc_no,
+        status_codes[i],
+        response_messages[i],
+        send_id,
+        result[0].audit_user,
+        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
+        send_dates[i]
+      );
+    }
+  
+    // If any email resulted in a timeout (status code 408), throw an exception
+    if (status_codes.includes(408)) {
+      throw new RequestTimeoutException({
+        statusCode: 408,
+        message: 'failed to send email',
+        data: []
+      });
+    }
+  
+    return {
+      statusCodes: status_codes,
+      messages: response_messages,
+      data: result[0]
+    };
+  }
+
+  async resendEmailInv(doc_no:string, email:string){
+    console.log("resending invoice to email : " + email)
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
+      `);
+      
+      if (!result || result.length === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'No record found',
+          data: []
+        });
+      }
+      
+    const baseUrl = process.env.FTP_BASE_URL
+    const upper_file_type = result[0].invoice_tipe.toUpperCase();
     const mailConfig = await this.getEmailConfig()
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-    console.log(`sending or, unsigned file from local : ${rootFolder}/receipt/${result[0].filenames}`)
+
+    let attachment
+    if (result[0].file_name_sign) {
+      try {
+        const response = await axios.get(`${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`, { responseType: 'arraybuffer' });
+        attachment = {
+          filename: result[0].file_name_sign,
+          content: Buffer.from(response.data),
+        };
+      } catch (error) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'fail to download signed file',
+          data: []
+        })
+      }
+    }
+
+    const mailOptions: any = {
+      from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
+      to: email,
+      subject: `INVOICE ${doc_no}`,
+      text: "Please find the attached invoice ",
+      html: this.generateInvoiceTemplate(
+        mailConfig.data[0].sender_name,
+        mailConfig.data[0].sender_email,
+        result[0].email_addr,
+        result[0].doc_no,
+        'Invoice'
+      ),
+      attachments: [
+        ...(result[0].file_name_sign
+          ? [
+            attachment,
+          ]
+          : [
+            {
+              filename: result[0].filenames,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`,
+            }
+          ]),
+        ...(result[0].filenames3
+          ? [
+            {
+              filename: result[0].filenames3,
+              path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
+            },
+          ]
+          : []),
+      ],
+    };
+
+
+    let send_status: string
+    let status_code: number
+    let response_message: string
+    const send_date = moment().format('YYYYMMDD HH:mm:ss');
+    try {
+      const smtptransporter = await this.getSmtpTransporter()
+      const info = await smtptransporter.sendMail(mailOptions);
+      console.log(info)
+      if (info.accepted.includes(email)) {
+        send_status = 'S';
+        status_code = 200;
+        response_message = 'Email sent successfully';
+      }
+      else if (info.rejected.includes(email)) {
+        send_status = 'F';
+        status_code = 400;
+        response_message = 'Email not accepted by server';
+      }
+    } catch (error) {
+      console.log(error)
+      send_status = 'F';
+      status_code = 408;
+      response_message = 'Email not accepted by server';
+    }
+
+    try {
+      await this.updateInvMsgLog(email, doc_no, status_code, response_message)
+    } catch (error) {
+      throw error
+    }
+
+    return({
+      statusCode: status_code,
+      message: response_message,
+      date:[]
+    })
+  }
+  
+  async resendEmailOr(doc_no:string, email:string){
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}'
+      `);
+      
+      if (!result || result.length === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'No record found',
+          data: []
+        });
+      }
+      
+    const baseUrl = process.env.FTP_BASE_URL
+    const mailConfig = await this.getEmailConfig()
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
 
     let attachment
     if (result[0].file_name_sign) {
@@ -342,24 +819,11 @@ export class MailService {
         })
       }
     }
-    // else {
-    //   try {
-    //     await this.download(
-    //       `${baseUrl}/UNSIGNED/GQCINV/RECEIPT/${result[0].filenames}`,
-    //       `${rootFolder}/receipt/${result[0].filenames}`)
-    //   } catch (error) {
-    //     throw new BadRequestException({
-    //       statusCode: 400,
-    //       message: 'fail to download unsigned file',
-    //       data: []
-    //     })
-    //   }
-    // }
 
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
-      to: result[0].email_addr,
-      subject: `OR ${doc_no}`,
+      to: email,
+      subject: `OFFICIAL RECEIPT ${doc_no}`,
       text: "Please find the attached receipt ",
       html: this.generateInvoiceTemplate(
         mailConfig.data[0].sender_name,
@@ -398,17 +862,12 @@ export class MailService {
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
-      if (info.accepted.includes(result[0].email_addr)) {
+      if (info.accepted.includes(email)) {
         send_status = 'S';
         status_code = 200;
         response_message = 'Email sent successfully';
       }
-      else if (info.pending.includes(result[0].email_addr)) {
-        send_status = 'P';
-        status_code = 202;
-        response_message = 'Email is pending';
-      }
-      else if (info.rejected.includes(result[0].email_addr)) {
+      else if (info.rejected.includes(email)) {
         send_status = 'F';
         status_code = 400;
         response_message = 'Email not accepted by server';
@@ -420,226 +879,18 @@ export class MailService {
       response_message = 'Email not accepted by server';
     }
 
-    // Update the ar_blast_or table
-    await this.updateArBlastOrTable(
-      doc_no,
-      moment().format('YYYYMMDD HH:mm:ss'),
-      send_status,
-      send_id,
-      result[0].entity_cd,
-      result[0].project_no,
-      result[0].debtor_acct,
-      result[0].invoice_tipe
-    );
-
-    // Loop through email_addrs and call insertToMsgLog for each email
-    for (const email of email_addrs) {
-      console.log(email)
-      await this.insertToOrMsgLog(
-        result[0].entity_cd,
-        result[0].project_no,
-        result[0].debtor_acct,
-        email, // Use the current email from the array
-        doc_no,
-        status_code,
-        response_message,
-        send_date,
-        send_id,
-        result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss')
-      );
-    }
-
-    if (status_code === 408) {
-      throw new RequestTimeoutException({
-        statusCode: 408,
-        message: 'failed to send email',
-        data: []
-      })
-    }
-
-    return {
-      statusCode: status_code,
-      message: response_message,
-      data: result[0]
-    }
-  }
-
-  // async checkFileExists(filePath: string): Promise<{ error: boolean; message: string }> {
-  //   try {
-  //     const response = await axios.head(filePath);
-  //     console.log(response)
-
-  //     if (response.status === 200) {
-  //       return { error: false, message: 'File exists' };
-  //     }
-  //   } catch (error) {
-  //     return { error: true, message: 'Unable to process email, because the file does not exist' };
-  //   }
-
-  //   return { error: true, message: 'Unable to process email, because the file does not exist' };
-  // }
-
-  async blastEmailInv(doc_no: string) {
-    const baseUrl = process.env.FTP_BASE_URL
-    const send_id = Array(6)
-      .fill(null)
-      .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
-      .join('');
-
-    // Fetch the record for the given doc_no
-    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
-    `);
-
-    if (!result || result.length === 0) {
-      throw new NotFoundException({
-        statusCode: 404,
-        message: 'No record found',
-        data: []
-      });
-    }
-
-    // Split the email_addr column into an array of strings
-    const email_addrs = result[0].email_addr
-      ? result[0].email_addr.split(';').map((email: string) => email.trim())
-      : [];
-
-    const mailConfig = await this.getEmailConfig()
-    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
-    const upper_file_type = result[0].invoice_tipe.toUpperCase()
-
-    let signedFileAttachment
-    if (result[0].file_name_sign) {
-      try {
-        const response = await axios.get(`${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`, { responseType: 'arraybuffer' });
-        signedFileAttachment = {
-          filename: result[0].file_name_sign,
-          content: Buffer.from(response.data),
-        };
-      } catch (error) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'fail to get signed file',
-          data: []
-        })
-      }
-    }
-
-    const mailOptions: any = {
-      from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
-      to: result[0].email_addr,
-      subject: `invoice ${doc_no}`,
-      text: "text",
-      html: this.generateInvoiceTemplate(
-        mailConfig.data[0].sender_name,
-        mailConfig.data[0].sender_email,
-        result[0].email_addr,
-        result[0].doc_no,
-        'Invoice'
-      ),
-      attachments: [
-        ...(result[0].file_name_sign
-          ? [
-            signedFileAttachment,
-          ]
-          : [
-            {
-              filename: result[0].filenames,
-              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames}`,
-            }
-          ]),
-        ...(result[0].filenames2
-          ? [
-            {
-              filename: result[0].filenames2,
-              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`,
-            },
-          ]
-          : []),
-        ...(result[0].filenames3
-          ? [
-            {
-              filename: result[0].filenames3,
-              path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
-            },
-          ]
-          : []),
-      ],
-    };
-
-    let send_status: string
-    let status_code: number
-    let response_message: string
-    const send_date = moment().format('YYYYMMDD HH:mm:ss');
     try {
-      const smtptransporter = await this.getSmtpTransporter()
-      const info = await smtptransporter.sendMail(mailOptions);
-      if (info.accepted.includes(result[0].email_addr)) {
-        send_status = 'S';
-        status_code = 200;
-        response_message = 'Email sent successfully';
-      }
-      else if (info.pending.includes(result[0].email_addr)) {
-        send_status = 'P';
-        status_code = 202;
-        response_message = 'Email is pending';
-      }
-      else if (info.rejected.includes(result[0].email_addr)) {
-        send_status = 'F';
-        status_code = 400;
-        response_message = 'Email not accepted by server';
-      }
+      await this.updateOrMsgLog(email, doc_no, status_code, response_message)
     } catch (error) {
-      console.log(error)
-      send_status = 'F';
-      status_code = 408;
-      response_message = 'Email not accepted by server';
+      throw error
     }
 
-
-    // Update the ar_blast_inv table
-    await this.updateArBlastInvTable(
-      doc_no,
-      moment().format('YYYYMMDD HH:mm:ss'),
-      send_status,
-      send_id,
-      result[0].entity_cd,
-      result[0].project_no,
-      result[0].debtor_acct,
-      result[0].invoice_tipe
-    );
-
-    // Loop through email_addrs and call insertToMsgLog for each email
-    for (const email of email_addrs) {
-      await this.insertToInvMsgLog(
-        result[0].entity_cd,
-        result[0].project_no,
-        result[0].debtor_acct,
-        email, // Use the current email from the array
-        doc_no,
-        status_code,
-        response_message,
-        send_id,
-        result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
-        send_date
-      );
-    }
-    if (status_code === 408) {
-      throw new RequestTimeoutException({
-        statusCode: 408,
-        message: 'failed to send email',
-        data: []
-      })
-    }
-    return {
+    return({
       statusCode: status_code,
       message: response_message,
-      data: result[0]
-    }
+      date:[]
+    })
   }
-
 
   async updateArBlastInvTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
@@ -744,6 +995,87 @@ export class MailService {
           message: 'Failed to insert to mgr.ar_blast_inv_log_msg table',
           data: []
         })
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+    }
+  }
+
+  async updateOrMsgLog(
+    email_addr: string, doc_no: string, status_code: number, 
+    response_message: string
+  ) {
+    try {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.ar_blast_or_log_msg
+          SET 
+            status_code = '${status_code}', audit_date = GETDATE(),
+            response_message = '${response_message}', send_date = GETDATE()
+          WHERE
+            email_addr = '${email_addr}'
+            AND doc_no = '${doc_no}'
+        `)
+      if (result === 0) {
+        throw new BadRequestException({
+          status: 400,
+          message: 'Failed to update mgr.ar_blast_inv_log_msg table',
+          data: []
+        })
+      }
+      const failedSent:Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT COUNT(doc_no) as count from mgr.ar_blast_or_log_msg 
+          where doc_no = '${doc_no}'
+          AND status_code <> 200
+        `)
+
+      if (failedSent[0].count === 0){
+        await this.fjiDatabase.$executeRawUnsafe(`
+          UPDATE mgr.ar_blast_or SET send_status = 'S'
+          WHERE doc_no = '${doc_no}'
+        `)
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+    }
+  }
+  async updateInvMsgLog(
+    email_addr: string, doc_no: string, status_code: number, 
+    response_message: string
+  ) {
+    console.log("updating inv_msg_log : " + response_message)
+    try {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.ar_blast_inv_log_msg
+          SET 
+            status_code = '${status_code}', audit_date = GETDATE(),
+            response_message = '${response_message}', send_date = GETDATE()
+          WHERE
+            email_addr = '${email_addr}'
+            AND doc_no = '${doc_no}'
+        `)
+      if (result === 0) {
+        throw new BadRequestException({
+          status: 400,
+          message: 'Failed to update mgr.ar_blast_inv_log_msg table',
+          data: []
+        })
+      }
+
+      const failedSent:Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT COUNT(doc_no) as count from mgr.ar_blast_inv_log_msg 
+          where doc_no = '${doc_no}'
+          AND status_code <> 200
+        `)
+
+      if (failedSent[0].count === 0){
+        await this.fjiDatabase.$executeRawUnsafe(`
+          UPDATE mgr.ar_blast_inv SET send_status = 'S'
+          WHERE doc_no = '${doc_no}'
+        `)
       }
     } catch (error) {
       if (error instanceof BadRequestException) {

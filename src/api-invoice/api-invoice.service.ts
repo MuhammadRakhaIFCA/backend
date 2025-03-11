@@ -159,28 +159,42 @@ export class ApiInvoiceService {
 
   async getHistory(data: Record<any, any>) {
     const { startDate, endDate, status, auditUser } = data;
+    let send_status_query:string
+    if(status === 'S') send_status_query = 'status_code = 200'
+    else if(status === 'F') send_status_query = 'status_code <> 200'
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
-                FROM mgr.ar_blast_inv abia 
+              SELECT 
+                ablm.*, 
+                debtor_name = ad.name, 
+                entity_name = ent.entity_name, 
+                project_name = prj.descs, 
+                filenames = abia.filenames, 
+                filenames2 = abia.filenames2, 
+                filenames3 = abia.filenames3,
+                doc_amt = abia.doc_amt, 
+                invoice_tipe = abia.invoice_tipe,
+                file_name_sign = abia.file_name_sign,
+                file_status_sign = abia.file_status_sign
+              FROM mgr.ar_blast_inv_log_msg ablm
                 INNER JOIN mgr.ar_debtor ad 
-                  ON abia.debtor_acct = ad.debtor_acct
-                  AND abia.entity_cd = ad.entity_cd
-                  AND abia.project_no = ad.project_no
+                  ON ablm.debtor_acct = ad.debtor_acct
+                  AND ablm.entity_cd = ad.entity_cd
+                  AND ablm.project_no = ad.project_no
                 INNER JOIN mgr.cf_entity ent
-                  ON abia.entity_cd = ent.entity_cd
+                  ON ablm.entity_cd = ent.entity_cd
                 INNER JOIN mgr.pl_project prj
-                  ON abia.entity_cd = prj.entity_cd
-                  AND abia.project_no = prj.project_no
-                INNER JOIN mgr.v_assign_approval_level aal
-                  ON abia.related_class = aal.type_cd  
-                WHERE send_id IS NOT NULL 
-                  AND year(send_date)*10000+month(send_date)*100+day(send_date) >= '${startDate}' 
-                  AND year(send_date)*10000+month(send_date)*100+day(send_date) <= '${endDate}'
-                  AND send_status = '${status}'
-                  AND abia.audit_user = '${auditUser}'
-                ORDER BY send_date DESC
+                  ON ablm.entity_cd = prj.entity_cd
+                  AND ablm.project_no = prj.project_no
+                 INNER JOIN mgr.ar_blast_inv abia
+                 	ON ablm.doc_no = abia.doc_no
+                  AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
+                  AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) <= '${endDate}'
+                  AND ${send_status_query}
+                  AND ablm.audit_user = '${auditUser}'
+                ORDER BY ablm.send_date DESC
             `);
+      // console.log(result)
       if (!result || result.length === 0) {
         throw new NotFoundException({
           statusCode: 404,
@@ -188,10 +202,11 @@ export class ApiInvoiceService {
           data: [],
         });
       }
+      const formattedResult = result.map((row) => ({ ...row, send_status:status}));
       return {
         statusCode: 200,
         message: 'history retrieved successfully',
-        data: result,
+        data: formattedResult,
       };
     } catch (error) {
       throw error

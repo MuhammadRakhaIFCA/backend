@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
 import { MailService } from './mail.service';
 import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
@@ -39,6 +39,20 @@ export class MailController {
   @Get('blast-email-or/:doc_no')
   async blastEmailOr(@Param('doc_no') doc_no: string) {
     return this.mailService.blastEmailOr(doc_no)
+  }
+  @Get('resend-inv')
+  async resendInvoice(
+    @Query('doc_no') doc_no: string,
+    @Query('email') email: string,
+  ){
+    return this.mailService.resendEmailInv(doc_no, email)
+  }
+  @Get('resend-or')
+  async resendOR(
+    @Query('doc_no') doc_no: string,
+    @Query('email') email: string,
+  ){
+    return this.mailService.resendEmailOr(doc_no, email)
   }
   @Post('edit-config')
   async editConfig(@Body() data: Record<any, any>) {
