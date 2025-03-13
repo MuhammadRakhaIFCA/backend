@@ -344,10 +344,39 @@ export class PeruriService {
     try {
       console.log('sn : ' + sn);
       console.log('token : ' + token);
+      console.log(
+        {
+          certificatelevel: 'NOT_CERTIFIED',
+          dest: `/sharefolder/SIGNED/${company_cd}/${upper_file_type}/${signedFileName}`,
+          docpass: '',
+          jwToken: token,
+          location: 'JAKARTA',
+          profileName: 'emeteraicertificateSigner',
+          reason: 'Dokumen',
+          refToken: sn,
+          spesimenPath: `/sharefolder/STAMP/${company_cd}/${upper_file_type}/${fileName}`,
+          src: `/sharefolder/UNSIGNED/${company_cd}/${upper_file_type}/${file_name}`,
+          visLLX: visLLX,
+          visLLY: visLLY,
+          visURX: visURX,
+          visURY: visURY,
+          visSignaturePage: 1,
+        }
+      )
+      const mode = process.env.NEST_PUBLIC_ENV_MODE
+      let stampingUrl:string = ''
+      if (mode === 'sandbox'){
+        stampingUrl = 'http://emstag.property365.co.id:8010/adapter/pdfsigning/rest/docSigningZ'
+      } 
+      else if (mode === 'production'){
+        stampingUrl = 'http://10.10.0.10:8080/adapter/pdfsigning/rest/docSigningZ'
+      }
+      console.log("mode : " + mode)
+      console.log("stampingUrl : " + stampingUrl)
       //8. ambil sn dari nomer 5, ambil token dari nomer 2 lalu lakukan stamping
       stamp = await firstValueFrom(
         this.httpService.post(
-          'http://emstag.property365.co.id:8080/adapter/pdfsigning/rest/docSigningZ',
+          stampingUrl,
           {
             certificatelevel: 'NOT_CERTIFIED',
             dest: `/sharefolder/SIGNED/${company_cd}/${upper_file_type}/${signedFileName}`,
@@ -391,8 +420,9 @@ export class PeruriService {
                          UPDATE mgr.peruri_stamp_file_log SET file_status_sign = 'F'
                          WHERE file_name_sign = '${file_name}'
                         `);
-      // console.log(error)
+      console.log(error)
       throw new BadRequestException({
+
         statusCode: 400,
         message: 'stamping failed',
         data: [error],

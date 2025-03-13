@@ -973,40 +973,34 @@ export class ApiInvoiceService {
             UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
             WHERE process_id = '${process_id}' 
             `);
-          // const insert = await this.fjiDatabase.$executeRawUnsafe(`
-          //   INSERT INTO mgr.ar_blast_inv
-          //   (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no,
-          //   doc_date, descs, currency_cd, doc_amt, tax_invoice_no, invoice_tipe, filenames,
-          //   filenames2, process_id, audit_user, audit_date)
-          //   VALUES
-          //   ('${approvalTable[0].entity_cd}', '${approvalTable[0].project_no}', '${approvalTable[0].debtor_acct}',
-          //   '${approvalTable[0].email_addr}', '${gen_date}', '${approvalTable[0].bill_type}',
-          //   '${doc_no}', '${doc_date}', '${approvalTable[0].descs}', '${approvalTable[0].currency_cd}',
-          //   ${approvalTable[0].doc_amt}, null, '${approvalTable[0].invoice_tipe}',
-          //   '${approvalTable[0].filenames}', '${approvalTable[0].filenames2}', '${process_id}',
-          //   '${approvalTable[0].audit_user}', '${audit_date}')
-          //   `);
-          const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
-            INSERT INTO mgr.ar_blast_inv
-            (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
-            doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
-            filenames2, process_id, audit_user, audit_date)
-            VALUES
-            (${approvalTable[0].entity_cd}, ${approvalTable[0].project_no}, ${approvalTable[0].debtor_acct},
-            ${approvalTable[0].email_addr}, ${gen_date}, ${approvalTable[0].bill_type},
-            ${doc_no}, ${approvalTable[0].related_class}, ${doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
-            ${approvalTable[0].doc_amt}, ${approvalTable[0].invoice_tipe},
-            ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${process_id},
-            ${approvalTable[0].audit_user}, GETDATE())
-            `);
-
-          if (result === 0 || insert === 0) {
-            throw new BadRequestException({
-              statusCode: 400,
-              message: 'failed to insert to database',
-              data: [],
-            });
+          const existingDocNo = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT COUNT(doc_no) as count from mgr.ar_blast_inv 
+            WHERE doc_no = '${doc_no}'
+            `)
+          if(existingDocNo[0].count === 0){
+            const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
+              INSERT INTO mgr.ar_blast_inv
+              (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
+              doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
+              filenames2, process_id, audit_user, audit_date)
+              VALUES
+              (${approvalTable[0].entity_cd}, ${approvalTable[0].project_no}, ${approvalTable[0].debtor_acct},
+              ${approvalTable[0].email_addr}, ${gen_date}, ${approvalTable[0].bill_type},
+              ${doc_no}, ${approvalTable[0].related_class}, ${doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
+              ${approvalTable[0].doc_amt}, ${approvalTable[0].invoice_tipe},
+              ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${process_id},
+              ${approvalTable[0].audit_user}, GETDATE())
+              `);
+  
+            if (result === 0 || insert === 0) {
+              throw new BadRequestException({
+                statusCode: 400,
+                message: 'failed to insert to database',
+                data: [],
+              });
+            }
           }
+
         } catch (error) {
           console.log(error)
           throw new BadRequestException({
@@ -1199,7 +1193,13 @@ export class ApiInvoiceService {
       const getUser = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
           `);
-
+      const existingDetail = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval_dtl 
+        WHERE 
+          doc_no = '${doc_no}' 
+          AND approval_level = ${approval_level}
+          AND process_id = '${process_id}'
+        `)  
       const approvalDtlBody = {
         entity_cd: result[0].entity_cd,
         project_no: result[0].project_no,
@@ -1212,15 +1212,17 @@ export class ApiInvoiceService {
         process_id,
         audit_user: audit_user,
       };
-
-      const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
-      if (approvalDtl.statusCode == 400) {
-        throw new BadRequestException({
-          statusCode: 400,
-          message: 'Failed to add to approvals ',
-          data: [],
-        });
+      if (existingDetail[0].count === 0){
+        const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
+        if (approvalDtl.statusCode == 400) {
+          throw new BadRequestException({
+            statusCode: 400,
+            message: 'Failed to add to approvals ',
+            data: [],
+          });
+        }
       }
+      
 
       // if (approvalLevel === 1) {
       //   const approvalLogBody = {
@@ -1588,6 +1590,7 @@ export class ApiInvoiceService {
                     AND file_status_sign ${file_status}
                     AND aal.job_task = 'Stamp & Blast'
                     AND aal.email = '${audit_user}'
+                    AND abia.invoice_tipe <> 'proforma'
                 ORDER BY gen_date desc
             `);
       if (!result || result.length === 0) {

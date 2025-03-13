@@ -378,13 +378,25 @@ export class MailService {
     let status_codes: number[] = [];
     let response_messages: string[] = [];
     let send_dates: string[] = [];
-  
-    // Get the SMTP transporter once
-    const smtptransporter = await this.getSmtpTransporter();
-  
-    // Loop through each email and send the email individually
-    for (const email of email_addrs) {
-      // Create a new mail options object for this specific email
+
+    // Pre-fill the arrays with default values for each email address
+    for (let i = 0; i < email_addrs.length; i++) {
+      status_codes[i] = 401;
+      response_messages[i] = "fail to login to smpt";
+      send_dates[i] = moment().format('YYYYMMDD HH:mm:ss')
+      send_statuses[i] = 'F';
+    }
+
+    let smtptransporter: any = null;
+    try {
+      smtptransporter = await this.getSmtpTransporter();
+    } catch (error) {
+      console.error("Failed to get SMTP transporter:", error);
+    }
+
+    // Now loop through using an index to update the existing values
+    for (let i = 0; i < email_addrs.length; i++) {
+      const email = email_addrs[i];
       const mailOptions = {
         ...baseMailOptions,
         to: email,
@@ -393,41 +405,41 @@ export class MailService {
           mailConfig.data[0].sender_email,
           email, // use the individual email address here
           result[0].doc_no,
-          'Receipt'
+          'Invoice'
         ),
       };
-  
-      // Get current send date for this email and add to the array
-      const currentSendDate = moment().format('YYYYMMDD HH:mm:ss');
-      send_dates.push(currentSendDate);
-  
+
+      // Update the send date for this email at the current index
+      send_dates[i] = moment().format('YYYYMMDD HH:mm:ss');
+
       try {
         const info = await smtptransporter.sendMail(mailOptions);
         if (info.accepted.includes(email)) {
-          send_statuses.push('S');
-          status_codes.push(200);
-          response_messages.push('Email sent successfully');
+          send_statuses[i] = 'S';
+          status_codes[i] = 200;
+          response_messages[i] = 'Email sent successfully';
         } else if (info.pending.includes(email)) {
-          send_statuses.push('P');
-          status_codes.push(202);
-          response_messages.push('Email is pending');
+          send_statuses[i] = 'P';
+          status_codes[i] = 202;
+          response_messages[i] = 'Email is pending';
         } else if (info.rejected.includes(email)) {
-          send_statuses.push('F');
-          status_codes.push(400);
-          response_messages.push('Email not accepted by server');
+          send_statuses[i] = 'F';
+          status_codes[i] = 400;
+          response_messages[i] = 'Email not accepted by server';
         } else {
           // Fallback if the email address is not in any list
-          send_statuses.push('F');
-          status_codes.push(400);
-          response_messages.push('Email not accepted by server');
+          send_statuses[i] = 'F';
+          status_codes[i] = 400;
+          response_messages[i] = 'Email not accepted by server';
         }
       } catch (error) {
         console.log(error);
-        send_statuses.push('F');
-        status_codes.push(408);
-        response_messages.push('Email not accepted by server');
+        send_statuses[i] = 'F';
+        status_codes[i] = 408;
+        response_messages[i] = 'Email not accepted by server';
       }
     }
+
   
     let final_send_status: string;
     if (send_statuses.every(status => status === 'S')) {
@@ -576,13 +588,25 @@ export class MailService {
     let status_codes: number[] = [];
     let response_messages: string[] = [];
     let send_dates: string[] = [];
-  
-    // Get the SMTP transporter once
-    const smtptransporter = await this.getSmtpTransporter();
-  
-    // Loop through each email and send the email individually
-    for (const email of email_addrs) {
-      // Create a new mail options object for this specific email
+
+    // Pre-fill the arrays with default values for each email address
+    for (let i = 0; i < email_addrs.length; i++) {
+      status_codes[i] = 401;
+      response_messages[i] = "fail to login to smpt";
+      send_dates[i] = moment().format('YYYYMMDD HH:mm:ss')
+      send_statuses[i] = 'F';
+    }
+
+    let smtptransporter: any = null;
+    try {
+      smtptransporter = await this.getSmtpTransporter();
+    } catch (error) {
+      console.error("Failed to get SMTP transporter:", error);
+    }
+
+    // Now loop through using an index to update the existing values
+    for (let i = 0; i < email_addrs.length; i++) {
+      const email = email_addrs[i];
       const mailOptions = {
         ...baseMailOptions,
         to: email,
@@ -594,38 +618,38 @@ export class MailService {
           'Invoice'
         ),
       };
-  
-      // Get current send date for this email and add to the array
-      const currentSendDate = moment().format('YYYYMMDD HH:mm:ss');
-      send_dates.push(currentSendDate);
-  
+
+      // Update the send date for this email at the current index
+      send_dates[i] = moment().format('YYYYMMDD HH:mm:ss');
+
       try {
         const info = await smtptransporter.sendMail(mailOptions);
         if (info.accepted.includes(email)) {
-          send_statuses.push('S');
-          status_codes.push(200);
-          response_messages.push('Email sent successfully');
+          send_statuses[i] = 'S';
+          status_codes[i] = 200;
+          response_messages[i] = 'Email sent successfully';
         } else if (info.pending.includes(email)) {
-          send_statuses.push('P');
-          status_codes.push(202);
-          response_messages.push('Email is pending');
+          send_statuses[i] = 'P';
+          status_codes[i] = 202;
+          response_messages[i] = 'Email is pending';
         } else if (info.rejected.includes(email)) {
-          send_statuses.push('F');
-          status_codes.push(400);
-          response_messages.push('Email not accepted by server');
+          send_statuses[i] = 'F';
+          status_codes[i] = 400;
+          response_messages[i] = 'Email not accepted by server';
         } else {
           // Fallback if the email address is not in any list
-          send_statuses.push('F');
-          status_codes.push(400);
-          response_messages.push('Email not accepted by server');
+          send_statuses[i] = 'F';
+          status_codes[i] = 400;
+          response_messages[i] = 'Email not accepted by server';
         }
       } catch (error) {
         console.log(error);
-        send_statuses.push('F');
-        status_codes.push(408);
-        response_messages.push('Email not accepted by server');
+        send_statuses[i] = 'F';
+        status_codes[i] = 408;
+        response_messages[i] = 'Email not accepted by server';
       }
     }
+
   
     let final_send_status: string;
     if (send_statuses.every(status => status === 'S')) {
@@ -672,7 +696,7 @@ export class MailService {
   
     return {
       statusCodes: status_codes,
-      messages: response_messages,
+      messages: "email has been processed, please check blast history",
       data: result[0]
     };
   }
@@ -957,7 +981,7 @@ export class MailService {
         send_date, send_id, audit_user, audit_date)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
-        '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
+        '${doc_no}', ${status_code}, '${response_message}', GETDATE(), '${send_id}',
         '${audit_user}', GETDATE())
         `)
       if (result === 0) {
@@ -986,7 +1010,7 @@ export class MailService {
         send_date, send_id, audit_user, audit_date)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
-        '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
+        '${doc_no}', ${status_code}, '${response_message}', GETDATE(), '${send_id}',
         '${audit_user}', GETDATE())
         `)
       if (result === 0) {

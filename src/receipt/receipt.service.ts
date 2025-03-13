@@ -179,7 +179,7 @@ export class ReceiptService {
                       AND ablm.project_no = prj.project_no
                      INNER JOIN mgr.ar_blast_or abia
                          ON ablm.doc_no = abia.doc_no
-                      AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
+                      WHERE year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
                       AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) <= '${endDate}'
                       AND ${send_status_query}
                       AND ablm.audit_user = '${auditUser}'
@@ -579,7 +579,13 @@ export class ReceiptService {
             const getUser = await this.fjiDatabase.$queryRawUnsafe(`
                   SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
               `);
-
+              const existingDetail = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval_dtl 
+                WHERE 
+                  doc_no = '${doc_no}' 
+                  AND approval_level = ${approval_level}
+                  AND process_id = '${process_id}'
+                `)  
             const approvalDtlBody = {
                 entity_cd: result[0].entity_cd,
                 project_no: result[0].project_no,
@@ -592,16 +598,16 @@ export class ReceiptService {
                 process_id,
                 audit_user: audit_user,
             };
-
+            if (existingDetail[0].count === 0){
             const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
-            if (approvalDtl.statusCode == 400) {
-                throw new BadRequestException({
-                    statusCode: 400,
-                    message: 'Failed to add to approvals',
-                    data: [],
-                });
+                if (approvalDtl.statusCode == 400) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: 'Failed to add to approvals',
+                        data: [],
+                    });
+                }
             }
-
         }
         await this.fjiDatabase.$executeRawUnsafe(`
           UPDATE mgr.ar_blast_inv_approval set approval_lvl = ${approval_level}, status_approve = 'P', progress_approval = 1
@@ -887,7 +893,13 @@ export class ReceiptService {
 
                     try {
                         console.log(body)
-                        await this.addToORTable(body)
+                        const existingDocNo = await this.fjiDatabase.$queryRawUnsafe(`
+                            SELECT COUNT(doc_no) as count from mgr.ar_blast_or 
+                            WHERE doc_no = '${doc_no}'
+                            `)
+                          if(existingDocNo[0].count === 0){
+                              await this.addToORTable(body)
+                            }
                     } catch (error) {
                         console.log(error)
                         throw new BadRequestException({
