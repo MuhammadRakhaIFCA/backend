@@ -15,6 +15,7 @@ import { FjiDatabaseService } from 'src/database/database-fji.service';
 import { Prisma } from '@prisma/client';
 import * as pdfjs from 'pdfjs-dist';
 import * as ftp from 'basic-ftp';
+import * as moment from 'moment'
 
 const token =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImlmY2FfZW1ldEB5b3BtYWlsLmNvbSIsInN1YiI6IjE0YjNiNDIzLWQzM2EtNGJkOS1hNzFkLTg0Mjk3MTJiYWQwNyIsImF1ZCI6Imh0dHBzOi8vZS1tZXRlcmFpLmNvLmlkIiwiaXNzIjoiZW1ldGVyYWkiLCJqdGkiOiIzMzA4MGY4Yi1iM2EzLTQxN2YtOWYxOS1lNDY4ZTFiZWYyNmIiLCJleHAiOjE3MzMyODA5MzYsImlhdCI6MTczMzE5NDUzNn0.8esgXb4W5q2LNMUgsX3R0B39RZu5orwsjbZkSGkMuMM';
@@ -115,8 +116,8 @@ export class PeruriService {
     //1. ambil data dari peruri account usesrname dan password
 
     const loginBody = {
-      user: 'ifca_emet@yopmail.com',
-      password: 'Emeterai123!',
+      user: process.env.PERURI_ACCOUNT,
+      password: process.env.PERURI_PASSWORD,
     };
 
     //2 . login ke peruri dengan menggunakan username dan password dari database tadi untuk dapat token
@@ -127,20 +128,43 @@ export class PeruriService {
     else if (mode === 'production'){
       loginUrl = 'https://backendservice.e-meterai.co.id/api/users/login'
     }
-    const loginData = await firstValueFrom(
-      this.httpService.post(
-        loginUrl,
-        loginBody,
-      ),
-    );
-
-    if (loginData.data.statusCode !== '00') {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'peruri login failed',
-        data: [],
-      });
+    else if (mode === 'local'){
+      loginUrl = 'https://backendservicestg.e-meterai.co.id/api/users/login'
     }
+    let loginData
+    try {
+       loginData = await firstValueFrom(
+        this.httpService.post(
+          loginUrl,
+          loginBody,
+        ),
+      );
+    } catch (error) {
+      // if (loginData.data.statusCode !== '00') {
+        const updateTableBody = {
+          file_status_sign: 'P',
+          doc_no,
+          project_no: approved_file[0].project_no,
+          entity_cd: approved_file[0].entity_cd,
+          debtor_acct: approved_file[0].debtor_acct,
+          invoice_tipe: approved_file[0].invoice_tipe,
+        }
+  
+        if (file_type === 'receipt') {
+          await this.updateBlastOrTable(updateTableBody)
+        } else {
+          await this.updateBlastInvTable(updateTableBody)
+        }
+        throw new UnauthorizedException({
+          statusCode: 401,
+          message: 'peruri login failed',
+          data: [],
+        });
+      // }
+    }
+
+
+
     const signedFileName = `${file_name.slice(0, -4)}_signed.pdf`;
 
     const signedFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -214,20 +238,24 @@ export class PeruriService {
       else if (mode === 'production'){
         gettingSnUrl = 'https://stampv2.e-meterai.co.id/chanel/stampv2'
       }
+      else if(mode === 'local'){
+        gettingSnUrl = 'https://stampv2stg.e-meterai.co.id/chanel/stampv2'
+      }
+      const currentDate = moment().format("YYYY-MM-DD")
       const sn = await firstValueFrom(
         this.httpService.post(
           gettingSnUrl,
           {
             isUpload: false,
-            namadoc: '4b',
+            namadoc: '2',
             namafile: file_name,
-            nilaidoc: '10000',
-            namejidentitas: 'KTP',
-            noidentitas: '1251087201650003',
-            namedipungut: 'Santoso',
+            nilaidoc: '',
+            namejidentitas: '',
+            noidentitas: '',
+            namedipungut: '',
             snOnly: false,
             nodoc: '1',
-            tgldoc: '2024-04-25',
+            tgldoc: currentDate,
           },
           { headers },
         ),
@@ -296,6 +324,9 @@ export class PeruriService {
     }
     else if (mode === 'production'){
       gettingImageUrl = `https://stampv2.e-meterai.co.id/snqr/qrimage?serialnumber=${sn}&onprem=true`
+    }
+    else if(mode === 'local'){
+      gettingImageUrl = `https://stampv2stg.e-meterai.co.id/snqr/qrimage?serialnumber=${sn}&onprem=true`
     }
     try {
       const getStampImage = await firstValueFrom(
@@ -368,11 +399,14 @@ export class PeruriService {
       console.log('token : ' + token);
       
       let stampingUrl:string = ''
-      if (mode === 'sandbox'){
+      if (mode === 'local'){
         stampingUrl = 'http://emstag.property365.co.id:8010/adapter/pdfsigning/rest/docSigningZ'
       } 
+      else if(mode === 'sandbox'){
+        stampingUrl = `http://10.10.0.10:8080/adapter/pdfsigning/rest/docSigningZ`
+      }
       else if (mode === 'production'){
-        stampingUrl = 'http://10.10.0.10:8080/adapter/pdfsigning/rest/docSigningZ'
+        stampingUrl = 'http://103.84.193.220:8080/adapter/pdfsigning/rest/docSigningZ'
       }
       console.log("mode : " + mode)
       console.log("stampingUrl : " + stampingUrl)
