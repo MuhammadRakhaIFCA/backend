@@ -440,6 +440,18 @@ export class ReceiptService {
                 data: []
             })
         }
+        const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
+            WHERE progress_approval = 0
+                AND doc_no = '${doc_no}'
+            `)
+          if(existingFile[0].count > 0){
+            return({
+              statusCode:201,
+              message:'receipt already generated',
+              data:[]
+            })
+          }
         const process_id = Array(6)
             .fill(null)
             .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))

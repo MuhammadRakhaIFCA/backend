@@ -16,17 +16,9 @@ import axios from 'axios';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
 
   constructor(private readonly fjiDatabase: FjiDatabaseService) {
-    // Initialize the transporter
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASSWORD
-      },
-    });
+
   }
 
   // async download(remoteFilePath: string, localFilePath: string): Promise<void> {
@@ -447,7 +439,7 @@ export class MailService {
     } else if (send_statuses.includes('F')) {
       final_send_status = 'F';
     } 
-    await this.updateArBlastInvTable(
+    await this.updateArBlastOrTable(
       doc_no,
       moment().format('YYYYMMDD HH:mm:ss'),
       final_send_status,
@@ -476,17 +468,17 @@ export class MailService {
     }
   
     // If any email resulted in a timeout (status code 408), throw an exception
-    if (status_codes.includes(408)) {
-      throw new RequestTimeoutException({
-        statusCode: 408,
-        message: 'failed to send email',
-        data: []
-      });
-    }
+    // if (status_codes.includes(408)) {
+    //   throw new RequestTimeoutException({
+    //     statusCode: 408,
+    //     message: 'failed to send email',
+    //     data: []
+    //   });
+    // }
   
     return {
-      statusCodes: status_codes,
-      messages: response_messages,
+      statusCode: 200,
+      message: "email has been processed, please check blast history",
       data: result[0]
     };
   }
@@ -686,17 +678,17 @@ export class MailService {
     }
   
     // If any email resulted in a timeout (status code 408), throw an exception
-    if (status_codes.includes(408)) {
-      throw new RequestTimeoutException({
-        statusCode: 408,
-        message: 'failed to send email',
-        data: []
-      });
-    }
+    // if (status_codes.includes(408)) {
+    //   throw new RequestTimeoutException({
+    //     statusCode: 408,
+    //     message: 'failed to send email',
+    //     data: []
+    //   });
+    // }
   
     return {
-      statusCodes: status_codes,
-      messages: "email has been processed, please check blast history",
+      statusCode: 200,
+      message: "email has been processed, please check blast history",
       data: result[0]
     };
   }
@@ -972,7 +964,7 @@ export class MailService {
   async insertToOrMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_date: string, send_id: string, audit_user: string, audit_date: string
+    send_id: string, audit_user: string, audit_date: string, send_date: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`

@@ -265,6 +265,18 @@ export class ApiInvoiceService {
         data: [],
       });
     }
+    const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
+      WHERE progress_approval = 0
+          AND doc_no = '${doc_no}'
+      `)
+    if(existingFile[0].count > 0){
+      return({
+        statusCode:201,
+        message:'invoice already generated',
+        data:[]
+      })
+    }
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             select * from mgr.v_ar_ledger_sch_inv_web 
             where doc_no = '${doc_no}' 
@@ -455,6 +467,18 @@ export class ApiInvoiceService {
         data: [],
       });
     }
+    const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
+      WHERE progress_approval = 0
+          AND doc_no = '${doc_no}'
+      `)
+    if(existingFile[0].count > 0){
+      return({
+        statusCode:201,
+        message:'invoice already generated',
+        data:[]
+      })
+    }
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_ar_inv_entry_post_manual_web
             WHERE doc_no = '${doc_no}' 
@@ -640,6 +664,18 @@ export class ApiInvoiceService {
         message: 'doc_no, name and related_class must be filled',
         data: [],
       });
+    }
+    const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
+      WHERE progress_approval = 0
+          AND doc_no = '${doc_no}'
+      `)
+    if(existingFile[0].count > 0){
+      return({
+        statusCode:201,
+        message:'invoice already generated',
+        data:[]
+      })
     }
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
            SELECT * FROM mgr.v_ar_inv_proforma_web

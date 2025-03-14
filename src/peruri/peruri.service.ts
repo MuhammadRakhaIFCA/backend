@@ -70,6 +70,7 @@ export class PeruriService {
 
   async stamping(body: Record<any, any>) {
     const { company_cd, file_name, file_type, audit_user } = body;
+    const mode = process.env.NEST_PUBLIC_ENV_MODE
     if (this.isEmpty(company_cd) || this.isEmpty(file_name) || this.isEmpty(file_type) || this.isEmpty(audit_user)) {
       throw new BadRequestException({
         statusCode: 400,
@@ -119,9 +120,16 @@ export class PeruriService {
     };
 
     //2 . login ke peruri dengan menggunakan username dan password dari database tadi untuk dapat token
+    let loginUrl:string = ''
+    if(mode === 'sandbox'){
+      loginUrl = 'https://backendservicestg.e-meterai.co.id/api/users/login'
+    }
+    else if (mode === 'production'){
+      loginUrl = 'https://backendservice.e-meterai.co.id/api/users/login'
+    }
     const loginData = await firstValueFrom(
       this.httpService.post(
-        'https://backendservicestg.e-meterai.co.id/api/users/login',
+        loginUrl,
         loginBody,
       ),
     );
@@ -199,9 +207,16 @@ export class PeruriService {
     // }
     if (file[0]?.file_status_sign === `P`) {
       console.log("getting sn")
+      let gettingSnUrl:string = ''
+      if(mode === 'sandbox'){
+        gettingSnUrl = 'https://stampv2stg.e-meterai.co.id/chanel/stampv2'
+      }
+      else if (mode === 'production'){
+        gettingSnUrl = 'https://stampv2.e-meterai.co.id/chanel/stampv2'
+      }
       const sn = await firstValueFrom(
         this.httpService.post(
-          'https://stampv2stg.e-meterai.co.id/chanel/stampv2',
+          gettingSnUrl,
           {
             isUpload: false,
             namadoc: '4b',
@@ -275,10 +290,17 @@ export class PeruriService {
     //https://stampv2stg.e-meterai.co.id/snqr/qrimage
 
     const sn = snResponse[0]?.file_sn_sign;
+    let gettingImageUrl:string = ''
+    if(mode === 'sandbox'){
+      gettingImageUrl = `https://stampv2stg.e-meterai.co.id/snqr/qrimage?serialnumber=${sn}&onprem=true`
+    }
+    else if (mode === 'production'){
+      gettingImageUrl = `https://stampv2.e-meterai.co.id/snqr/qrimage?serialnumber=${sn}&onprem=true`
+    }
     try {
       const getStampImage = await firstValueFrom(
         this.httpService.get(
-          `https://stampv2stg.e-meterai.co.id/snqr/qrimage?serialnumber=${sn}&onprem=true`,
+          gettingImageUrl,
           { headers },
         ),
       );
@@ -344,26 +366,7 @@ export class PeruriService {
     try {
       console.log('sn : ' + sn);
       console.log('token : ' + token);
-      console.log(
-        {
-          certificatelevel: 'NOT_CERTIFIED',
-          dest: `/sharefolder/SIGNED/${company_cd}/${upper_file_type}/${signedFileName}`,
-          docpass: '',
-          jwToken: token,
-          location: 'JAKARTA',
-          profileName: 'emeteraicertificateSigner',
-          reason: 'Dokumen',
-          refToken: sn,
-          spesimenPath: `/sharefolder/STAMP/${company_cd}/${upper_file_type}/${fileName}`,
-          src: `/sharefolder/UNSIGNED/${company_cd}/${upper_file_type}/${file_name}`,
-          visLLX: visLLX,
-          visLLY: visLLY,
-          visURX: visURX,
-          visURY: visURY,
-          visSignaturePage: 1,
-        }
-      )
-      const mode = process.env.NEST_PUBLIC_ENV_MODE
+      
       let stampingUrl:string = ''
       if (mode === 'sandbox'){
         stampingUrl = 'http://emstag.property365.co.id:8010/adapter/pdfsigning/rest/docSigningZ'
