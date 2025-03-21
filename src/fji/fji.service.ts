@@ -516,6 +516,7 @@ export class FjiService {
     }
 
     async assignTypeApproval(data: Record<any, any>) {
+        console.log(data)
         const { type_id, detail } = data
         if (this.isEmpty(type_id)) {
             throw new BadRequestException({

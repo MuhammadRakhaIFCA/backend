@@ -70,7 +70,7 @@ export class PeruriService {
   }
 
   async stamping(body: Record<any, any>) {
-    const { company_cd, file_name, file_type, audit_user } = body;
+    const { company_cd, file_name, file_type, process_id, audit_user } = body;
     const mode = process.env.NEST_PUBLIC_ENV_MODE
     if (this.isEmpty(company_cd) || this.isEmpty(file_name) || this.isEmpty(file_type) || this.isEmpty(audit_user)) {
       throw new BadRequestException({
@@ -96,11 +96,11 @@ export class PeruriService {
     let approved_file: Array<any>
     if (file_type === 'receipt') {
       approved_file = await this.fjiDatabase.$queryRawUnsafe(`
-        SELECT * FROM mgr.ar_blast_or WHERE filenames = '${file_name}'
+        SELECT * FROM mgr.ar_blast_or WHERE filenames = '${file_name}' AND process_id = '${process_id}'
         `);
     } else {
       approved_file = await this.fjiDatabase.$queryRawUnsafe(`
-          SELECT * FROM mgr.ar_blast_inv WHERE filenames = '${file_name}'
+          SELECT * FROM mgr.ar_blast_inv WHERE filenames = '${file_name}' AND process_id = '${process_id}'
           `);
     }
 
@@ -752,11 +752,12 @@ export class PeruriService {
   }
 
   async topup(body: Record<any, any>) {
-    const { company_cd, transaction_number } = body
+    const { company_cd, transaction_number, type_topup } = body
     try {
       const saldo: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
         SELECT top(1) saldo, qty FROM mgr.peruri_stamp_balance
         WHERE company_cd = '${company_cd}'
+        AND type_topup = '${type_topup}'
         ORDER BY audit_date desc
         `)
       const transaction: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`

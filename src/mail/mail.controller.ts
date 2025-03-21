@@ -4,6 +4,8 @@ import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateMailEventDto } from './dto/create-mail-event.dto';
+import { diskStorage } from 'multer';
+import * as path from 'path'
 
 @Controller('api/mail')
 export class MailController {
@@ -32,27 +34,35 @@ export class MailController {
   // }
 
 
-  @Get('blast-email-inv/:doc_no')
-  async blastEmailInv(@Param('doc_no') doc_no: string) {
-    return this.mailService.blastEmailInv(doc_no)
+  @Get('blast-email-inv/:doc_no/:process_id')
+  async blastEmailInv(
+    @Param('doc_no') doc_no: string,
+    @Param('process_id') process_id: string
+  ) {
+    return this.mailService.blastEmailInv(doc_no, process_id)
   }
   @Get('blast-email-or/:doc_no')
-  async blastEmailOr(@Param('doc_no') doc_no: string) {
-    return this.mailService.blastEmailOr(doc_no)
+  async blastEmailOr(
+    @Param('doc_no') doc_no: string,
+    @Param('process_id') process_id: string
+  ) {
+    return this.mailService.blastEmailOr(doc_no, process_id)
   }
   @Get('resend-inv')
   async resendInvoice(
     @Query('doc_no') doc_no: string,
+    @Query('process_id') process_id: string,
     @Query('email') email: string,
   ){
-    return this.mailService.resendEmailInv(doc_no, email)
+    return this.mailService.resendEmailInv(doc_no, process_id, email)
   }
   @Get('resend-or')
   async resendOR(
     @Query('doc_no') doc_no: string,
+    @Query('process_id') process_id: string,
     @Query('email') email: string,
   ){
-    return this.mailService.resendEmailOr(doc_no, email)
+    return this.mailService.resendEmailOr(doc_no, process_id, email)
   }
   @Post('edit-config')
   async editConfig(@Body() data: Record<any, any>) {
@@ -62,4 +72,19 @@ export class MailController {
   async getConfig() {
     return this.mailService.getEmailConfig()
   }
+  @Post('request-regenerate-invoice')
+  async requestRegenerateInvoice(
+    @Body() body: Record<any, any>
+  ){
+    const {doc_no, process_id} = body
+    return this.mailService.requestRegenerateInvoice(doc_no, process_id)
+  }
+  @Post('request-regenerate-receipt')
+  async requestRegenerateReceipt(
+    @Body() body: Record<any, any>
+  ){
+    const {doc_no, process_id} = body
+    return this.mailService.requestRegenerateReceipt(doc_no, process_id)
+  }
+
 }

@@ -1027,6 +1027,346 @@ export class PdfgenerateService {
 
     }
 
+    async generateSummaryW(
+        entity_cd: string,
+        project_no: string,
+        debtor_acct: string,
+        read_date: string,
+        filenames4: string,
+    ){
+        console.log("inside generateSummaryW");
+        console.log({
+            entity_cd,
+            project_no,
+            debtor_acct,
+            read_date,
+        });
+        const currentDate = moment().format("DD/MM/YYYY")
+        const currentTime = moment().format("HH:mm:ss")
+        
+        const readDate = moment(read_date).format("MMMM YYYY")
+        const doc = new PDFDocument({ margin: 0, size: 'a4', layout: 'landscape' });
+        const rootFolder = path.resolve(
+            __dirname,
+            '..',
+            '..',
+            process.env.ROOT_PDF_FOLDER,
+        );
+        const filePath = `${rootFolder}/schedule/${filenames4}`;
+
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
+        }
+
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+
+        const result:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT * FROM mgr.v_ar_monthly_water_web
+            WHERE entity_cd = '${entity_cd}' 
+                AND project_no = '${project_no}'
+                AND debtor_acct = '${debtor_acct}' 
+                AND read_date = '${read_date}'
+        `)
+        
+        console.log("summary table length : " + result.length)
+        const docDate = moment(result[0].doc_date).format("MMMM YYYY")
+        doc.fontSize(6)
+        .text(result[0].entity_name, 30, 30, { align: 'center', width:780 })
+        .text(currentDate, 30, 30, { align: 'left', width:780 })
+        .text('page 1 of 1', 30, 30, { align: 'right', width:780 })
+        .text('"Monthly Water Monthly List"', 30, 40, { align: 'center', width:780 })
+        .text(currentTime, 30, 40, { align: 'left', width:780 })
+
+        .text('Period', 30, 100)
+        .text('Reading Period', 30, 110)
+        .text('Tower / Block', 30, 120)
+
+        .text(':', 100, 100)
+        .text(':', 100, 110)
+        .text(':', 100, 120)
+
+        .text(docDate, 110, 100)
+        .text(readDate, 110, 110)
+        .text(result[0].project_descs, 110, 120)
+
+        
+        .text('No', 30, 150)
+        .text('ID#', 55, 150)
+        .text('Name', 100, 150)
+        .text('Doc Date', 190, 150)
+        .text('Meter ID', 235, 150)
+        .text('Standing Charge', 285, 140)
+        .text('/ TTLB', 300, 150)
+        .text('Finish', 340, 150)
+        .text('Start', 380, 150)
+        .text('PF', 420, 150)
+        .text('Meter', 446, 140)
+        .text('Usage', 445, 150)
+        .text('Rate', 485, 150)
+        .text('Consumption', 520, 150)
+        .text('Billing Apportionment', 580, 150)
+        .text('Rounded', 655, 140)
+        .text('To', 665, 150)
+        .text('After Withholding', 720, 140)
+        .text('Gross-Up', 730, 150)
+
+        .rect(30, 165, 780, 1).stroke()
+        let y = 180
+        let totalTtlb = 0
+        let totalConsumption = 0
+        let totalBillingApportionment = 0
+        let totalRounding = 0
+        let totalTrxAmt = 0
+        for (let i = 0; i < result.length; i++){
+            let ttlb:any;
+            let usage11:any
+            let billingApportionment:any
+            let rounding:any
+            if(result[i].as_reduction === 'N'){
+                ttlb = Number(result[i].capacity_rate).toFixed(2)
+                usage11 = Number(result[i].usage_11).toFixed(2)
+                billingApportionment = (
+                    Number(result[i].apportion_percent) / 100
+                    * (Number(result[i].base_amt1) + Number(result[i].gen_amt1))
+                ).toFixed(2)
+                rounding = Number(result[i].rounding).toFixed(2)
+            }
+            else {
+                ttlb = (Number(result[i].capacity_rate) - 1).toFixed(2)
+                usage11 = (Number(result[i].usage_11) - 1).toFixed(2)
+                billingApportionment = (
+                    Number(result[i].apportion_percent) / 100
+                    * (Number(result[i].base_amt1) + Number(result[i].gen_amt1) - 1)
+                ).toFixed(2)
+                rounding = (Number(result[i].rounding) - 1).toFixed(2)
+            }
+            totalTtlb += Number(ttlb)
+            totalConsumption += Number(usage11)
+            totalBillingApportionment += Number(billingApportionment)
+            totalRounding += Number(rounding)
+            totalTrxAmt += Number(result[i].trx_amt)
+            doc.text(i+1, 35, y)
+                .text(debtor_acct, 50, y)
+                .text(result[i].name, 80, y)
+                .text(moment(result[i].doc_date).format("DD/MM/YYYY"), 190, y)
+                .text(result[i].meter_id, 230, y)
+                .text(ttlb, 280, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].curr_read), 320, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].last_read), 360, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].multiplier), 420, y)
+                .text(this.formattedNumber(result[i].usage), 430, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].usage_rate1), 480, y)
+                .text(this.formattedNumber(usage11), 510, y, {width: 40, align: "right"})
+                .text(`${this.formattedNumber(result[i].apportion_percent)} % = `, 570, y)
+                .text(`${this.formattedNumber(billingApportionment)}`, 600, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(rounding), 640, y, {width: 40, align: "right"})
+                .text(`${this.formattedNumber(result[i].deduct_markup_p)} % = ${result[i].currency_cd}`, 690, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].trx_amt), 740, y, {width: 40, align: "right"})
+            y+=15
+        }
+        doc.rect(30, y, 780, 1).stroke()
+        y+=10
+        console.log("totalTtlb : " + totalTtlb)
+        console.log("totalConsumption : " + totalConsumption)
+        console.log("totalBillingApportionment : " + totalBillingApportionment)
+        doc.text(totalTtlb.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 280, y,{width: 40, align: "right"})
+            .text(totalConsumption.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 510, y, {width: 40, align: "right"})
+            .text(`${totalBillingApportionment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 600, y, {width: 40, align: "right"})
+            .text(totalRounding.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640, y, {width: 40, align: "right"})
+            .text(result[0].currency_cd, 690, y, {width: 40, align: "right"})
+            .text(totalTrxAmt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 740, y, {width: 40, align: "right"})
+
+
+
+        doc.end();
+    }
+
+    async generateSummaryE(
+        entity_cd: string,
+        project_no: string,
+        debtor_acct: string,
+        read_date: string,
+        filenames4: string,
+    ){
+        console.log("inside generateSummaryE");
+        console.log({
+            entity_cd,
+            project_no,
+            debtor_acct,
+            read_date,
+        });
+        const result:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.v_ar_monthly_elec_web
+                WHERE entity_cd = '${entity_cd}' 
+                    AND project_no = '${project_no}'
+                    AND debtor_acct = '${debtor_acct}' 
+                    AND read_date = '${read_date}'
+            `)
+        const currentDate = moment().format("DD/MM/YYYY")
+        const currentTime = moment().format("HH:mm:ss")
+        const docDate = moment(result[0].doc_date).format("MMMM YYYY")
+        const readDate = moment(read_date).format("MMMM YYYY")
+        console.log("summary table length : " + result.length)
+
+        const doc = new PDFDocument({ margin: 0, size: 'a4', layout: 'landscape' });
+        const rootFolder = path.resolve(
+            __dirname,
+            '..',
+            '..',
+            process.env.ROOT_PDF_FOLDER,
+        );
+        const filePath = `${rootFolder}/schedule/${filenames4}`;
+
+        if (!fs.existsSync(`${rootFolder}/schedule`)) {
+            fs.mkdirSync(`${rootFolder}/schedule`, { recursive: true });
+        }
+
+        const writeStream = fs.createWriteStream(filePath);
+        doc.pipe(writeStream);
+
+        doc.fontSize(6)
+        .text(result[0].entity_name, 30, 30, { align: 'center', width:780 })
+        .text(currentDate, 30, 30, { align: 'left', width:780 })
+        .text('page 1 of 1', 30, 30, { align: 'right', width:780 })
+        .text('"Monthly Water Monthly List"', 30, 40, { align: 'center', width:780 })
+        .text(currentTime, 30, 40, { align: 'left', width:780 })
+
+        .text('Period', 30, 100)
+        .text('Reading Period', 30, 110)
+        .text('Tower / Block', 30, 120)
+
+        .text(':', 100, 100)
+        .text(':', 100, 110)
+        .text(':', 100, 120)
+
+        .text(docDate, 110, 100)
+        .text(readDate, 110, 110)
+        .text(result[0].project_descs, 110, 120)
+
+        
+        .text('No', 30, 150)
+        .text('ID#', 55, 150)
+        .text('Name', 100, 150)
+        .text('Doc Date', 190, 150)
+        .text('Meter ID', 235, 150)
+        .text('Standing Charge', 285, 140)
+        .text('/ TTLB', 300, 150)
+        .text('Finish', 340, 150)
+        .text('Start', 380, 150)
+        .text('PF', 420, 150)
+        .text('Meter', 446, 140)
+        .text('Usage', 445, 150)
+        .text('Rate', 485, 150)
+        .text('Consumption', 520, 150)
+        .text('Billing Apportionment', 580, 150)
+        .text('Rounded', 655, 140)
+        .text('To', 665, 150)
+        .text('After Withholding', 720, 140)
+        .text('Gross-Up', 730, 150)
+
+        .rect(30, 165, 780, 1).stroke()
+        let y = 180
+        let totalTtlb = 0
+        let totalConsumption = 0
+        let totalBillingApportionment = 0
+        let totalRounding = 0
+        let totalTrxAmt = 0
+        for (let i = 0; i < result.length; i++){
+            let ttlb:any;
+            let usage11:any
+            let billingApportionment:any
+            let rounding:any
+            if(result[i].as_reduction === 'N'){
+                ttlb = Number(result[i].capacity_rate).toFixed(2)
+                usage11 = Number(result[i].usage_11).toFixed(2)
+                billingApportionment = (
+                    Number(result[i].apportion_percent) / 100
+                    * (Number(result[i].base_amt1) + Number(result[i].gen_amt1))
+                ).toFixed(2)
+                rounding = Number(result[i].rounding).toFixed(2)
+            }
+            else {
+                ttlb = (Number(result[i].capacity_rate) - 1).toFixed(2)
+                usage11 = (Number(result[i].usage_11) - 1).toFixed(2)
+                billingApportionment = (
+                    Number(result[i].apportion_percent) / 100
+                    * (Number(result[i].base_amt1) + Number(result[i].gen_amt1) - 1)
+                ).toFixed(2)
+                rounding = (Number(result[i].rounding) - 1).toFixed(2)
+            }
+            totalTtlb += Number(ttlb)
+            totalConsumption += Number(usage11)
+            totalBillingApportionment += Number(billingApportionment)
+            totalRounding += Number(rounding)
+            totalTrxAmt += Number(result[i].trx_amt)
+            doc.text(i+1, 35, y)
+                .text(debtor_acct, 50, y)
+                .text(result[i].name, 80, y)
+                .text(moment(result[i].doc_date).format("DD/MM/YYYY"), 190, y)
+                .text(result[i].meter_id, 230, y)
+                .text(ttlb, 280, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].curr_read), 320, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].last_read), 360, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].multiplier), 420, y)
+                .text(this.formattedNumber(result[i].usage), 430, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].usage_rate1), 480, y)
+                .text(this.formattedNumber(usage11), 510, y, {width: 40, align: "right"})
+                .text(`${this.formattedNumber(result[i].apportion_percent)} % = `, 570, y)
+                .text(`${this.formattedNumber(billingApportionment)}`, 600, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(rounding), 640, y, {width: 40, align: "right"})
+                .text(`${this.formattedNumber(result[i].deduct_markup_p)} % = ${result[i].currency_cd}`, 690, y, {width: 40, align: "right"})
+                .text(this.formattedNumber(result[i].trx_amt), 740, y, {width: 40, align: "right"})
+            y+=15
+        }
+        doc.rect(30, y, 780, 1).stroke()
+        y+=10
+        console.log("totalTtlb : " + totalTtlb)
+        console.log("totalConsumption : " + totalConsumption)
+        console.log("totalBillingApportionment : " + totalBillingApportionment)
+        doc.text(totalTtlb.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 280, y,{width: 40, align: "right"})
+            .text(totalConsumption.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 510, y, {width: 40, align: "right"})
+            .text(`${totalBillingApportionment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 600, y, {width: 40, align: "right"})
+            .text(totalRounding.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640, y, {width: 40, align: "right"})
+            .text(result[0].currency_cd, 690, y, {width: 40, align: "right"})
+            .text(totalTrxAmt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 740, y, {width: 40, align: "right"})
+
+
+
+        doc.end();
+
+        try {
+            await this.connect();
+            const rootFolder = path.resolve(
+                __dirname,
+                '..',
+                '..',
+                process.env.ROOT_PDF_FOLDER,
+            );
+            const filePath = `${rootFolder}/schedule/${filenames4}`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${filenames4}`);
+        } catch (error) {
+            console.log('Error during upload:.', error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log('Disconnecting from FTP servers');
+            await this.disconnect();
+        }
+    }
+
+
+    formattedNumber(string:string){
+        return Number(string).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    }
+
     async generatePdfFirstJakarta(data: Record<any, any>) {
         const doc = new PDFDocument({ margin: 0, size: 'a4' });
         const filePath = `./invoice/first_jakarta_${data.docNo}.pdf`;

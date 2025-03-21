@@ -53,6 +53,40 @@ export class PdfgenerateController {
   async generatePdfFirstJakarta4(@Body() body: Record<any, any>) {
     return await this.pdfgenerateService.generatePdfFirstJakarta4(body)
   }
+  @Post('summary-w')
+  async generateSummaryW(@Body() body: Record<any, any>){
+    const {
+      entity_cd,
+      project_no,
+      debtor_acct,
+      read_date,
+      filenames4
+    } = body
+    return await this.pdfgenerateService.generateSummaryW(
+      entity_cd,
+      project_no,
+      debtor_acct,
+      read_date,
+      filenames4
+    )
+  }
+  @Post('summary-e')
+  async generateSummaryE(@Body() body: Record<any, any>){
+    const {
+      entity_cd,
+      project_no,
+      debtor_acct,
+      read_date,
+      filenames4
+    } = body
+    return await this.pdfgenerateService.generateSummaryE(
+      entity_cd,
+      project_no,
+      debtor_acct,
+      read_date,
+      filenames4
+    )
+  }
   // @Post('first-jakarta-5')
   // async generatePdfFirstJakarta5(@Body() body: Record<any, any>) {
   //   return await this.pdfgenerateService.generatePdfFirstJakarta5(body)

@@ -748,6 +748,7 @@ export class ReceiptService {
         approval_user: string,
         approval_remarks: string,
         approval_status: string,
+        approver_level: number,
     ) {
         if (
             this.isEmptyString(doc_no) ||
@@ -773,20 +774,25 @@ export class ReceiptService {
                 `);
         try {
             const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
-                UPDATE mgr.ar_blast_inv_approval_dtl
-                SET approval_status = ${approval_status}, approval_date = GETDATE(), 
-                approval_remarks = ${approval_remarks}
-                WHERE doc_no = ${doc_no} AND process_id = ${process_id} 
-                AND approval_user = ${approval_user}
-                    
-                    `);
+                 UPDATE mgr.ar_blast_inv_approval_dtl
+                 SET approval_status = ${approval_status}, approval_date = GETDATE(),      
+                 WHERE doc_no = ${doc_no} 
+                 AND process_id = ${process_id}           
+                 AND approval_level = ${approver_level}      
+        `)
             if (result === 0) {
                 throw new BadRequestException({
-                    statusCode: 400,
-                    message: 'you already approved this document ',
-                    data: [],
+                statusCode: 400,
+                message: 'this document have alrady been approved',
+                data: [],
                 });
             }
+            await this.fjiDatabase.$executeRaw(Prisma.sql`
+                UPDATE mgr.ar_blast_inv_approval_dtl
+                SET approval_remarks = ${approval_remarks}
+                WHERE doc_no = ${doc_no} AND process_id = ${process_id} 
+                AND approval_user = ${approval_user}
+                `);
             if (approval_status === 'C') {
                 try {
                     await this.fjiDatabase.$executeRawUnsafe(`
@@ -1195,6 +1201,48 @@ export class ReceiptService {
         }
     }
 
+    async uploadExtraFile(
+        fileName: string, filePath: string, doc_no: string, process_id: string
+      ){
+        try {
+          await this.connect();
+          if (!fs.existsSync(filePath)) {
+              console.error(`Local file does not exist: ${filePath}`);
+          }
+    
+          await this.upload(filePath, `/UNSIGNED/GQCINV/EXTRA/${fileName}`);
+    
+      } catch (error) {
+          console.log("Error during upload:.", error);
+          throw new BadRequestException({
+              statusCode: 400,
+              message: 'Failed to upload to FTP',
+              data: [error],
+          });
+      }
+      finally {
+          console.log("Disconnecting from FTP servers");
+          await this.disconnect();
+      }
+    
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+          UPDATE mgr.ar_blast_inv SET filenames5 = '${fileName}'
+          WHERE doc_no = '${doc_no}'
+          AND process_id = '${process_id}'
+          `)
+      if (result === 0) {
+          throw new BadRequestException({
+              statusCode: 400,
+              message: 'Failed to update ar blast table',
+              data: [],
+          });
+      }
+      return {
+          statusCode: 201,
+          message: 'extra files uploaded successfully',
+          data: []
+      }
+      }
 
     async receiptInqueries() {
         const orNotStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`

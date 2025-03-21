@@ -81,8 +81,9 @@ export class ApiInvoiceController {
     @Query('meter_type') meter_type: string,
     @Query('name') name: string,
     @Query('related_class') related_class: string,
+    @Query('read_date') read_date: string,
   ) {
-    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name, related_class);
+    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name, related_class, read_date);
   }
   @Get('invoice-approve')
   async approve(
@@ -91,8 +92,9 @@ export class ApiInvoiceController {
     @Query('approval_user') approval_user: string,
     @Query('approval_remarks') approval_remarks: string,
     @Query('approval_status') approval_status: string,
+    @Query('approval_level') approval_level: string,
   ) {
-    return this.apiInvoiceService.approve(doc_no, process_id, approval_user, approval_remarks, approval_status);
+    return this.apiInvoiceService.approve(doc_no, process_id, approval_user, approval_remarks, approval_status, +approval_level);
   }
   @Get('invoice-reject')
   async reject(

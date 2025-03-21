@@ -3,6 +3,8 @@ import { ReceiptService } from './receipt.service';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as fs from 'fs'
+import * as path from 'path'
+import { diskStorage } from 'multer';
 
 @Controller('api')
 export class ReceiptController {
@@ -124,8 +126,9 @@ export class ReceiptController {
     @Query('approval_user') approval_user: string,
     @Query('approval_remarks') approval_remarks: string,
     @Query('approval_status') approval_status: string,
+    @Query('approval_level') approval_level: string,
   ) {
-    return this.receiptService.approve(doc_no, process_id, approval_user, approval_remarks, approval_status);
+    return this.receiptService.approve(doc_no, process_id, approval_user, approval_remarks, approval_status, +approval_level);
   }
   @Get('receipt-reject')
   async reject(
@@ -165,5 +168,25 @@ export class ReceiptController {
   @Get('receipt-inqueries')
   async getInvoiceInqueries() {
     return this.receiptService.receiptInqueries()
+  }
+  @Post('upload-extra-file')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          cb(null, path.join(__dirname, '../../uploads/extraFiles'));
+        },
+      }),
+    }),
+  )
+  async uploadExtraFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: Record<any, any>,
+  ) {
+    const { doc_no, process_id } = body;
+    const fileName = file.originalname;
+    const filePath = file.path;
+
+    return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id);
   }
 }

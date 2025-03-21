@@ -204,12 +204,22 @@ export class FinpayService {
         }
     }
 
-    async getTransaction() {
+    async getTransaction(type_topup: string) {
         try {
-            const response = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.finpay_transaction
-                ORDER BY audit_date DESC
+            let response:Array<any>
+            if(type_topup !== "all"){
+                response = await this.fjiDatabase.$queryRawUnsafe(`
+                    SELECT * FROM mgr.finpay_transaction
+                    ORDER BY audit_date DESC
+                    WHERE type_topup = '${type_topup}'
+                    `)
+            }
+            else {
+                response = await this.fjiDatabase.$queryRawUnsafe(`
+                    SELECT * FROM mgr.finpay_transaction
+                    ORDER BY audit_date DESC
                 `)
+            }
             return ({
                 statusCode: 200,
                 message: "get transaction success",

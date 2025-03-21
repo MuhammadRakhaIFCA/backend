@@ -288,7 +288,7 @@ export class MailService {
     })
   }
 
-  async blastEmailOr(doc_no: string) {
+  async blastEmailOr(doc_no: string, process_id: string) {
     const baseUrl = process.env.FTP_BASE_URL;
     const send_id = Array(6)
       .fill(null)
@@ -297,7 +297,7 @@ export class MailService {
   
     // Fetch the record for the given doc_no
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}'
+      SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}' AND process_id = '${process_id}'
     `);
   
     if (!result || result.length === 0) {
@@ -447,7 +447,8 @@ export class MailService {
       result[0].entity_cd,
       result[0].project_no,
       result[0].debtor_acct,
-      result[0].invoice_tipe
+      result[0].invoice_tipe,
+      process_id
     );
   
     // Loop through the email addresses to insert a log for each email
@@ -498,7 +499,7 @@ export class MailService {
   //   return { error: true, message: 'Unable to process email, because the file does not exist' };
   // }
 
-  async blastEmailInv(doc_no: string) {
+  async blastEmailInv(doc_no: string, process_id: string) {
     const baseUrl = process.env.FTP_BASE_URL;
     const send_id = Array(6)
       .fill(null)
@@ -507,7 +508,7 @@ export class MailService {
   
     // Fetch the record for the given doc_no
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
+      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}' AND process_id = ${process_id}
     `);
   
     if (!result || result.length === 0) {
@@ -570,6 +571,18 @@ export class MailService {
           ? [{
               filename: result[0].filenames3,
               path: `${rootFolder}/FAKTUR/${result[0].filenames3}`,
+            }]
+          : []),
+        ...(result[0].filenames4
+          ? [{
+              filename: result[0].filenames4,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames4}`,
+            }]
+          : []),
+        ...(result[0].filenames5
+          ? [{
+              filename: result[0].filenames5,
+              path: `${rootFolder}/MISC/${result[0].filenames5}`,
             }]
           : []),
       ],
@@ -657,7 +670,8 @@ export class MailService {
       result[0].entity_cd,
       result[0].project_no,
       result[0].debtor_acct,
-      result[0].invoice_tipe
+      result[0].invoice_tipe,
+      result[0].process_id
     );
   
     // Loop through the email addresses to insert a log for each email
@@ -693,10 +707,12 @@ export class MailService {
     };
   }
 
-  async resendEmailInv(doc_no:string, email:string){
+  async resendEmailInv(doc_no:string, process_id:string, email:string){
     console.log("resending invoice to email : " + email)
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}'
+      SELECT * FROM mgr.ar_blast_inv 
+      WHERE doc_no = '${doc_no}'
+      AND process_id = '${process_id}'
       `);
       
       if (!result || result.length === 0) {
@@ -790,7 +806,7 @@ export class MailService {
     }
 
     try {
-      await this.updateInvMsgLog(email, doc_no, status_code, response_message)
+      await this.updateInvMsgLog(email, doc_no, status_code, response_message, result[0].send_id)
     } catch (error) {
       throw error
     }
@@ -802,9 +818,10 @@ export class MailService {
     })
   }
   
-  async resendEmailOr(doc_no:string, email:string){
+  async resendEmailOr(doc_no:string, process_id:string, email:string){
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}'
+      AND process_id = '${process_id}'
       `);
       
       if (!result || result.length === 0) {
@@ -896,7 +913,7 @@ export class MailService {
     }
 
     try {
-      await this.updateOrMsgLog(email, doc_no, status_code, response_message)
+      await this.updateOrMsgLog(email, doc_no, status_code, response_message, result[0].send_id)
     } catch (error) {
       throw error
     }
@@ -908,9 +925,65 @@ export class MailService {
     })
   }
 
+  async requestRegenerateInvoice(
+    doc_no:string,
+    process_id:string
+  ){
+    try {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.ar_blast_inv SET send_status = 'R'
+        WHERE doc_no = '${doc_no}'
+        AND process_id = '${process_id}'
+        `)
+      if (result === 0){
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Document not found or already rejected',
+          data : []
+        })
+      }
+      return ({
+        statusCode: 200,
+        message: 'Invoice cancelled successfully',
+        data: []
+      })
+    } catch (error) {
+      throw error
+    }
+  }
+  async requestRegenerateReceipt(
+    doc_no:string,
+    process_id:string
+  ){
+    try {
+      const result = await this.fjiDatabase.$executeRawUnsafe(`
+        UPDATE mgr.ar_blast_or SET send_status = 'R'
+        WHERE doc_no = '${doc_no}'
+        AND process_id = '${process_id}'
+        `)
+      if (result === 0){
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Document not found or already rejected',
+          data : []
+        })
+      }
+      return ({
+        statusCode: 200,
+        message: 'receipt cancelled successfully',
+        data: []
+      })
+    } catch (error) {
+      throw error
+    }
+  }
+
+
+
   async updateArBlastInvTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
-    entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string
+    entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string,
+    process_id: string
   ) {
 
     try {
@@ -923,6 +996,7 @@ export class MailService {
         AND debtor_acct = '${debtor_acct}'
         AND invoice_tipe = '${invoice_tipe}'
         AND doc_no = '${doc_no}'
+        AND process_id = '${process_id}'
         `)
 
 
@@ -937,7 +1011,8 @@ export class MailService {
   }
   async updateArBlastOrTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
-    entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string
+    entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string,
+    process_id
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
@@ -949,6 +1024,7 @@ export class MailService {
         AND debtor_acct = '${debtor_acct}'
         AND invoice_tipe = '${invoice_tipe}'
         AND doc_no = '${doc_no}'
+        AND process_id = '${process_id}'
         `)
 
     } catch (error) {
@@ -1021,7 +1097,7 @@ export class MailService {
 
   async updateOrMsgLog(
     email_addr: string, doc_no: string, status_code: number, 
-    response_message: string
+    response_message: string, send_id: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
@@ -1032,6 +1108,7 @@ export class MailService {
           WHERE
             email_addr = '${email_addr}'
             AND doc_no = '${doc_no}'
+            AND send_id = '${send_id}'
         `)
       if (result === 0) {
         throw new BadRequestException({
@@ -1044,12 +1121,14 @@ export class MailService {
         SELECT COUNT(doc_no) as count from mgr.ar_blast_or_log_msg 
           where doc_no = '${doc_no}'
           AND status_code <> 200
+          AND send_id = '${send_id}'
         `)
 
       if (failedSent[0].count === 0){
         await this.fjiDatabase.$executeRawUnsafe(`
           UPDATE mgr.ar_blast_or SET send_status = 'S'
           WHERE doc_no = '${doc_no}'
+          AND send_id = '${send_id}'
         `)
       }
     } catch (error) {
@@ -1060,7 +1139,7 @@ export class MailService {
   }
   async updateInvMsgLog(
     email_addr: string, doc_no: string, status_code: number, 
-    response_message: string
+    response_message: string, send_id: string
   ) {
     console.log("updating inv_msg_log : " + response_message)
     try {
@@ -1072,6 +1151,7 @@ export class MailService {
           WHERE
             email_addr = '${email_addr}'
             AND doc_no = '${doc_no}'
+            AND send_id = '${send_id}'
         `)
       if (result === 0) {
         throw new BadRequestException({
@@ -1085,12 +1165,14 @@ export class MailService {
         SELECT COUNT(doc_no) as count from mgr.ar_blast_inv_log_msg 
           where doc_no = '${doc_no}'
           AND status_code <> 200
+          AND send_id = '${send_id}'
         `)
 
       if (failedSent[0].count === 0){
         await this.fjiDatabase.$executeRawUnsafe(`
           UPDATE mgr.ar_blast_inv SET send_status = 'S'
           WHERE doc_no = '${doc_no}'
+          AND send_id = '${send_id}'
         `)
       }
     } catch (error) {

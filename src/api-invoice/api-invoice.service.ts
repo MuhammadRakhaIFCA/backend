@@ -253,6 +253,7 @@ export class ApiInvoiceService {
     meter_type: string,
     name: string,
     related_class: string,
+    read_date: string
   ) {
     if (
       this.isEmpty(doc_no) ||
@@ -287,7 +288,12 @@ export class ApiInvoiceService {
       WHERE doc_no = '${doc_no}'
       AND related_class = '${related_class}'
       `)
-    const revision_count = Number(count[0].count)
+    const resendCount: Array<{count: number}> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT count(doc_no) as count from mgr.ar_blast_inv
+      WHERE doc_no = '${doc_no}'
+      AND send_status = 'R'
+      `)
+    const revision_count = Number(count[0].count) - Number(resendCount[0].count)
     console.log(count)
     console.log("revision count : " + revision_count)
     if (result.length === 0) {
@@ -346,6 +352,7 @@ export class ApiInvoiceService {
     try {
       await this.pdfService.generatePdfSchedule(pdfBody);
       let filenames2 = '';
+      let filenames4 = '';
       if (bill_type === 'E' && meter_type === 'G') {
         if (revision_count > 0) {
           filenames2 = `fji_reference_g_${doc_no}_rev_${revision_count}.pdf`;
@@ -376,8 +383,10 @@ export class ApiInvoiceService {
       } else if (bill_type === 'E' && meter_type === 'W') {
         if (revision_count > 0) {
           filenames2 = `fji_reference_w_${doc_no}_rev_${revision_count}.pdf`;
+          filenames4 = `fji_summary_w_${doc_no}_rev_${revision_count}.pdf`;
         } else {
           filenames2 = `fji_reference_w_${doc_no}.pdf`;
+          filenames4 = `fji_summary_w_${doc_no}.pdf`;
         }
         await this.pdfService.generateReferenceW(
           doc_no,
@@ -385,11 +394,20 @@ export class ApiInvoiceService {
           result[0].doc_date,
           filenames2
         );
+        await this.pdfService.generateSummaryW(
+          result[0].entity_cd,
+          result[0].project_no,
+          result[0].debtor_acct,
+          read_date,
+          filenames4
+        )
       } else if (bill_type === 'E' && meter_type === 'E') {
         if (revision_count > 0) {
           filenames2 = `fji_reference_e_${doc_no}_rev_${revision_count}.pdf`;
+          filenames4 = `fji_summary_e_${doc_no}_rev_${revision_count}.pdf`;
         } else {
           filenames2 = `fji_reference_e_${doc_no}.pdf`;
+          filenames4 = `fji_summary_e_${doc_no}.pdf`;
         }
         await this.pdfService.generateReferenceE(
           doc_no,
@@ -397,6 +415,13 @@ export class ApiInvoiceService {
           result[0].doc_date,
           filenames2
         );
+        await this.pdfService.generateSummaryE(
+          result[0].entity_cd,
+          result[0].project_no,
+          result[0].debtor_acct,
+          read_date,
+          filenames4
+        )
       }
       const process_id = Array(6)
         .fill(null)
@@ -415,6 +440,7 @@ export class ApiInvoiceService {
         doc_amt: Number(result[0].base_amt) + Number(result[0].tax_amt),
         filenames,
         filenames2,
+        filenames4,
         process_id,
         audit_user: name,
         invoice_tipe: 'schedule',
@@ -774,10 +800,19 @@ export class ApiInvoiceService {
             ON mgr.v_ar_ledger_gen_bill_sch_web.related_class = mgr.v_assign_approval_level.type_cd
             WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
               AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-              AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval 
-                                  WHERE status_approve != 'C'
-                                  OR status_approve IS NULL
-                                  ) 
+              AND (
+                  doc_no NOT IN (
+                    SELECT doc_no 
+                    FROM mgr.ar_blast_inv_approval 
+                    WHERE status_approve != 'C'
+                      OR status_approve IS NULL
+                  )
+                  OR doc_no IN (
+                    SELECT doc_no 
+                    FROM mgr.ar_blast_inv
+                    WHERE send_status = 'R'
+                  )
+              )
               AND mgr.v_assign_approval_level.email = '${auditUser}'
               AND mgr.v_assign_approval_level.job_task = 'Maker' 
             `);
@@ -873,6 +908,7 @@ export class ApiInvoiceService {
     approval_user: string,
     approval_remarks: string,
     approval_status: string,
+    approver_level: number
   ) {
     if (
       this.isEmpty(doc_no) ||
@@ -898,21 +934,27 @@ export class ApiInvoiceService {
             WHERE process_id = '${process_id}' AND doc_no = '${doc_no}'
             `);
     try {
+
       const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
-                UPDATE mgr.ar_blast_inv_approval_dtl
-                SET approval_status = ${approval_status}, approval_date = GETDATE(), 
-                approval_remarks = ${approval_remarks}
-                WHERE doc_no = ${doc_no} AND process_id = ${process_id} 
-                AND approval_user = ${approval_user}
-                
-                `);
+                 UPDATE mgr.ar_blast_inv_approval_dtl
+                 SET approval_status = ${approval_status}, approval_date = GETDATE(),      
+                 WHERE doc_no = ${doc_no} 
+                 AND process_id = ${process_id}           
+                 AND approval_level = ${approver_level}      
+        `)
       if (result === 0) {
         throw new BadRequestException({
           statusCode: 400,
-          message: 'you already approved this document ',
+          message: 'this document have alrady been approved',
           data: [],
         });
       }
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_inv_approval_dtl
+        SET approval_remarks = ${approval_remarks}
+        WHERE doc_no = ${doc_no} AND process_id = ${process_id} 
+        AND approval_user = ${approval_user}
+        `);
       if (approval_status === 'C') {
         try {
           await this.fjiDatabase.$executeRawUnsafe(`
@@ -1007,11 +1049,13 @@ export class ApiInvoiceService {
         try {
           const result = await this.fjiDatabase.$executeRawUnsafe(`
             UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
-            WHERE process_id = '${process_id}' 
+            WHERE doc_no = '${doc_no}' 
+            AND process_id = '${process_id}' 
             `);
           const existingDocNo = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT COUNT(doc_no) as count from mgr.ar_blast_inv 
             WHERE doc_no = '${doc_no}'
+            AND process_id = '${process_id}'
             `)
           if(existingDocNo[0].count === 0){
             const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
@@ -1311,6 +1355,7 @@ export class ApiInvoiceService {
       doc_amt,
       filenames,
       filenames2,
+      filenames4,
       process_id,
       audit_user,
       invoice_tipe,
@@ -1321,12 +1366,12 @@ export class ApiInvoiceService {
       const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                     INSERT INTO mgr.ar_blast_inv_approval 
                     (entity_cd, project_no, debtor_acct, email_addr, 
-                    gen_date, bill_type, doc_no, related_class, doc_date, descs, doc_amt, filenames, filenames2, gen_flag, process_id, 
+                    gen_date, bill_type, doc_no, related_class, doc_date, descs, doc_amt, filenames, filenames2, filenames4, gen_flag, process_id, 
                     audit_user, audit_date, invoice_tipe, status_approve, progress_approval, currency_cd)
                     VALUES 
                     (${entity_cd}, ${project_no}, ${debtor_acct}, ${email_addr}, GETDATE(), 
                     ${bill_type}, ${doc_no}, ${related_class},${doc_date}, ${descs}, ${doc_amt}, ${filenames}, 
-                    ${filenames2}, 'Y', ${process_id}, ${audit_user}, GETDATE(), ${invoice_tipe},
+                    ${filenames2}, ${filenames4}, 'Y', ${process_id}, ${audit_user}, GETDATE(), ${invoice_tipe},
                     null, 0, ${currency_cd})
                 `);
       console.log(result)
