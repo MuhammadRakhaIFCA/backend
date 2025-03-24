@@ -1202,7 +1202,7 @@ export class ReceiptService {
     }
 
     async uploadExtraFile(
-        fileName: string, filePath: string, doc_no: string, process_id: string
+        fileName: string, filePath: string, doc_no: string, process_id: string, file_type: string
       ){
         try {
           await this.connect();
@@ -1224,13 +1224,22 @@ export class ReceiptService {
           console.log("Disconnecting from FTP servers");
           await this.disconnect();
       }
-    
-      const result = await this.fjiDatabase.$executeRawUnsafe(`
-          UPDATE mgr.ar_blast_inv SET filenames5 = '${fileName}'
-          WHERE doc_no = '${doc_no}'
-          AND process_id = '${process_id}'
-          `)
-      if (result === 0) {
+    let result = 0;
+    if(file_type === 'receipt'){
+        result = await this.fjiDatabase.$executeRawUnsafe(`
+                UPDATE mgr.ar_blast_or SET filenames2 = '${fileName}'
+                WHERE doc_no = '${doc_no}'
+                AND process_id = '${process_id}'
+            `)
+    }
+    else {
+        result = await this.fjiDatabase.$executeRawUnsafe(`
+            UPDATE mgr.ar_blast_inv SET filenames5 = '${fileName}'
+            WHERE doc_no = '${doc_no}'
+            AND process_id = '${process_id}'
+            `)
+    }
+    if (result === 0) {
           throw new BadRequestException({
               statusCode: 400,
               message: 'Failed to update ar blast table',

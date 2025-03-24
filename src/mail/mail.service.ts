@@ -353,7 +353,7 @@ export class MailService {
         ...(result[0].filenames2
           ? [{
               filename: result[0].filenames2,
-              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames2}`,
+              path: `${rootFolder}/EXTRA/${result[0].filenames2}`,
             }]
           : []),
         ...(result[0].filenames3
@@ -397,7 +397,7 @@ export class MailService {
           mailConfig.data[0].sender_email,
           email, // use the individual email address here
           result[0].doc_no,
-          'Invoice'
+          'Receipt'
         ),
       };
 
@@ -463,8 +463,7 @@ export class MailService {
         response_messages[i],
         send_id,
         result[0].audit_user,
-        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
-        send_dates[i]
+        moment(send_dates[i]).format('YYYYMMDD HH:mm:ss'),
       );
     }
   
@@ -1040,7 +1039,7 @@ export class MailService {
   async insertToOrMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_id: string, audit_user: string, audit_date: string, send_date: string
+    send_id: string, audit_user: string, send_date: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
@@ -1049,7 +1048,7 @@ export class MailService {
         send_date, send_id, audit_user, audit_date)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
-        '${doc_no}', ${status_code}, '${response_message}', GETDATE(), '${send_id}',
+        '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
         '${audit_user}', GETDATE())
         `)
       if (result === 0) {

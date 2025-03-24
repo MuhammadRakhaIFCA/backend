@@ -183,10 +183,10 @@ export class ReceiptController {
     @UploadedFile() file: Express.Multer.File,
     @Body() body: Record<any, any>,
   ) {
-    const { doc_no, process_id } = body;
+    const { doc_no, process_id, file_type } = body;
     const fileName = file.originalname;
     const filePath = file.path;
 
-    return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id);
+    return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id, file_type);
   }
 }
