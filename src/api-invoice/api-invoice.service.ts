@@ -1518,6 +1518,7 @@ export class ApiInvoiceService {
                 mgr.ar_blast_inv_approval.filenames3,
                 mgr.ar_blast_inv_approval.filenames4,
                 mgr.ar_blast_inv_approval.invoice_tipe,
+                mgr.ar_blast_inv_approval.progress_approval,
                 mgr.ar_blast_inv_approval.audit_user FROM mgr.ar_blast_inv_approval 
             INNER JOIN mgr.cf_entity  
                 ON mgr.ar_blast_inv_approval.entity_cd = mgr.cf_entity.entity_cd  

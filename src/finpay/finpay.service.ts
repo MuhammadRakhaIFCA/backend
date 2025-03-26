@@ -32,7 +32,7 @@ export class FinpayService {
         } else {
             dto.customer.lastName = '-'
         }
-        const { customer, order } = dto
+        const { customer, order, type_topup } = dto
         const { callbackUrl } = dto.url
         if (process.env.FINPAY_TYPE === "development") {
             const headers = {
@@ -52,11 +52,11 @@ export class FinpayService {
                 await this.fjiDatabase.$executeRawUnsafe(`
                     INSERT INTO mgr.finpay_transaction
                     (company_cd, email_addr, name, mobile_number, order_id, order_qty, order_amount,
-                     order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date)
+                     order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date, type_topup)
                      VALUES 
                         ('GQCINV', '${customer.email}', '${customer.name}', 
                      '${customer.mobilePhone}', '${order.id}', '${itemAmount}', ${amount}, '${order.description}',
-                     '${total}', '${response.data.redirecturl}', '${expiry_link}', 'PENDING', GETDATE()
+                     '${total}', '${response.data.redirecturl}', '${expiry_link}', 'PENDING', GETDATE(), '${type_topup}'
                         )
                     `)
                 return ({
@@ -100,11 +100,11 @@ export class FinpayService {
                 await this.fjiDatabase.$executeRawUnsafe(`
                     INSERT INTO mgr.finpay_transaction
                     (company_cd, email_addr, name, mobile_number, order_id, order_qty, order_amount,
-                     order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date)
+                     order_descs, order_total, redirect_url, expiry_link, status_payment, audit_date, type_topup)
                      VALUES 
                         ('GQCINV', '${customer.email}', '${customer.name}', 
                      '${customer.mobilePhone}', '${order.id}', '${itemAmount}', ${amount}, '${order.description}',
-                     '${total}', '${response.data.redirecturl}', '${expiry_link}', 'PENDING', GETDATE()
+                     '${total}', '${response.data.redirecturl}', '${expiry_link}', 'PENDING', GETDATE(), '${type_topup}'
                         )
                     `)
                 return ({
@@ -210,8 +210,8 @@ export class FinpayService {
             if(type_topup !== "all"){
                 response = await this.fjiDatabase.$queryRawUnsafe(`
                     SELECT * FROM mgr.finpay_transaction
-                    ORDER BY audit_date DESC
                     WHERE type_topup = '${type_topup}'
+                    ORDER BY audit_date DESC
                     `)
             }
             else {
@@ -233,6 +233,40 @@ export class FinpayService {
             })
         }
     }
+
+    async getEmailQuota(company_cd: string){
+        try {
+          const completedTransaction: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.finpay_transaction
+              WHERE status_payment = 'COMPLETED'
+              AND type_topup = 'E'
+              AND company_cd = '${company_cd}'
+            `)
+          const invoiceEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT count(rowID) as count FROM mgr.ar_blast_inv_log_msg
+            `)
+          const receiptEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT count(rowID) as count FROM mgr.ar_blast_or_log_msg
+            `)
+          const totalTopup = completedTransaction.reduce((sum, item) => sum + item.amount, 0);
+          const totalEmailSent = invoiceEmailSent[0].count + receiptEmailSent[0].count
+    
+          return ({
+            statusCode: 200,
+            message: "success getting email quota",
+            data: {
+              totalEmailSent,
+              totalTopup
+            }
+          })
+        } catch (error) {
+          throw new InternalServerErrorException({
+            statusCode: 500,
+            message: 'fail to get email quota',
+            data: error
+          })
+        }
+      }
 
     private validateSignature(payload: NotificationCallbackDto, receivedSignature: string) {
         const { signature, ...fields } = payload;

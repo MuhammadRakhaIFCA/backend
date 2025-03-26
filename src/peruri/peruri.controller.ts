@@ -74,4 +74,5 @@ export class PeruriController {
   async getSaldo() {
     return await this.peruriService.checkSaldo('GQCINV')
   }
+
 }

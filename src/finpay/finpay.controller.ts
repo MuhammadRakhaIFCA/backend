@@ -23,4 +23,9 @@ export class FinpayController {
   ) {
     return await this.finpayService.getTransaction(type_topup)
   }
+
+  @Get('get-email-quota')
+  async getEmailQuota() {
+    return await this.finpayService.getEmailQuota('GQCINV')
+  }
 }

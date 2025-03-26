@@ -123,4 +123,8 @@ export class PaymentDto {
     @IsOptional()
     @IsObject()
     device?: object;
+
+    @IsOptional()
+    @IsObject()
+    type_topup: object;
 }

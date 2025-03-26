@@ -63,6 +63,17 @@ export class ReceiptService {
         }
     }
 
+    async delete(remoteFilePath: string): Promise<void> {
+        try {
+            await this.client.remove(remoteFilePath);
+            console.log('File deleted successfully');
+        } catch (error) {
+            console.error(`Failed to delete file: ${error.message}`);
+            throw new Error(`Failed to delete file: ${error.message}`);
+        }
+    }
+    
+
     async disconnect() {
         try {
             this.client.close();
@@ -1091,6 +1102,42 @@ export class ReceiptService {
         }
     }
 
+    async deleteFaktur(doc_no: string) {
+        const fileName = `FP${doc_no}.pdf`
+        try {
+            await this.delete(`/UNSIGNED/GQCINV/FAKTUR/${fileName}`);
+
+        } catch (error) {
+            console.log("Error during delete:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to delete file from FTP',
+                data: [error],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
+
+        const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+            UPDATE mgr.ar_blast_inv SET filenames3 = NULL
+            WHERE doc_no = ${doc_no}
+            `)
+        if (result === 0) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to update ar blast table',
+                data: [],
+            });
+        }
+        return {
+            statusCode: 200,
+            message: 'Faktur pajak deleted successfully',
+            data: []
+        }
+    }
+
 
 
     async getApprovalByUser(approval_user: string) {
@@ -1251,8 +1298,63 @@ export class ReceiptService {
           message: 'extra files uploaded successfully',
           data: []
       }
-      }
+    }
 
+    async deleteExtraFile(file_type:string, doc_no: string) {
+        const fileName = `Extra${doc_no}.pdf`
+        try {
+            await this.delete(`/UNSIGNED/GQCINV/EXTRA/${fileName}`);
+
+        } catch (error) {
+            console.log("Error during delete:.", error);
+            // throw new BadRequestException({
+            return({
+                statusCode: 400,
+                message: 'Failed to delete file from FTP',
+                data: [],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
+        if (file_type === 'invoice'){
+            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+                UPDATE mgr.ar_blast_inv SET filenames5 = NULL
+                WHERE doc_no = ${doc_no}
+                `)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to update ar blast table',
+                    data: [],
+                });
+            }
+            return {
+                statusCode: 200,
+                message: 'extra files deleted successfully',
+                data: []
+            }
+        }
+        else if (file_type === 'receipt'){
+            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+                UPDATE mgr.ar_blast_or SET filenames5 = NULL
+                WHERE doc_no = ${doc_no}
+                `)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to update ar blast table',
+                    data: [],
+                });
+            }
+            return {
+                statusCode: 200,
+                message: 'extra files deleted successfully',
+                data: []
+            }
+        }
+    }
     async receiptInqueries() {
         const orNotStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 

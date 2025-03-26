@@ -824,6 +824,8 @@ export class PeruriService {
     })
   }
 
+
+
   async sycnOrTable() {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_or

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ReceiptService } from './receipt.service';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -88,6 +88,13 @@ export class ReceiptController {
     console.log("doc no : " + doc_no)
 
     return await this.receiptService.uploadFaktur(filePath, fileName, doc_no);
+  }
+
+  @Delete('delete-faktur/:doc_no')
+  async deleteFaktur(
+    @Param('doc_no') doc_no: string
+  ){
+    return await this.receiptService.deleteFaktur(doc_no)
   }
 
   @Post('upload-faktur-base64/:doc_no')
@@ -188,5 +195,13 @@ export class ReceiptController {
     const filePath = file.path;
 
     return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id, file_type);
+  }
+
+  @Delete('delete-extra-file/:file_type/:doc_no')
+  async deleteExtraFile(
+    @Param('file_type') file_type: string,
+    @Param('doc_no') doc_no: string
+  ){
+    return await this.receiptService.deleteExtraFile(file_type, doc_no)
   }
 }
