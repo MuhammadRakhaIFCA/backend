@@ -181,15 +181,31 @@ export class ReceiptController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          cb(null, path.join(__dirname, '../../uploads/extraFiles'));
+          const uploadFolder = path.join(__dirname, '../../', process.env.ROOT_PDF_FOLDER, 'extraFiles');
+          if (!fs.existsSync(uploadFolder)) {
+            fs.mkdirSync(uploadFolder, { recursive: true });
+          }
+          cb(null, uploadFolder);
         },
+        filename: (req, file, cb) => {
+            cb(null, file.originalname);
+          },
+        }),
       }),
-    }),
-  )
+    )
   async uploadExtraFile(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: Record<any, any>,
   ) {
+    const rootFolder = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      process.env.ROOT_PDF_FOLDER,
+    )
+    if (!fs.existsSync(`${rootFolder}/extraFiles`)) {
+      fs.mkdirSync(`${rootFolder}/extraFiles`, { recursive: true });
+    }
     const { doc_no, process_id, file_type } = body;
     const fileName = file.originalname;
     const filePath = file.path;
@@ -197,11 +213,12 @@ export class ReceiptController {
     return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id, file_type);
   }
 
-  @Delete('delete-extra-file/:file_type/:doc_no')
+  @Delete('delete-extra-file/:file_type')
   async deleteExtraFile(
     @Param('file_type') file_type: string,
-    @Param('doc_no') doc_no: string
+    @Query('doc_no') doc_no: string,
+    @Query('file_name') file_name: string,
   ){
-    return await this.receiptService.deleteExtraFile(file_type, doc_no)
+    return await this.receiptService.deleteExtraFile(file_type, doc_no, file_name)
   }
 }

@@ -1105,8 +1105,25 @@ export class ReceiptService {
     async deleteFaktur(doc_no: string) {
         const fileName = `FP${doc_no}.pdf`
         try {
+            await this.connect()
             await this.delete(`/UNSIGNED/GQCINV/FAKTUR/${fileName}`);
 
+            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+                UPDATE mgr.ar_blast_inv SET filenames3 = NULL
+                WHERE doc_no = ${doc_no}
+                `)
+            if (result === 0) {
+                throw new BadRequestException({
+                    statusCode: 400,
+                    message: 'Failed to update ar blast table',
+                    data: [],
+                });
+            }
+            return {
+                statusCode: 200,
+                message: 'Faktur pajak deleted successfully',
+                data: []
+            }
         } catch (error) {
             console.log("Error during delete:.", error);
             throw new BadRequestException({
@@ -1120,22 +1137,6 @@ export class ReceiptService {
             await this.disconnect();
         }
 
-        const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
-            UPDATE mgr.ar_blast_inv SET filenames3 = NULL
-            WHERE doc_no = ${doc_no}
-            `)
-        if (result === 0) {
-            throw new BadRequestException({
-                statusCode: 400,
-                message: 'Failed to update ar blast table',
-                data: [],
-            });
-        }
-        return {
-            statusCode: 200,
-            message: 'Faktur pajak deleted successfully',
-            data: []
-        }
     }
 
 
@@ -1300,11 +1301,46 @@ export class ReceiptService {
       }
     }
 
-    async deleteExtraFile(file_type:string, doc_no: string) {
-        const fileName = `Extra${doc_no}.pdf`
+    async deleteExtraFile(file_type:string, doc_no: string, file_name) {
         try {
-            await this.delete(`/UNSIGNED/GQCINV/EXTRA/${fileName}`);
-
+            await this.connect()
+            await this.delete(`/UNSIGNED/GQCINV/EXTRA/${file_name}`);
+            if (file_type === 'invoice'){
+                const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+                    UPDATE mgr.ar_blast_inv SET filenames5 = NULL
+                    WHERE doc_no = ${doc_no}
+                    `)
+                if (result === 0) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: 'Failed to update ar blast table',
+                        data: [],
+                    });
+                }
+                return {
+                    statusCode: 200,
+                    message: 'extra files deleted successfully',
+                    data: []
+                }
+            }
+            else if (file_type === 'receipt'){
+                const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+                    UPDATE mgr.ar_blast_or SET filenames5 = NULL
+                    WHERE doc_no = ${doc_no}
+                    `)
+                if (result === 0) {
+                    throw new BadRequestException({
+                        statusCode: 400,
+                        message: 'Failed to update ar blast table',
+                        data: [],
+                    });
+                }
+                return {
+                    statusCode: 200,
+                    message: 'extra files deleted successfully',
+                    data: []
+                }
+            }
         } catch (error) {
             console.log("Error during delete:.", error);
             // throw new BadRequestException({
@@ -1318,42 +1354,7 @@ export class ReceiptService {
             console.log("Disconnecting from FTP servers");
             await this.disconnect();
         }
-        if (file_type === 'invoice'){
-            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
-                UPDATE mgr.ar_blast_inv SET filenames5 = NULL
-                WHERE doc_no = ${doc_no}
-                `)
-            if (result === 0) {
-                throw new BadRequestException({
-                    statusCode: 400,
-                    message: 'Failed to update ar blast table',
-                    data: [],
-                });
-            }
-            return {
-                statusCode: 200,
-                message: 'extra files deleted successfully',
-                data: []
-            }
-        }
-        else if (file_type === 'receipt'){
-            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
-                UPDATE mgr.ar_blast_or SET filenames5 = NULL
-                WHERE doc_no = ${doc_no}
-                `)
-            if (result === 0) {
-                throw new BadRequestException({
-                    statusCode: 400,
-                    message: 'Failed to update ar blast table',
-                    data: [],
-                });
-            }
-            return {
-                statusCode: 200,
-                message: 'extra files deleted successfully',
-                data: []
-            }
-        }
+
     }
     async receiptInqueries() {
         const orNotStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
