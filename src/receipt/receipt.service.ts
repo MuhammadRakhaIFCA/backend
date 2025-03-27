@@ -1325,7 +1325,7 @@ export class ReceiptService {
             }
             else if (file_type === 'receipt'){
                 const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
-                    UPDATE mgr.ar_blast_or SET filenames5 = NULL
+                    UPDATE mgr.ar_blast_or SET filenames2 = NULL
                     WHERE doc_no = ${doc_no}
                     `)
                 if (result === 0) {

@@ -353,7 +353,7 @@ export class MailService {
         ...(result[0].filenames2
           ? [{
               filename: result[0].filenames2,
-              path: `${rootFolder}/EXTRA/${result[0].filenames2}`,
+              path: `${rootFolder}/extraFiles/${result[0].filenames2}`,
             }]
           : []),
         ...(result[0].filenames3
@@ -581,7 +581,7 @@ export class MailService {
         ...(result[0].filenames5
           ? [{
               filename: result[0].filenames5,
-              path: `${rootFolder}/MISC/${result[0].filenames5}`,
+              path: `${rootFolder}/extraFiles/${result[0].filenames5}`,
             }]
           : []),
       ],
@@ -775,6 +775,22 @@ export class MailService {
             },
           ]
           : []),
+        ...(result[0].filenames4
+          ? [
+            {
+              filename: result[0].filenames4,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames3}`,
+            },
+          ]
+          : []),
+        ...(result[0].filenames5
+          ? [
+            {
+              filename: result[0].filenames5,
+              path: `${rootFolder}/extraFiles/${result[0].filenames3}`,
+            },
+          ]
+          : []),
       ],
     };
 
@@ -875,6 +891,14 @@ export class MailService {
               path: `${rootFolder}/receipt/${result[0].filenames}`,
             }
           ]),
+        ...(result[0].filenames2
+          ? [
+            {
+              filename: result[0].filenames2,
+              path: `${rootFolder}/extraFiles/${result[0].filenames2}`,
+            },
+          ]
+          : []),
         ...(result[0].filenames3
           ? [
             {

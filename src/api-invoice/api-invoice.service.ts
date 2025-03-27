@@ -172,6 +172,8 @@ export class ApiInvoiceService {
                 filenames = abia.filenames, 
                 filenames2 = abia.filenames2, 
                 filenames3 = abia.filenames3,
+                filenames4 = abia.filenames4,
+                filenames5 = abia.filenames5,
                 doc_amt = abia.doc_amt, 
                 invoice_tipe = abia.invoice_tipe,
                 file_name_sign = abia.file_name_sign,
@@ -937,7 +939,7 @@ export class ApiInvoiceService {
 
       const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                  UPDATE mgr.ar_blast_inv_approval_dtl
-                 SET approval_status = ${approval_status}, approval_date = GETDATE(),      
+                 SET approval_status = ${approval_status}, approval_date = GETDATE()      
                  WHERE doc_no = ${doc_no} 
                  AND process_id = ${process_id}           
                  AND approval_level = ${approver_level}      
@@ -1132,6 +1134,7 @@ export class ApiInvoiceService {
       //     })
       // }
     } catch (error) {
+      throw error
       throw new BadRequestException(error.response);
     }
 
