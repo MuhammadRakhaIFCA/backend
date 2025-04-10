@@ -41,7 +41,7 @@ export class MailController {
   ) {
     return this.mailService.blastEmailInv(doc_no, process_id)
   }
-  @Get('blast-email-or/:doc_no')
+  @Get('blast-email-or/:doc_no/:process_id')
   async blastEmailOr(
     @Param('doc_no') doc_no: string,
     @Param('process_id') process_id: string

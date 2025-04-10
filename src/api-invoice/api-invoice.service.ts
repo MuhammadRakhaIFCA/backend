@@ -193,6 +193,7 @@ export class ApiInvoiceService {
                   AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
                   AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) <= '${endDate}'
                   AND ${send_status_query}
+                  AND abia.send_status = '${status}'
                   AND ablm.audit_user = '${auditUser}'
                 ORDER BY ablm.send_date DESC
             `);
@@ -803,17 +804,24 @@ export class ApiInvoiceService {
             WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
               AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
               AND (
-                  doc_no NOT IN (
-                    SELECT doc_no 
-                    FROM mgr.ar_blast_inv_approval 
-                    WHERE status_approve != 'C'
-                      OR status_approve IS NULL
-                  )
-                  OR doc_no IN (
-                    SELECT doc_no 
-                    FROM mgr.ar_blast_inv
-                    WHERE send_status = 'R'
-                  )
+                    doc_no NOT IN (
+                      SELECT doc_no 
+                      FROM mgr.ar_blast_inv_approval 
+                      WHERE status_approve != 'C'
+                        OR status_approve IS NULL
+                    )
+                  OR
+                    doc_no IN (
+                      SELECT doc_no 
+                      FROM mgr.ar_blast_inv
+                      WHERE send_status = 'R'
+                    )
+                    AND doc_no NOT IN (
+                        SELECT doc_no 
+                        FROM mgr.ar_blast_inv
+                        WHERE send_status <> 'R'
+                          OR send_status IS NULL
+                    )
               )
               AND mgr.v_assign_approval_level.email = '${auditUser}'
               AND mgr.v_assign_approval_level.job_task = 'Maker' 
@@ -845,12 +853,28 @@ export class ApiInvoiceService {
           ON m.related_class = mgr.v_assign_approval_level.type_cd
           WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
           AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval 
-                                  WHERE status_approve != 'C'
-                                  OR status_approve IS NULL
-                                  ) 
-          AND mgr.v_assign_approval_level.email = '${auditUser}'
-          AND mgr.v_assign_approval_level.job_task = 'Maker' 
+              AND (
+                    doc_no NOT IN (
+                      SELECT doc_no 
+                      FROM mgr.ar_blast_inv_approval 
+                      WHERE status_approve != 'C'
+                        OR status_approve IS NULL
+                    )
+                  OR
+                    doc_no IN (
+                      SELECT doc_no 
+                      FROM mgr.ar_blast_inv
+                      WHERE send_status = 'R'
+                    )
+                    AND doc_no NOT IN (
+                        SELECT doc_no 
+                        FROM mgr.ar_blast_inv
+                        WHERE send_status <> 'R'
+                          OR send_status IS NULL
+                    )
+              )
+            AND mgr.v_assign_approval_level.email = '${auditUser}'
+            AND mgr.v_assign_approval_level.job_task = 'Maker' 
           `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -879,10 +903,26 @@ export class ApiInvoiceService {
           ON m.related_class = mgr.v_assign_approval_level.type_cd
           WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
           AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-          AND doc_no NOT IN ( SELECT doc_no FROM mgr.ar_blast_inv_approval 
-                                  WHERE status_approve != 'C'
-                                  OR status_approve IS NULL
-                                  ) 
+              AND (
+                    doc_no NOT IN (
+                      SELECT doc_no 
+                      FROM mgr.ar_blast_inv_approval 
+                      WHERE status_approve != 'C'
+                        OR status_approve IS NULL
+                    )
+                  OR
+                    doc_no IN (
+                      SELECT doc_no 
+                      FROM mgr.ar_blast_inv
+                      WHERE send_status = 'R'
+                    )
+                    AND doc_no NOT IN (
+                        SELECT doc_no 
+                        FROM mgr.ar_blast_inv
+                        WHERE send_status <> 'R'
+                          OR send_status IS NULL
+                    )
+              )
           AND mgr.v_assign_approval_level.email = '${auditUser}'
           AND mgr.v_assign_approval_level.job_task = 'Maker'  
                 `);
@@ -1059,18 +1099,48 @@ export class ApiInvoiceService {
             WHERE doc_no = '${doc_no}'
             AND process_id = '${process_id}'
             `)
-          if(existingDocNo[0].count === 0){
+          const previousFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.ar_blast_inv 
+              WHERE doc_no = '${doc_no}' 
+              AND process_id <> '${process_id}'
+              ORDER BY audit_date DESC
+            `)
+          if (existingDocNo[0].count === 0 && previousFile.length > 0){
             const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
               INSERT INTO mgr.ar_blast_inv
               (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
               doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
-              filenames2, process_id, audit_user, audit_date)
+              filenames2, filenames3, filenames4, filenames5, process_id, audit_user, audit_date)
               VALUES
               (${approvalTable[0].entity_cd}, ${approvalTable[0].project_no}, ${approvalTable[0].debtor_acct},
               ${approvalTable[0].email_addr}, ${gen_date}, ${approvalTable[0].bill_type},
               ${doc_no}, ${approvalTable[0].related_class}, ${doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
               ${approvalTable[0].doc_amt}, ${approvalTable[0].invoice_tipe},
-              ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${process_id},
+              ${approvalTable[0].filenames}, ${approvalTable[0].filenames2}, ${previousFile[0].filenames3}, 
+              ${approvalTable[0].filenames4}, ${previousFile[0].filenames5}, ${process_id},
+              ${approvalTable[0].audit_user}, GETDATE())
+              `);
+  
+            if (result === 0 || insert === 0) {
+              throw new BadRequestException({
+                statusCode: 400,
+                message: 'failed to insert to database',
+                data: [],
+              });
+            }
+          }
+          else if (existingDocNo[0].count === 0){
+            const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
+              INSERT INTO mgr.ar_blast_inv
+              (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
+              doc_date, descs, currency_cd, doc_amt, invoice_tipe, filenames,
+              filenames2, filenames4, process_id, audit_user, audit_date)
+              VALUES
+              (${approvalTable[0].entity_cd}, ${approvalTable[0].project_no}, ${approvalTable[0].debtor_acct},
+              ${approvalTable[0].email_addr}, ${gen_date}, ${approvalTable[0].bill_type},
+              ${doc_no}, ${approvalTable[0].related_class}, ${doc_date}, ${approvalTable[0].descs}, ${approvalTable[0].currency_cd},
+              ${approvalTable[0].doc_amt}, ${approvalTable[0].invoice_tipe},
+              ${approvalTable[0].filenames}, ${approvalTable[0].filenames2},  ${approvalTable[0].filenames4}, ${process_id},
               ${approvalTable[0].audit_user}, GETDATE())
               `);
   
@@ -1272,7 +1342,9 @@ export class ApiInvoiceService {
       const approvalLevel = approvalLevelMatch
         ? parseInt(approvalLevelMatch[1], 10)
         : null;
-
+      if (approvalLevel > getType[0].approval_pic){
+        break
+      }
       const getUser = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
           `);
@@ -1903,6 +1975,24 @@ export class ApiInvoiceService {
 
 
   async invoiceInqueries() {
+    const invRegenerate: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      FROM mgr.ar_blast_inv abia
+      INNER JOIN mgr.ar_debtor ad 
+      ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+      INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+      INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+      WHERE send_status = 'R'
+      AND send_date IS NOT NULL
+      AND send_id IS NOT NULL
+      ORDER BY rowID desc
+    `);
+    const invRegenerateWithStatus = invRegenerate.map((row) => ({ ...row, status: 'cancelled for resending' }));
     const invSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
       FROM mgr.ar_blast_inv abia
@@ -2128,7 +2218,8 @@ export class ApiInvoiceService {
       ...invFailStampWithStatus,
       ...invNotStampedWithStatus,
       ...invSentWithStatus,
-      ...invFailSentWithStatus
+      ...invFailSentWithStatus,
+      ...invRegenerateWithStatus
     ];
 
     return {
