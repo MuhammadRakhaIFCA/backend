@@ -174,6 +174,7 @@ export class ReceiptService {
                     filenames = abia.filenames, 
                     filenames2 = abia.filenames2, 
                     filenames3 = abia.filenames3,
+                    process_id = abia.process_id,
                     doc_amt = abia.doc_amt, 
                     invoice_tipe = abia.invoice_tipe,
                     file_name_sign = abia.file_name_sign,
