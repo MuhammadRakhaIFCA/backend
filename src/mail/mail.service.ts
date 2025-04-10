@@ -507,7 +507,7 @@ export class MailService {
   
     // Fetch the record for the given doc_no
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}' AND process_id = ${process_id}
+      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}' AND process_id = '${process_id}'
     `);
   
     if (!result || result.length === 0) {

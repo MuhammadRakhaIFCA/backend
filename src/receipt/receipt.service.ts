@@ -1181,9 +1181,10 @@ export class ReceiptService {
             SELECT * FROM mgr.v_inv_approval
             WHERE approval_user = '${approval_user}'
               AND approval_status = 'P'
-              AND (doc_no LIKE 'OR%'
-                OR doc_no LIKE 'SP%'
-                OR doc_no LIKE 'OF%')
+              AND invoice_tipe = 'receipt'
+              --AND (doc_no LIKE 'OR%'
+                --OR doc_no LIKE 'SP%'
+                --OR doc_no LIKE 'OF%')
             ORDER BY gen_date DESC
         `);
 
@@ -1205,9 +1206,10 @@ export class ReceiptService {
                 SELECT * FROM mgr.v_inv_approval_history
                 WHERE approval_user = '${approval_user}'
                 AND approval_status != 'P'
-                AND (doc_no LIKE 'OR%'
-                OR doc_no LIKE 'SP%'
-                OR doc_no LIKE 'OF%')
+                AND invoice_tipe = 'receipt'
+                --AND (doc_no LIKE 'OR%'
+                    --OR doc_no LIKE 'SP%'
+                    --OR doc_no LIKE 'OF%')
                 ORDER BY approval_date DESC
                 `);
 
@@ -1263,11 +1265,15 @@ export class ReceiptService {
             INNER JOIN mgr.pl_project prj
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
-            where progress_approval = 0
+            INNER JOIN mgr.ar_blast_inv_approval aba
+                ON abia.process_id = aba.process_id
+                AND abia.audit_user = aba.audit_user
+            where abia.progress_approval = 0
                 AND abia.audit_user = '${audit_user}'
-            AND (abia.doc_no LIKE 'OR%'
-                OR abia.doc_no LIKE 'SP%'
-                OR abia.doc_no LIKE 'OF%') 
+                AND aba.invoice_tipe = 'receipt'
+            --AND (abia.doc_no LIKE 'OR%'
+                --OR abia.doc_no LIKE 'SP%'
+                --OR abia.doc_no LIKE 'OF%') 
             ORDER BY gen_date DESC
             `)
             return {
