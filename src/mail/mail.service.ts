@@ -453,6 +453,7 @@ export class MailService {
   
     // Loop through the email addresses to insert a log for each email
     for (let i = 0; i < email_addrs.length; i++) {
+      console.log("send date : " + send_dates[i])
       await this.insertToOrMsgLog(
         result[0].entity_cd,
         result[0].project_no,
@@ -463,7 +464,7 @@ export class MailService {
         response_messages[i],
         send_id,
         result[0].audit_user,
-        moment(send_dates[i]).format('YYYYMMDD HH:mm:ss'),
+        send_dates[i],
       );
     }
   
@@ -1066,6 +1067,7 @@ export class MailService {
     send_id: string, audit_user: string, send_date: string
   ) {
     try {
+      console.log(send_date)
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         INSERT INTO mgr.ar_blast_or_log_msg
         (entity_cd, project_no, debtor_acct, email_addr, doc_no, status_code, response_message,
