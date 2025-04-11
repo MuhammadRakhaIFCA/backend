@@ -435,6 +435,7 @@ export class PeruriService {
         ),
       );
     } catch (error) {
+      console.log(error)
       //10. jika gagal ubah status menjadi f
       const updateTableBody = {
         file_token_sign: token,

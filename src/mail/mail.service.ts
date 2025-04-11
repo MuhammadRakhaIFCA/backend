@@ -288,7 +288,7 @@ export class MailService {
     })
   }
 
-  async blastEmailOr(doc_no: string, process_id: string) {
+  async blastEmailOr(doc_no: string, process_id: string, sender: string) {
     const baseUrl = process.env.FTP_BASE_URL;
     const send_id = Array(6)
       .fill(null)
@@ -463,7 +463,7 @@ export class MailService {
         status_codes[i],
         response_messages[i],
         send_id,
-        result[0].audit_user,
+        sender,
         send_dates[i],
       );
     }
@@ -499,7 +499,7 @@ export class MailService {
   //   return { error: true, message: 'Unable to process email, because the file does not exist' };
   // }
 
-  async blastEmailInv(doc_no: string, process_id: string) {
+  async blastEmailInv(doc_no: string, process_id: string, sender: string) {
     const baseUrl = process.env.FTP_BASE_URL;
     const send_id = Array(6)
       .fill(null)
@@ -685,7 +685,7 @@ export class MailService {
         status_codes[i],
         response_messages[i],
         send_id,
-        result[0].audit_user,
+        sender,
         moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
         send_dates[i]
       );
@@ -780,7 +780,7 @@ export class MailService {
           ? [
             {
               filename: result[0].filenames4,
-              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames3}`,
+              path: `${rootFolder}/${result[0].invoice_tipe}/${result[0].filenames4}`,
             },
           ]
           : []),
@@ -788,7 +788,7 @@ export class MailService {
           ? [
             {
               filename: result[0].filenames5,
-              path: `${rootFolder}/extraFiles/${result[0].filenames3}`,
+              path: `${rootFolder}/extraFiles/${result[0].filenames5}`,
             },
           ]
           : []),

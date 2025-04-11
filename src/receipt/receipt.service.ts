@@ -194,6 +194,7 @@ export class ReceiptService {
                       WHERE year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
                       AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) <= '${endDate}'
                       AND ${send_status_query}
+                      AND abia.send_status = '${status}'
                       AND ablm.audit_user = '${auditUser}'
                     ORDER BY ablm.send_date DESC
                 `);
@@ -614,7 +615,7 @@ export class ReceiptService {
             const approvalLevel = approvalLevelMatch
                 ? parseInt(approvalLevelMatch[1], 10)
                 : null;
-            if (approvalLevel > getType[0].approval_pic){
+            if (approval_level > getType[0].approval_pic){
                 break
             }
             const getUser = await this.fjiDatabase.$queryRawUnsafe(`
@@ -930,7 +931,7 @@ export class ReceiptService {
                 WHERE process_id = '${process_id}' 
                 `);
                 const previousFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                    SELECT * FROM mgr.ar_blast_inv 
+                    SELECT * FROM mgr.ar_blast_or 
                     WHERE doc_no = '${doc_no}' 
                     AND process_id <> '${process_id}'
                     ORDER BY audit_date DESC

@@ -4,7 +4,9 @@ import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as fs from 'fs'
 import * as path from 'path'
+import * as moment from 'moment'
 import { diskStorage } from 'multer';
+
 
 @Controller('api')
 export class ReceiptController {
@@ -188,7 +190,9 @@ export class ReceiptController {
           cb(null, uploadFolder);
         },
         filename: (req, file, cb) => {
-            cb(null, file.originalname);
+          const timestamp = moment().format('YYYYMMDDHHmm');
+          const newFileName = `${timestamp}_${file.originalname}`;
+          cb(null, newFileName);
           },
         }),
       }),
@@ -207,7 +211,7 @@ export class ReceiptController {
       fs.mkdirSync(`${rootFolder}/extraFiles`, { recursive: true });
     }
     const { doc_no, process_id, file_type } = body;
-    const fileName = file.originalname;
+    const fileName = file.filename;
     const filePath = file.path;
 
     return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id, file_type);

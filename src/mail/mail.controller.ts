@@ -34,19 +34,21 @@ export class MailController {
   // }
 
 
-  @Get('blast-email-inv/:doc_no/:process_id')
+  @Get('blast-email-inv/:doc_no/:process_id/:sender')
   async blastEmailInv(
     @Param('doc_no') doc_no: string,
-    @Param('process_id') process_id: string
+    @Param('process_id') process_id: string,
+    @Param('sender') sender: string
   ) {
-    return this.mailService.blastEmailInv(doc_no, process_id)
+    return this.mailService.blastEmailInv(doc_no, process_id, sender)
   }
-  @Get('blast-email-or/:doc_no/:process_id')
+  @Get('blast-email-or/:doc_no/:process_id/:sender')
   async blastEmailOr(
     @Param('doc_no') doc_no: string,
-    @Param('process_id') process_id: string
+    @Param('process_id') process_id: string,
+    @Param('sender') sender: string
   ) {
-    return this.mailService.blastEmailOr(doc_no, process_id)
+    return this.mailService.blastEmailOr(doc_no, process_id, sender)
   }
   @Get('resend-inv')
   async resendInvoice(

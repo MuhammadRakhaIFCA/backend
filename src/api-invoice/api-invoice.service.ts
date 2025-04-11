@@ -1347,7 +1347,7 @@ export class ApiInvoiceService {
       const approvalLevel = approvalLevelMatch
         ? parseInt(approvalLevelMatch[1], 10)
         : null;
-      if (approvalLevel > getType[0].approval_pic){
+      if (approval_level > getType[0].approval_pic){
         break
       }
       const getUser = await this.fjiDatabase.$queryRawUnsafe(`
