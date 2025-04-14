@@ -1180,6 +1180,32 @@ export class PdfgenerateService {
 
 
         doc.end();
+
+        try {
+            await this.connect();
+            const rootFolder = path.resolve(
+                __dirname,
+                '..',
+                '..',
+                process.env.ROOT_PDF_FOLDER,
+            );
+            const filePath = `${rootFolder}/schedule/${filenames4}`;
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/SCHEDULE/${filenames4}`);
+        } catch (error) {
+            console.log('Error during upload:.', error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        } finally {
+            console.log('Disconnecting from FTP servers');
+            await this.disconnect();
+        }
     }
 
     async generateSummaryE(
