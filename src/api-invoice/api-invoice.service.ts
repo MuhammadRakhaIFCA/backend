@@ -189,13 +189,16 @@ export class ApiInvoiceService {
                 INNER JOIN mgr.pl_project prj
                   ON ablm.entity_cd = prj.entity_cd
                   AND ablm.project_no = prj.project_no
-                 INNER JOIN mgr.ar_blast_inv abia
+                INNER JOIN mgr.ar_blast_inv abia
                  	ON ablm.doc_no = abia.doc_no
-                  AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
+                INNER JOIN mgr.v_assign_approval_level aal
+                  ON abia.related_class = aal.type_cd 
+                  WHERE year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
                   AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) <= '${endDate}'
                   AND ${send_status_query}
                   AND abia.send_status = '${status}'
-                  AND ablm.audit_user = '${auditUser}'
+                  AND aal.name = '${auditUser}' 
+                  AND aal.job_task = 'Stamp & Blast'
                 ORDER BY ablm.send_date DESC
             `);
       // console.log(result)
