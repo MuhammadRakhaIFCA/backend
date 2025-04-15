@@ -709,9 +709,9 @@ export class PeruriService {
         }
       } else {
         throw new NotFoundException({
-          statusCode: 404,
-          message: 'saldo not found',
-          data: []
+          statusCode: 200,
+          message: 'get saldo success',
+          data: 0
         })
       }
 

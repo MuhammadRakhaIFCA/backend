@@ -248,8 +248,12 @@ export class FinpayService {
           const receiptEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT count(rowID) as count FROM mgr.ar_blast_or_log_msg
             `)
-          const totalTopup = completedTransaction.reduce((sum, item) => sum + item.amount, 0);
-          const totalEmailSent = invoiceEmailSent[0].count + receiptEmailSent[0].count
+            const totalTopup = completedTransaction.length > 0 
+            ? completedTransaction.reduce((sum, item) => sum + item.amount, 0)
+            : 0;
+          
+            const totalEmailSent = 
+                (invoiceEmailSent[0]?.count || 0) + (receiptEmailSent[0]?.count || 0);
     
           return ({
             statusCode: 200,

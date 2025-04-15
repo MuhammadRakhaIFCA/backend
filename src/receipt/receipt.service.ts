@@ -604,19 +604,23 @@ export class ReceiptService {
           SELECT * FROM mgr.m_type_invoice WHERE type_cd = '${related_class}'
           `);
         const getTypeDtl: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-              SELECT * FROM mgr.m_type_invoice_dtl WHERE type_id = ${getType[0].type_id} AND job_task LIKE '%Approval Lvl%'
+              SELECT * FROM mgr.m_type_invoice_dtl 
+                WHERE type_id = ${getType[0].type_id} 
+                AND job_task LIKE '%Approval Lvl%'
           `);
 
         let approval_level: number = 0
         for (const row of getTypeDtl) {
-            approval_level += 1
             // Extract approval level from "Approval Lvl X"
             const approvalLevelMatch = row.job_task.match(/Approval Lvl (\d+)/);
             const approvalLevel = approvalLevelMatch
                 ? parseInt(approvalLevelMatch[1], 10)
                 : null;
-            if (approval_level > getType[0].approval_pic){
-                break
+            if (approvalLevel > getType[0].approval_pic){
+                continue
+            }
+            if (approvalLevel >= approval_level){
+                approval_level = approvalLevel
             }
             const getUser = await this.fjiDatabase.$queryRawUnsafe(`
                   SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
@@ -625,7 +629,8 @@ export class ReceiptService {
                 SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval_dtl 
                 WHERE 
                   doc_no = '${doc_no}' 
-                  AND approval_level = ${approval_level}
+                  AND approval_level = ${approvalLevel}
+                  AND approval_user = '${getUser[0].email}'
                   AND process_id = '${process_id}'
                 `)  
             const approvalDtlBody = {

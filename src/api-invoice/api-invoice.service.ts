@@ -1347,8 +1347,11 @@ export class ApiInvoiceService {
       const approvalLevel = approvalLevelMatch
         ? parseInt(approvalLevelMatch[1], 10)
         : null;
-      if (approval_level > getType[0].approval_pic){
-        break
+      if (approvalLevel > getType[0].approval_pic){
+        continue
+      }
+      if (approvalLevel >= approval_level){
+        approval_level = approvalLevel
       }
       const getUser = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
@@ -1357,9 +1360,11 @@ export class ApiInvoiceService {
         SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval_dtl 
         WHERE 
           doc_no = '${doc_no}' 
-          AND approval_level = ${approval_level}
+          AND approval_level = ${approvalLevel}
+          AND approval_user = '${getUser[0].email}'
           AND process_id = '${process_id}'
         `)  
+        console.log(existingDetail)
       const approvalDtlBody = {
         entity_cd: result[0].entity_cd,
         project_no: result[0].project_no,
