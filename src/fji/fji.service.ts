@@ -487,7 +487,7 @@ export class FjiService {
     async changePhoto(filename: string, email: string, req: Request) {
         //const baseUrl = `${req.protocol}://${req.get('host')}`;
         const port = req.socket.localPort;
-        const baseUrl = `process.env.PROFILE_PICTURE_URL`;
+        const baseUrl = process.env.PROFILE_PICTURE_URL;
         // let baseUrl = `${req.protocol}://${req.get('host').split(':')[0]}:${port}`;
         // if (baseUrl == "http://10.10.0.25:5000") {
         //     baseUrl = 'https://demo.property365.co.id:5025';
