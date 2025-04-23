@@ -134,9 +134,11 @@ export class ApiInvoiceController {
   }
   @Get('get-approval-history/:approval_user')
   async getApprovalHistory(
-    @Param('approval_user') approval_user: string
+    @Param('approval_user') approval_user: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
   ) {
-    return this.apiInvoiceService.getApprovalHistory(approval_user);
+    return this.apiInvoiceService.getApprovalHistory(approval_user, startDate, endDate);
   }
   @Get('get-approval-dtl/:process_id')
   async getApprovalDtl(
@@ -178,6 +180,12 @@ export class ApiInvoiceController {
   @Get('invoice-approval-list/:audit_user')
   async getInvoiceAppovelList(@Param('audit_user') audit_user: string) {
     return this.apiInvoiceService.getApprovalList(audit_user)
+  }
+
+  @Post('invoice/blast-cancel')
+  async cancelApprovedInvoice(@Body() data:Record<any,any>){
+    const {doc_no, process_id} = data
+    return this.apiInvoiceService.cancelApprovedInvoice(doc_no, process_id)
   }
 
 

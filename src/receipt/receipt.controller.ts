@@ -156,9 +156,11 @@ export class ReceiptController {
   }
   @Get('receipt/get-approval-history/:approval_user')
   async getApprovalHistory(
-    @Param('approval_user') approval_user: string
+    @Param('approval_user') approval_user: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
   ) {
-    return this.receiptService.getApprovalHistory(approval_user);
+    return this.receiptService.getApprovalHistory(approval_user, startDate, endDate);
   }
   @Get('receipt/get-approval-dtl/:process_id')
   async getApprovalDtl(
@@ -215,6 +217,12 @@ export class ReceiptController {
     const filePath = file.path;
 
     return this.receiptService.uploadExtraFile(fileName, filePath, doc_no, process_id, file_type);
+  }
+
+  @Post('receipt/blast-cancel')
+  async cancelApprovedReceipt(@Body() data:Record<any,any>){
+    const {doc_no, process_id} = data
+    return this.receiptService.cancelApprovedReceipt(doc_no, process_id)
   }
 
   @Delete('delete-extra-file/:file_type')

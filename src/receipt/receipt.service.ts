@@ -189,13 +189,16 @@ export class ReceiptService {
                     INNER JOIN mgr.pl_project prj
                       ON ablm.entity_cd = prj.entity_cd
                       AND ablm.project_no = prj.project_no
-                     INNER JOIN mgr.ar_blast_or abia
-                         ON ablm.doc_no = abia.doc_no
+                    INNER JOIN mgr.ar_blast_or abia
+                      ON ablm.doc_no = abia.doc_no
+                    INNER JOIN mgr.v_assign_approval_level aal
+                      ON aal.type_cd = 'OR'
                       WHERE year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) >= '${startDate}' 
                       AND year(ablm.send_date)*10000+month(ablm.send_date)*100+day(ablm.send_date) <= '${endDate}'
                       AND ${send_status_query}
                       AND abia.send_status = '${status}'
-                      AND ablm.audit_user = '${auditUser}'
+                      AND aal.name = '${auditUser}' 
+                      AND aal.job_task = 'Stamp & Blast'
                     ORDER BY ablm.send_date DESC
                 `);
           // console.log(result)
@@ -436,12 +439,14 @@ export class ReceiptService {
                       SELECT doc_no 
                       FROM mgr.ar_blast_or
                       WHERE send_status = 'R'
+                      OR status_process_sign = 'C'
                     )
                     AND doc_no NOT IN (
                         SELECT doc_no 
                         FROM mgr.ar_blast_or
                         WHERE send_status <> 'R'
-                          OR send_status IS NULL
+                            OR status_process_sign <> 'C'
+                          --OR send_status IS NULL
                     )
               )
             `)
@@ -1193,7 +1198,13 @@ export class ReceiptService {
                 --OR doc_no LIKE 'OF%')
             ORDER BY gen_date DESC
         `);
-
+        for (const item of result) {
+            const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.ar_blast_inv_approval_dtl
+                WHERE process_id = '${item.process_id}'
+            `);
+            item.detail = details;
+          }
         if (result.length === 0) {
             throw new NotFoundException({
                 statusCode: 404,
@@ -1207,18 +1218,19 @@ export class ReceiptService {
             data: result,
         };
     }
-    async getApprovalHistory(approval_user: string) {
+    async getApprovalHistory(approval_user: string, start_date: string, end_date: string) {
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.v_inv_approval_history
                 WHERE approval_user = '${approval_user}'
                 AND approval_status != 'P'
-                AND invoice_tipe = 'receipt'
-                --AND (doc_no LIKE 'OR%'
-                    --OR doc_no LIKE 'SP%'
-                    --OR doc_no LIKE 'OF%')
+                AND invoice_tipe <> 'receipt'
+                --AND abia.doc_no NOT LIKE 'OR%'
+                --AND abia.doc_no NOT LIKE 'SP%'
+                --AND abia.doc_no NOT LIKE 'OF%'
+                and doc_date >= '${start_date}'
+                and doc_date <= '${end_date}'
                 ORDER BY approval_date DESC
                 `);
-
         for (const item of result) {
             const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.ar_blast_inv_approval_dtl
@@ -1403,6 +1415,29 @@ export class ReceiptService {
         }
 
     }
+
+    async cancelApprovedReceipt(doc_no: string, process_id: string){
+        try {
+        const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+            UPDATE mgr.ar_blast_or SET status_process_sign = 'C'
+            WHERE doc_no = ${doc_no}
+            AND process_id = ${process_id}
+            `)      
+        } catch (error) {
+        console.log(error)
+        throw new BadRequestException({
+            statusCode:400,
+            message: "fail to cancel receipt"
+        })
+        }
+
+        return {
+        statusCode:201,
+        message : "receipt cancelled",
+        data:[]
+        }
+    }    
+
     async receiptInqueries() {
         const orRegenerate: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 

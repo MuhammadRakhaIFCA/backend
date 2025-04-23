@@ -317,6 +317,8 @@ export class MailService {
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     const upper_file_type = result[0].invoice_tipe.toUpperCase();
   
+    const attachments = await this.buildAttachments(result[0]);
+    
     let signedFileAttachment;
     if (result[0].file_name_sign) {
       try {
@@ -1287,4 +1289,61 @@ export class MailService {
     }
 
   }
+
+  async getBase64FromUrl(url: string): Promise<string> {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    return Buffer.from(response.data).toString('base64');
+  }
+  
+  async buildAttachments(result: any): Promise<{ filename: string, content: string }[]> {
+    const attachments: { filename: string, content: string }[] = [];
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
+    const baseUrl = process.env.FTP_BASE_URL
+    const upper_file_type = result[0].invoice_tipe.toUpperCase();
+    // Main attachment (signed file or local fallback)
+    if (result.file_name_sign) {
+      const url = `${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result.file_name_sign}`;
+      const content = await this.getBase64FromUrl(url);
+  
+      attachments.push({
+        filename: result.file_name_sign,
+        content,
+      });
+    } else if (result.filenames) {
+      const pathToFile = path.resolve(
+        `${rootFolder}/${result.invoice_tipe}/${result.filenames}`
+      );
+      const content = fs.readFileSync(pathToFile).toString('base64');
+  
+      attachments.push({
+        filename: result.filenames,
+        content,
+      });
+    }
+  
+    // Optional: filenames2
+    if (result.filenames2) {
+      const pathToFile = path.resolve(`${rootFolder}/extraFiles/${result.filenames2}`);
+      const content = fs.readFileSync(pathToFile).toString('base64');
+  
+      attachments.push({
+        filename: result.filenames2,
+        content,
+      });
+    }
+  
+    // Optional: filenames3
+    if (result.filenames3) {
+      const pathToFile = path.resolve(`${rootFolder}/FAKTUR/${result.filenames3}`);
+      const content = fs.readFileSync(pathToFile).toString('base64');
+  
+      attachments.push({
+        filename: result.filenames3,
+        content,
+      });
+    }
+  
+    return attachments;
+  }
+  
 }

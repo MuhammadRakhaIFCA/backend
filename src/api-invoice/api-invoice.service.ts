@@ -103,7 +103,7 @@ export class ApiInvoiceService {
                 )
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast' 
-
+                AND status_process_sign <> 'C'
                 `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -236,6 +236,7 @@ export class ApiInvoiceService {
                   AND abia.project_no = prj.project_no
                 WHERE abia.doc_no = '${doc_no}'
                 AND email_addr LIKE '%${email_addr}%'
+                AND status_process_sign <> 'C'
             `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -819,12 +820,14 @@ export class ApiInvoiceService {
                       SELECT doc_no 
                       FROM mgr.ar_blast_inv
                       WHERE send_status = 'R'
+                        OR status_process_sign = 'C' 
                     )
                     AND doc_no NOT IN (
                         SELECT doc_no 
                         FROM mgr.ar_blast_inv
                         WHERE send_status <> 'R'
-                          OR send_status IS NULL
+                          OR status_process_sign <> 'C'
+                          --OR send_status IS NULL
                     )
               )
               AND mgr.v_assign_approval_level.email = '${auditUser}'
@@ -869,12 +872,14 @@ export class ApiInvoiceService {
                       SELECT doc_no 
                       FROM mgr.ar_blast_inv
                       WHERE send_status = 'R'
+                        OR status_process_sign = 'C'
                     )
                     AND doc_no NOT IN (
                         SELECT doc_no 
                         FROM mgr.ar_blast_inv
                         WHERE send_status <> 'R'
-                          OR send_status IS NULL
+                            OR status_process_sign <> 'C'
+                          --OR send_status IS NULL
                     )
               )
             AND mgr.v_assign_approval_level.email = '${auditUser}'
@@ -919,12 +924,14 @@ export class ApiInvoiceService {
                       SELECT doc_no 
                       FROM mgr.ar_blast_inv
                       WHERE send_status = 'R'
+                        OR status_process_sign = 'C'
                     )
                     AND doc_no NOT IN (
                         SELECT doc_no 
                         FROM mgr.ar_blast_inv
                         WHERE send_status <> 'R'
-                          OR send_status IS NULL
+                          OR status_process_sign <> 'C'
+                          --OR send_status IS NULL
                     )
               )
           AND mgr.v_assign_approval_level.email = '${auditUser}'
@@ -983,7 +990,7 @@ export class ApiInvoiceService {
 
       const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                  UPDATE mgr.ar_blast_inv_approval_dtl
-                 SET approval_status = ${approval_status}, approval_date = GETDATE()      
+                 SET approval_status = ${approval_status}    
                  WHERE doc_no = ${doc_no} 
                  AND process_id = ${process_id}           
                  AND approval_level = ${approver_level}      
@@ -997,7 +1004,7 @@ export class ApiInvoiceService {
       }
       await this.fjiDatabase.$executeRaw(Prisma.sql`
         UPDATE mgr.ar_blast_inv_approval_dtl
-        SET approval_remarks = ${approval_remarks}
+        SET approval_remarks = ${approval_remarks}, approval_date = GETDATE()  
         WHERE doc_no = ${doc_no} AND process_id = ${process_id} 
         AND approval_user = ${approval_user}
         `);
@@ -1085,7 +1092,10 @@ export class ApiInvoiceService {
       const getNextApproveUser: Array<any> = await this.fjiDatabase
         .$queryRawUnsafe(`
                     SELECT approval_user, approval_level FROM mgr.ar_blast_inv_approval_dtl
-                    WHERE doc_no = '${doc_no}' AND process_id = '${process_id}' AND approval_status = 'P' 
+                    WHERE doc_no = '${doc_no}' 
+                      AND process_id = '${process_id}' 
+                      AND approval_status = 'P'
+                      AND approval_level > ${approver_level}
                     ORDER BY approval_level ASC 
                     `);
       if (getNextApproveUser.length === 0) {
@@ -1643,7 +1653,13 @@ export class ApiInvoiceService {
           --AND abia.doc_no NOT LIKE 'OF%'
         ORDER BY gen_date DESC
     `);
-
+    for (const item of result) {
+      const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+          SELECT * FROM mgr.ar_blast_inv_approval_dtl
+          WHERE process_id = '${item.process_id}'
+      `);
+      item.detail = details;
+    }
     if (result.length === 0) {
       throw new NotFoundException({
         statusCode: 404,
@@ -1657,7 +1673,7 @@ export class ApiInvoiceService {
       data: result,
     };
   }
-  async getApprovalHistory(approval_user: string) {
+  async getApprovalHistory(approval_user: string, start_date: string, end_date: string) {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_inv_approval_history
             WHERE approval_user = '${approval_user}'
@@ -1666,6 +1682,8 @@ export class ApiInvoiceService {
             --AND abia.doc_no NOT LIKE 'OR%'
             --AND abia.doc_no NOT LIKE 'SP%'
             --AND abia.doc_no NOT LIKE 'OF%'
+            and doc_date >= '${start_date}'
+            and doc_date <= '${end_date}'
             ORDER BY approval_date DESC
             `);
 
@@ -1985,7 +2003,27 @@ export class ApiInvoiceService {
     }
   }
 
+  async cancelApprovedInvoice(doc_no: string, process_id: string){
+    try {
+      const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+          UPDATE mgr.ar_blast_inv SET status_process_sign = 'C'
+          WHERE doc_no = ${doc_no}
+          AND process_id = ${process_id}
+        `)      
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException({
+        statusCode:400,
+        message: "fail to cancel invoice"
+      })
+    }
 
+    return {
+      statusCode:201,
+      message : "invoice cancelled",
+      data:[]
+    }
+  }
 
 
 
