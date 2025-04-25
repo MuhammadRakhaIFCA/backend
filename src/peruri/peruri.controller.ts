@@ -45,9 +45,20 @@ export class PeruriController {
     }
     const pdfFile = files.pdf[0];
     const imageFile = files.image[0];
-    const getCoordinates = await this.uploadService.getCoordinates(pdfFile.path, 'emeterei', 1);
+    const getCoordinates = await this.uploadService.getCoordinates(pdfFile.path, 'E-meterai', 1);
     const coordinates = getCoordinates.data;
-    const outputPdfPath = path.join('./uploads', `output-${pdfFile.filename}`)
+    const rootFolder = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      process.env.ROOT_PDF_FOLDER,
+  );
+    // const outputPdfPath = path.join('./uploads', `output-${pdfFile.filename}`)
+    const outputPdfPath = `${rootFolder}/test/${pdfFile.filename}`;
+
+    if (!fs.existsSync(`${rootFolder}/test`)) {
+        fs.mkdirSync(`${rootFolder}/test`, { recursive: true });
+    }
 
     if (!coordinates.length) {
       throw new BadRequestException('No coordinates found in the provided PDF.');

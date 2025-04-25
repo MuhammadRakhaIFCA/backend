@@ -350,7 +350,8 @@ export class PdfgenerateService {
             doc.text('E-meterai', 480, tableYStart + 320, { width: 90, align: 'center' })
         }
         doc.font('Times-Bold')
-            .text(data.signature, 480, tableYStart + 380, { width: 90, align: 'center' })
+            // .text(data.signature, 480, tableYStart + 380, { width: 90, align: 'center' })
+            .text(data.signature, 380, tableYStart + 380, { width: 180, align: 'right' })
 
         doc.fontSize(8)
             .text('Disclaimer : ', 225, tableYStart + 400)
@@ -2117,8 +2118,7 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .moveDown()
-            .text(data.signature, { width: 190, align: 'center' })
-
+            .text(data.signature, { width: 290, align: 'center' })
 
 
         doc.fontSize(8).font('Times-Bold')

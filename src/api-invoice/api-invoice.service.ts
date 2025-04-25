@@ -75,7 +75,7 @@ export class ApiInvoiceService {
       throw err;
     }
   }
-  async getInvoice(audit_user:string) {
+  async getInvoice(audit_user: string) {
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
@@ -159,9 +159,9 @@ export class ApiInvoiceService {
 
   async getHistory(data: Record<any, any>) {
     const { startDate, endDate, status, auditUser } = data;
-    let send_status_query:string
-    if(status === 'S') send_status_query = 'status_code = 200'
-    else if(status === 'F') send_status_query = 'status_code <> 200'
+    let send_status_query: string
+    if (status === 'S') send_status_query = 'status_code = 200'
+    else if (status === 'F') send_status_query = 'status_code <> 200'
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT 
@@ -174,6 +174,8 @@ export class ApiInvoiceService {
                 filenames3 = abia.filenames3,
                 filenames4 = abia.filenames4,
                 filenames5 = abia.filenames5,
+                currency_cd = abia.currency_cd,
+                descs = abia.descs,
                 process_id = abia.process_id,
                 doc_amt = abia.doc_amt, 
                 invoice_tipe = abia.invoice_tipe,
@@ -209,7 +211,7 @@ export class ApiInvoiceService {
           data: [],
         });
       }
-      const formattedResult = result.map((row) => ({ ...row, send_status:status}));
+      const formattedResult = result.map((row) => ({ ...row, send_status: status }));
       return {
         statusCode: 200,
         message: 'history retrieved successfully',
@@ -274,16 +276,16 @@ export class ApiInvoiceService {
         data: [],
       });
     }
-    const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+    const existingFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
       WHERE progress_approval = 0
           AND doc_no = '${doc_no}'
       `)
-    if(existingFile[0].count > 0){
-      return({
-        statusCode:201,
-        message:'invoice already generated',
-        data:[]
+    if (existingFile[0].count > 0) {
+      return ({
+        statusCode: 201,
+        message: 'invoice already generated',
+        data: []
       })
     }
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -296,7 +298,7 @@ export class ApiInvoiceService {
       WHERE doc_no = '${doc_no}'
       AND related_class = '${related_class}'
       `)
-    const resendCount: Array<{count: number}> = await this.fjiDatabase.$queryRawUnsafe(`
+    const resendCount: Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT count(doc_no) as count from mgr.ar_blast_inv
       WHERE doc_no = '${doc_no}'
       AND send_status = 'R'
@@ -501,16 +503,16 @@ export class ApiInvoiceService {
         data: [],
       });
     }
-    const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+    const existingFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
       WHERE progress_approval = 0
           AND doc_no = '${doc_no}'
       `)
-    if(existingFile[0].count > 0){
-      return({
-        statusCode:201,
-        message:'invoice already generated',
-        data:[]
+    if (existingFile[0].count > 0) {
+      return ({
+        statusCode: 201,
+        message: 'invoice already generated',
+        data: []
       })
     }
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -699,16 +701,16 @@ export class ApiInvoiceService {
         data: [],
       });
     }
-    const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+    const existingFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
       WHERE progress_approval = 0
           AND doc_no = '${doc_no}'
       `)
-    if(existingFile[0].count > 0){
-      return({
-        statusCode:201,
-        message:'invoice already generated',
-        data:[]
+    if (existingFile[0].count > 0) {
+      return ({
+        statusCode: 201,
+        message: 'invoice already generated',
+        data: []
       })
     }
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -1119,7 +1121,7 @@ export class ApiInvoiceService {
               AND process_id <> '${process_id}'
               ORDER BY audit_date DESC
             `)
-          if (existingDocNo[0].count === 0 && previousFile.length > 0){
+          if (existingDocNo[0].count === 0 && previousFile.length > 0) {
             const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
               INSERT INTO mgr.ar_blast_inv
               (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
@@ -1134,7 +1136,7 @@ export class ApiInvoiceService {
               ${approvalTable[0].filenames4}, ${previousFile[0].filenames5}, ${process_id},
               ${approvalTable[0].audit_user}, GETDATE())
               `);
-  
+
             if (result === 0 || insert === 0) {
               throw new BadRequestException({
                 statusCode: 400,
@@ -1143,7 +1145,7 @@ export class ApiInvoiceService {
               });
             }
           }
-          else if (existingDocNo[0].count === 0){
+          else if (existingDocNo[0].count === 0) {
             const insert = await this.fjiDatabase.$executeRaw(Prisma.sql`
               INSERT INTO mgr.ar_blast_inv
               (entity_cd, project_no, debtor_acct, email_addr, gen_date, bill_type, doc_no, related_class,
@@ -1157,7 +1159,7 @@ export class ApiInvoiceService {
               ${approvalTable[0].filenames}, ${approvalTable[0].filenames2},  ${approvalTable[0].filenames4}, ${process_id},
               ${approvalTable[0].audit_user}, GETDATE())
               `);
-  
+
             if (result === 0 || insert === 0) {
               throw new BadRequestException({
                 statusCode: 400,
@@ -1360,10 +1362,10 @@ export class ApiInvoiceService {
       const approvalLevel = approvalLevelMatch
         ? parseInt(approvalLevelMatch[1], 10)
         : null;
-      if (approvalLevel > getType[0].approval_pic){
+      if (approvalLevel > getType[0].approval_pic) {
         continue
       }
-      if (approvalLevel >= approval_level){
+      if (approvalLevel >= approval_level) {
         approval_level = approvalLevel
       }
       const getUser = await this.fjiDatabase.$queryRawUnsafe(`
@@ -1376,8 +1378,8 @@ export class ApiInvoiceService {
           AND approval_level = ${approvalLevel}
           AND approval_user = '${getUser[0].email}'
           AND process_id = '${process_id}'
-        `)  
-        console.log(existingDetail)
+        `)
+      console.log(existingDetail)
       const approvalDtlBody = {
         entity_cd: result[0].entity_cd,
         project_no: result[0].project_no,
@@ -1390,7 +1392,7 @@ export class ApiInvoiceService {
         process_id,
         audit_user: audit_user,
       };
-      if (existingDetail[0].count === 0){
+      if (existingDetail[0].count === 0) {
         const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
         if (approvalDtl.statusCode == 400) {
           throw new BadRequestException({
@@ -1400,7 +1402,7 @@ export class ApiInvoiceService {
           });
         }
       }
-      
+
 
       // if (approvalLevel === 1) {
       //   const approvalLogBody = {
@@ -1674,18 +1676,33 @@ export class ApiInvoiceService {
     };
   }
   async getApprovalHistory(approval_user: string, start_date: string, end_date: string) {
-    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT * FROM mgr.v_inv_approval_history
-            WHERE approval_user = '${approval_user}'
-            AND approval_status != 'P'
-            AND invoice_tipe <> 'receipt'
-            --AND abia.doc_no NOT LIKE 'OR%'
-            --AND abia.doc_no NOT LIKE 'SP%'
-            --AND abia.doc_no NOT LIKE 'OF%'
-            and doc_date >= '${start_date}'
-            and doc_date <= '${end_date}'
-            ORDER BY approval_date DESC
-            `);
+    let result: Array<any>
+    if (start_date === "all" || end_date === "all") {
+      result = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.v_inv_approval_history
+        WHERE approval_user = '${approval_user}'
+        AND approval_status != 'P'
+        AND invoice_tipe <> 'receipt'
+        --AND abia.doc_no NOT LIKE 'OR%'
+        --AND abia.doc_no NOT LIKE 'SP%'
+        --AND abia.doc_no NOT LIKE 'OF%'
+        ORDER BY approval_date DESC
+        `);
+    }
+    else {
+      result = await this.fjiDatabase.$queryRawUnsafe(`
+        SELECT * FROM mgr.v_inv_approval_history
+        WHERE approval_user = '${approval_user}'
+        AND approval_status != 'P'
+        AND invoice_tipe <> 'receipt'
+        --AND abia.doc_no NOT LIKE 'OR%'
+        --AND abia.doc_no NOT LIKE 'SP%'
+        --AND abia.doc_no NOT LIKE 'OF%'
+        and doc_date >= '${start_date}'
+        and doc_date <= '${end_date}'
+        ORDER BY approval_date DESC
+        `);
+    }
 
     for (const item of result) {
       const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -2003,31 +2020,47 @@ export class ApiInvoiceService {
     }
   }
 
-  async cancelApprovedInvoice(doc_no: string, process_id: string){
+  async cancelApprovedInvoice(doc_no: string, process_id: string) {
     try {
       const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
           UPDATE mgr.ar_blast_inv SET status_process_sign = 'C'
           WHERE doc_no = ${doc_no}
           AND process_id = ${process_id}
-        `)      
+        `)
     } catch (error) {
       console.log(error)
       throw new BadRequestException({
-        statusCode:400,
+        statusCode: 400,
         message: "fail to cancel invoice"
       })
     }
 
     return {
-      statusCode:201,
-      message : "invoice cancelled",
-      data:[]
+      statusCode: 201,
+      message: "invoice cancelled",
+      data: []
     }
   }
 
 
 
   async invoiceInqueries() {
+    const invCancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_inv abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+              AND abia.entity_cd = ad.entity_cd
+              AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+              ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+              ON abia.entity_cd = prj.entity_cd
+              AND abia.project_no = prj.project_no
+            WHERE status_process_sign = 'C'
+            ORDER BY rowID desc
+            `)
+    const invCancelledWithStatus = invCancelled.map((row) => ({ ...row, status: 'cancelled' }));
     const invRegenerate: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
       FROM mgr.ar_blast_inv abia
@@ -2270,6 +2303,7 @@ export class ApiInvoiceService {
       ...invStampedWithStatus,
       ...invFailStampWithStatus,
       ...invNotStampedWithStatus,
+      ...invCancelledWithStatus,
       ...invSentWithStatus,
       ...invFailSentWithStatus,
       ...invRegenerateWithStatus

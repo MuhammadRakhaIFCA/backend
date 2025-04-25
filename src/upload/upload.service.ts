@@ -66,7 +66,7 @@ export class UploadService {
         //console.log(item)
       }
     }
-
+    console.log(coordinates)
     return {
       statusCode: 200,
       message: 'success',
@@ -262,7 +262,8 @@ export class UploadService {
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPages();
     const page = pages[pageNumber - 1];
-    const image = await pdfDoc.embedPng(imgBuffer);
+    const image = await pdfDoc.embedJpg(imgBuffer);
+    // const image = await pdfDoc.embedPng(imgBuffer);
     const { visLLX, visLLY, visURX, visURY } = boundingBoxes;
     page.drawImage(image, {
       x: visLLX - 30,

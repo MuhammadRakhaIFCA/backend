@@ -112,6 +112,7 @@ export class ReceiptService {
                 )
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast'
+                status_process_sign <> 'C'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -174,6 +175,8 @@ export class ReceiptService {
                     filenames = abia.filenames, 
                     filenames2 = abia.filenames2, 
                     filenames3 = abia.filenames3,
+                    currency_cd = abia.currency_cd,
+                    descs = abia.descs,
                     process_id = abia.process_id,
                     doc_amt = abia.doc_amt, 
                     invoice_tipe = abia.invoice_tipe,
@@ -1439,6 +1442,22 @@ export class ReceiptService {
     }    
 
     async receiptInqueries() {
+        const orCancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_or abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+              AND abia.entity_cd = ad.entity_cd
+              AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+              ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+              ON abia.entity_cd = prj.entity_cd
+              AND abia.project_no = prj.project_no
+            WHERE status_process_sign = 'C'
+            ORDER BY rowID desc
+            `)
+        const orCancelledWithStatus = orCancelled.map((row) => ({ ...row, status: 'cancelled' }));
         const orRegenerate: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
@@ -1670,6 +1689,7 @@ export class ReceiptService {
             ...orFailStampWithStatus,
             ...orNotStampedWithStatus,
             ...orStampedWithStatus,
+            ...orCancelledWithStatus,
             ...orSentWithStatus,
             ...orFailSentWithStatus,
             ...orRegenerateWithStatus
