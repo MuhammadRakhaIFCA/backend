@@ -1676,6 +1676,7 @@ export class ApiInvoiceService {
     };
   }
   async getApprovalHistory(approval_user: string, start_date: string, end_date: string) {
+    console.log("start date : " + start_date)
     let result: Array<any>
     if (start_date === "all" || end_date === "all") {
       result = await this.fjiDatabase.$queryRawUnsafe(`

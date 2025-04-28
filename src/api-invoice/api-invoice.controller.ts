@@ -135,8 +135,8 @@ export class ApiInvoiceController {
   @Get('get-approval-history/:approval_user')
   async getApprovalHistory(
     @Param('approval_user') approval_user: string,
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @Query('start_date') startDate: string,
+    @Query('end_date') endDate: string,
   ) {
     return this.apiInvoiceService.getApprovalHistory(approval_user, startDate, endDate);
   }

@@ -1222,18 +1222,34 @@ export class ReceiptService {
         };
     }
     async getApprovalHistory(approval_user: string, start_date: string, end_date: string) {
-        const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.v_inv_approval_history
-                WHERE approval_user = '${approval_user}'
-                AND approval_status != 'P'
-                AND invoice_tipe <> 'receipt'
-                --AND abia.doc_no NOT LIKE 'OR%'
-                --AND abia.doc_no NOT LIKE 'SP%'
-                --AND abia.doc_no NOT LIKE 'OF%'
-                and doc_date >= '${start_date}'
-                and doc_date <= '${end_date}'
-                ORDER BY approval_date DESC
-                `);
+        console.log("start date : " + start_date)
+        let result:Array<any>
+        if (start_date === "all" || end_date === "all") {
+            result = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.v_inv_approval_history
+              WHERE approval_user = '${approval_user}'
+              AND approval_status != 'P'
+              AND invoice_tipe = 'receipt'
+              --AND abia.doc_no NOT LIKE 'OR%'
+              --AND abia.doc_no NOT LIKE 'SP%'
+              --AND abia.doc_no NOT LIKE 'OF%'
+              ORDER BY approval_date DESC
+              `);
+          }
+          else {
+            result = await this.fjiDatabase.$queryRawUnsafe(`
+              SELECT * FROM mgr.v_inv_approval_history
+              WHERE approval_user = '${approval_user}'
+              AND approval_status != 'P'
+              AND invoice_tipe = 'receipt'
+              --AND abia.doc_no NOT LIKE 'OR%'
+              --AND abia.doc_no NOT LIKE 'SP%'
+              --AND abia.doc_no NOT LIKE 'OF%'
+              and doc_date >= '${start_date}'
+              and doc_date <= '${end_date}'
+              ORDER BY approval_date DESC
+              `);
+          }
         for (const item of result) {
             const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.ar_blast_inv_approval_dtl
