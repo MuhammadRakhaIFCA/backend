@@ -112,7 +112,7 @@ export class ReceiptService {
                 )
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast'
-                status_process_sign <> 'C'
+                AND status_process_sign <> 'C'
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)

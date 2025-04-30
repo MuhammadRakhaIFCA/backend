@@ -66,6 +66,14 @@ export class MailController {
   ){
     return this.mailService.resendEmailOr(doc_no, process_id, email)
   }
+  @Post('callback-inv')
+  async mailersendInvCallback(@Body() data: Record<any, any>){
+    return this.mailService.mailerSendCallbackInv(data)
+  }
+  @Post('callback-or')
+  async mailersendOrCallback(@Body() data: Record<any, any>){
+    return this.mailService.mailerSendCallbackOr(data)
+  }
   @Post('edit-config')
   async editConfig(@Body() data: Record<any, any>) {
     return this.mailService.updateEmailConfig(data)

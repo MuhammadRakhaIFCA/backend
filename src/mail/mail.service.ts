@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import { Prisma } from '@prisma/client';
+import { EmailParams, MailerSend, Recipient, Sender } from 'mailersend';
 
 
 @Injectable()
@@ -98,7 +99,6 @@ export class MailService {
                 margin: 0 auto;
               }
               .bold { font-weight: bold; }
-              .red  { color: red; }
               a      { color: #0000EE; text-decoration: underline; }
 
               /* Invoice table now has three columns: label, colon, value */
@@ -140,23 +140,23 @@ export class MailService {
               DKI JAKARTA
             </p>
 
-            <p class="red">Bersama ini kami lampirkan e-Invoice :</p>
+            <p class="bold">Bersama ini kami lampirkan e-Invoice :</p>
 
             <table class="invoice-table">
               <tr>
-                <td class="label red">No. Invoice</td>
-                <td class="colon red">:</td>
-                <td class="value red">${doc_no}</td>
+                <td class="label bold">No. Invoice</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${doc_no}</td>
               </tr>
               <tr>
-                <td class="label red">Tagihan</td>
-                <td class="colon red">:</td>
-                <td class="value red">${descs}</td>
+                <td class="label bold">Tagihan</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${descs}</td>
               </tr>
               <tr>
-                <td class="label red">Periode</td>
-                <td class="colon red">:</td>
-                <td class="value red">${moment(start_date).format('DD-MMM-YY')} – ${moment(end_date).format('DD-MMM-YY')}</td>
+                <td class="label bold">Periode</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${moment(start_date).format('DD-MMM-YY')} – ${moment(end_date).format('DD-MMM-YY')}</td>
               </tr>
               <tr>
                 <td class="label bold">Lokasi</td>
@@ -409,6 +409,331 @@ export class MailService {
     })
   }
 
+  async mailerSendOr(doc_no: string, process_id: string, sender: string){
+    const mailConfig = await this.getEmailConfig();
+    const mailerSend = new MailerSend({
+      apiKey: process.env.API_KEY,
+    });
+    const baseUrl = process.env.FTP_BASE_URL;
+    const send_id = Array(6)
+      .fill(null)
+      .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+      .join('');
+  
+    // Fetch the record for the given doc_no
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}' AND process_id = '${process_id}'
+    `);
+  
+    if (!result || result.length === 0) {
+      throw new NotFoundException({
+        statusCode: 404,
+        message: 'No record found',
+        data: []
+      });
+    }  
+    const email_addrs = result[0].email_addr
+      ? result[0].email_addr.split(';').map((email: string) => email.trim())
+      : [];
+    const sentFrom = new Sender(
+      mailConfig.data[0].sender_email,
+      mailConfig.data[0].sender_name,
+    );
+    let info = [];
+    for (let i = 0; i < email_addrs.length; i++) {
+      const attachments = [];
+      const primaryFilename = result[0].file_name_sign ?? result[0].filenames;
+      const primaryFilePath = path.resolve(__dirname, `../../uploads/${result[i].invoice_tipe}/${primaryFilename}`);
+      const primaryFileContent = fs.readFileSync(primaryFilePath).toString('base64');
+      
+      attachments.push({
+        content: primaryFileContent,
+        filename: primaryFilename,
+      });
+      
+      // Optionally add filenames2
+      if (result[0].filenames2) {
+        const filePath2 = path.resolve(__dirname, `../../uploads/extraFiles/${result[i].filenames2}`);
+        const fileContent2 = fs.readFileSync(filePath2).toString('base64');
+      
+        attachments.push({
+          content: fileContent2,
+          filename: result[0].filenames2,
+        });
+      }
+      
+      // Optionally add filenames3
+      if (result[0].filenames3) {
+        const filePath3 = path.resolve(__dirname, `../../uploads/FAKTUR/${result[0].filenames3}`);
+        const fileContent3 = fs.readFileSync(filePath3).toString('base64');
+      
+        attachments.push({
+          content: fileContent3,
+          filename: result[0].filenames3,
+          disposition:attachments
+        });
+      }
+      if (result[0].filenames4) {
+        const filePath4 = path.resolve(__dirname, `../../uploads/schedule/${result[0].filenames4}`);
+        const fileContent4 = fs.readFileSync(filePath4).toString('base64');
+      
+        attachments.push({
+          content: fileContent4,
+          filename: result[0].filenames4,
+          disposition:attachments
+        });
+      }
+      if (result[0].filenames5) {
+        const filePath5 = path.resolve(__dirname, `../../uploads/extraFiles/${result[0].filenames5}`);
+        const fileContent5 = fs.readFileSync(filePath5).toString('base64');
+      
+        attachments.push({
+          content: fileContent5,
+          filename: result[0].filenames5,
+          disposition:attachments
+        });
+      }
+      const emailContent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_ledger_gen_or_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+        `)
+      const emailBody = {
+        doc_no,
+        debtor_name: emailContent[0].debtor_name || '',
+        address1: emailContent[0].address1 || '',
+        address2: emailContent[0].address2 || '',
+        descs: emailContent[0].descs || '',
+        descs_lot: emailContent[0].descs_lot || '',
+        project_name: emailContent[0].project_name || '',
+        start_date: emailContent[0].start_date || '',
+        end_date: emailContent[0].end_date || '',
+        due_date: emailContent[0].due_date || '',
+      }
+      console.log(email_addrs[i])
+      const emailParams = new EmailParams()
+        .setFrom(sentFrom)
+        .setTo([new Recipient(email_addrs[i], "Recipient")])
+        .setReplyTo(sentFrom)
+        .setSubject('This is a Subject')
+        .setHtml(
+          this.generateNewEmailTemplate(emailBody),
+        )
+        .setText('This is the text content')
+        .setAttachments(attachments);
+      const response = await mailerSend.email.send(emailParams)
+
+      if (response.statusCode == 202) {
+        const mailersend_id = response.headers['x-message-id']
+        info.push(mailersend_id);
+        try {
+          await this.fjiDatabase.$queryRaw(Prisma.sql`
+            UPDATE ar_blast_or SET send_id = ${send_id}
+            WHERE doc_no = ${doc_no} AND process_id = ${process_id}
+            `)
+          await this.fjiDatabase.$queryRaw(Prisma.sql`
+            INSERT INTO ar_blast_or_msg_log
+            (email_addr, doc_no, status_code, send_status, response_message, send_date, send_id, audit_user, mailersend_id)
+            VALUES
+            (${email_addrs[i]}, ${result[0].doc_no}, 202, 'pending', 'message send', NOW(), ${send_id}, ${sender} ,${mailersend_id})
+            `)
+        } catch (error) {
+          console.log(error)
+          throw new BadRequestException({
+            statusCode:400,
+            message: "fail to update database",
+            data: []
+          })
+        }
+      }
+      else if (response.statusCode == 422) {
+        info.push(response.body)
+      }
+    }
+
+
+    return {
+      statusCode: 201,
+      message: "email has been processed, please check blast history",
+      data: info
+    }
+  }
+
+  async mailerSendInv(doc_no: string, process_id: string, sender: string){
+    const mailConfig = await this.getEmailConfig();
+    const mailerSend = new MailerSend({
+      apiKey: process.env.API_KEY,
+    });
+    const baseUrl = process.env.FTP_BASE_URL;
+    const send_id = Array(6)
+      .fill(null)
+      .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
+      .join('');
+  
+    // Fetch the record for the given doc_no
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}' AND process_id = '${process_id}'
+    `);
+  
+    if (!result || result.length === 0) {
+      throw new NotFoundException({
+        statusCode: 404,
+        message: 'No record found',
+        data: []
+      });
+    }  
+    const email_addrs = result[0].email_addr
+      ? result[0].email_addr.split(';').map((email: string) => email.trim())
+      : [];
+    const sentFrom = new Sender(
+      mailConfig.data[0].sender_email,
+      mailConfig.data[0].sender_name,
+    );
+    let info = [];
+    for (let i = 0; i < email_addrs.length; i++) {
+      const attachments = [];
+      const primaryFilename = result[0].file_name_sign ?? result[0].filenames;
+      const primaryFilePath = path.resolve(__dirname, `../../uploads/${result[i].invoice_tipe}/${primaryFilename}`);
+      const primaryFileContent = fs.readFileSync(primaryFilePath).toString('base64');
+      
+      attachments.push({
+        content: primaryFileContent,
+        filename: primaryFilename,
+      });
+      
+      // Optionally add filenames2
+      if (result[0].filenames2) {
+        const filePath2 = path.resolve(__dirname, `../../uploads/${result[i].invoice_tipe}/${result[i].filenames2}`);
+        const fileContent2 = fs.readFileSync(filePath2).toString('base64');
+      
+        attachments.push({
+          content: fileContent2,
+          filename: result[0].filenames2,
+        });
+      }
+      
+      // Optionally add filenames3
+      if (result[0].filenames3) {
+        const filePath3 = path.resolve(__dirname, `../../uploads/FAKTUR/${result[0].filenames3}`);
+        const fileContent3 = fs.readFileSync(filePath3).toString('base64');
+      
+        attachments.push({
+          content: fileContent3,
+          filename: result[0].filenames3,
+          disposition:attachments
+        });
+      }
+      if (result[0].filenames4) {
+        const filePath4 = path.resolve(__dirname, `../../uploads/schedule/${result[0].filenames4}`);
+        const fileContent4 = fs.readFileSync(filePath4).toString('base64');
+      
+        attachments.push({
+          content: fileContent4,
+          filename: result[0].filenames4,
+          disposition:attachments
+        });
+      }
+      if (result[0].filenames5) {
+        const filePath5 = path.resolve(__dirname, `../../uploads/extraFiles/${result[0].filenames5}`);
+        const fileContent5 = fs.readFileSync(filePath5).toString('base64');
+      
+        attachments.push({
+          content: fileContent5,
+          filename: result[0].filenames5,
+          disposition:attachments
+        });
+      }
+      let emailContent:Array<any>
+      if (result[0].invoice_tipe === "schedule"){
+        emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+          SELECT * FROM mgr.v_ar_ledger_sch_inv_web
+          WHERE entity_cd = ${result[0].entity_cd}
+          AND project_no = ${result[0].project_no}
+          AND debtor_acct = ${result[0].debtor_acct}
+          AND doc_no = ${doc_no}
+        `)
+      }
+      else if (result[0].invoice_tipe === "manual"){
+        emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+          SELECT * FROM mgr.v_ar_inv_entry_post_manual_web
+          WHERE entity_cd = ${result[0].entity_cd}
+          AND project_no = ${result[0].project_no}
+          AND debtor_acct = ${result[0].debtor_acct}
+          AND doc_no = ${doc_no}
+        `)
+      }
+      else if (result[0].invoice_tipe === "proforma"){
+        emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+          SELECT * FROM mgr.v_ar_inv_proforma_web
+          WHERE entity_cd = ${result[0].entity_cd}
+          AND project_no = ${result[0].project_no}
+          AND debtor_acct = ${result[0].debtor_acct}
+          AND doc_no = ${doc_no}
+        `)
+      }
+      const emailBody = {
+        doc_no,
+        debtor_name: emailContent[0].debtor_name || '',
+        address1: emailContent[0].address1 || '',
+        address2: emailContent[0].address2 || '',
+        descs: emailContent[0].descs || '',
+        descs_lot: emailContent[0].descs_lot || '',
+        project_name: emailContent[0].project_name || '',
+        start_date: emailContent[0].start_date || '',
+        end_date: emailContent[0].end_date || '',
+        due_date: emailContent[0].due_date || '',
+      }
+      console.log(email_addrs[i])
+      const emailParams = new EmailParams()
+        .setFrom(sentFrom)
+        .setTo([new Recipient(email_addrs[i], "Recipient")])
+        .setReplyTo(sentFrom)
+        .setSubject('This is a Subject')
+        .setHtml(
+          this.generateNewEmailTemplate(emailBody)
+        )
+        .setText('This is the text content')
+        .setAttachments(attachments);
+      const response = await mailerSend.email.send(emailParams)
+
+      if (response.statusCode == 202) {
+        const mailersend_id = response.headers['x-message-id']
+        info.push(mailersend_id);
+        try {
+          await this.fjiDatabase.$queryRaw(Prisma.sql`
+            UPDATE ar_blast_inv SET send_id = ${send_id}
+            WHERE doc_no = ${doc_no} AND process_id = ${process_id}
+            `)
+          await this.fjiDatabase.$queryRaw(Prisma.sql`
+            INSERT INTO ar_blast_inv_msg_log
+            (email_addr, doc_no, status_code, send_status, response_message, send_date, send_id, audit_user, mailersend_id)
+            VALUES
+            (${email_addrs[i]}, ${result[0].doc_no}, 202, 'pending', 'message send', NOW(), ${send_id}, ${sender} ,${mailersend_id})
+            `)
+        } catch (error) {
+          console.log(error)
+          throw new BadRequestException({
+            statusCode:400,
+            message: "fail to update database",
+            data: []
+          })
+        }
+      }
+      else if (response.statusCode == 422) {
+        info.push(response.body)
+      }
+    }
+
+
+    return {
+      statusCode: 201,
+      message: "email has been processed, please check blast history",
+      data: info
+    }
+  }  
+
   async blastEmailOr(doc_no: string, process_id: string, sender: string) {
     const baseUrl = process.env.FTP_BASE_URL;
     const send_id = Array(6)
@@ -515,20 +840,24 @@ export class MailService {
     } catch (error) {
       console.error("Failed to get SMTP transporter:", error);
     }
-
-    // Now loop through using an index to update the existing values
+    const emailBody = {
+      doc_no,
+      debtor_name: emailContent[0].debtor_name || '',
+      address1: emailContent[0].address1 || '',
+      address2: emailContent[0].address2 || '',
+      descs: emailContent[0].descs || '',
+      descs_lot: emailContent[0].descs_lot || '',
+      project_name: emailContent[0].project_name || '',
+      start_date: emailContent[0].start_date || '',
+      end_date: emailContent[0].end_date || '',
+      due_date: emailContent[0].due_date || '',
+    }
     for (let i = 0; i < email_addrs.length; i++) {
       const email = email_addrs[i];
       const mailOptions = {
         ...baseMailOptions,
         to: email,
-        html: this.generateInvoiceTemplate(
-          mailConfig.data[0].sender_name,
-          mailConfig.data[0].sender_email,
-          email, // use the individual email address here
-          result[0].doc_no,
-          'Receipt'
-        ),
+        html: this.generateNewEmailTemplate(emailBody),
       };
 
       // Update the send date for this email at the current index
@@ -753,6 +1082,7 @@ export class MailService {
     let status_codes: number[] = [];
     let response_messages: string[] = [];
     let send_dates: string[] = [];
+    let mailersend_id: string[] = []
 
     // Pre-fill the arrays with default values for each email address
     for (let i = 0; i < email_addrs.length; i++) {
@@ -760,6 +1090,7 @@ export class MailService {
       response_messages[i] = "fail to login to smpt";
       send_dates[i] = moment().format('YYYYMMDD HH:mm:ss')
       send_statuses[i] = 'F';
+      mailersend_id[i] = ''
     }
 
     let smtptransporter: any = null;
@@ -768,6 +1099,7 @@ export class MailService {
     } catch (error) {
       console.error("Failed to get SMTP transporter:", error);
     }
+    
 
     // Now loop through using an index to update the existing values
     const emailBody = {
@@ -792,17 +1124,19 @@ export class MailService {
 
       // Update the send date for this email at the current index
       send_dates[i] = moment().format('YYYYMMDD HH:mm:ss');
-
+      
       try {
         const info = await smtptransporter.sendMail(mailOptions);
         if (info.accepted.includes(email)) {
           send_statuses[i] = 'S';
           status_codes[i] = 200;
           response_messages[i] = 'Email sent successfully';
+          mailersend_id[i] = info.response.match(/queued as ([a-zA-Z0-9]+)/)?.[1] || '';
         } else if (info.pending.includes(email)) {
           send_statuses[i] = 'P';
           status_codes[i] = 202;
           response_messages[i] = 'Email is pending';
+          mailersend_id[i] = info.response.match(/queued as ([a-zA-Z0-9]+)/)?.[1] || '';
         } else if (info.rejected.includes(email)) {
           send_statuses[i] = 'F';
           status_codes[i] = 400;
@@ -842,6 +1176,7 @@ export class MailService {
   
     // Loop through the email addresses to insert a log for each email
     for (let i = 0; i < email_addrs.length; i++) {
+      console.log("mailersend id : " + mailersend_id[i])
       await this.insertToInvMsgLog(
         result[0].entity_cd,
         result[0].project_no,
@@ -871,6 +1206,313 @@ export class MailService {
       message: "email has been processed, please check blast history",
       data: result[0]
     };
+  }
+
+  async resendMailersendInv(doc_no:string, process_id:string, email:string){
+    console.log("resending invoice to email : " + email)
+    const mailerSend = new MailerSend({
+      apiKey: process.env.API_KEY,
+    });
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_inv 
+      WHERE doc_no = '${doc_no}'
+      AND process_id = '${process_id}'
+      `);
+      
+      if (!result || result.length === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'No record found',
+          data: []
+        });
+      }
+      
+    const baseUrl = process.env.FTP_BASE_URL
+    const upper_file_type = result[0].invoice_tipe.toUpperCase();
+    const mailConfig = await this.getEmailConfig()
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+
+    const attachments = [];
+    const primaryFilename = result[0].file_name_sign ?? result[0].filenames;
+    const primaryFilePath = path.resolve(__dirname, `../../uploads/${result[0].invoice_tipe}/${primaryFilename}`);
+    const primaryFileContent = fs.readFileSync(primaryFilePath).toString('base64');
+    
+    attachments.push({
+      content: primaryFileContent,
+      filename: primaryFilename,
+    });
+    
+    // Optionally add filenames2
+    if (result[0].filenames2) {
+      const filePath2 = path.resolve(__dirname, `../../uploads/${result[0].invoice_tipe}/${result[0].filenames2}`);
+      const fileContent2 = fs.readFileSync(filePath2).toString('base64');
+    
+      attachments.push({
+        content: fileContent2,
+        filename: result[0].filenames2,
+      });
+    }
+    
+    // Optionally add filenames3
+    if (result[0].filenames3) {
+      const filePath3 = path.resolve(__dirname, `../../uploads/FAKTUR/${result[0].filenames3}`);
+      const fileContent3 = fs.readFileSync(filePath3).toString('base64');
+    
+      attachments.push({
+        content: fileContent3,
+        filename: result[0].filenames3,
+        disposition:attachments
+      });
+    }
+    if (result[0].filenames4) {
+      const filePath4 = path.resolve(__dirname, `../../uploads/schedule/${result[0].filenames4}`);
+      const fileContent4 = fs.readFileSync(filePath4).toString('base64');
+    
+      attachments.push({
+        content: fileContent4,
+        filename: result[0].filenames4,
+        disposition:attachments
+      });
+    }
+    if (result[0].filenames5) {
+      const filePath5 = path.resolve(__dirname, `../../uploads/extraFiles/${result[0].filenames5}`);
+      const fileContent5 = fs.readFileSync(filePath5).toString('base64');
+    
+      attachments.push({
+        content: fileContent5,
+        filename: result[0].filenames5,
+        disposition:attachments
+      });
+    }
+    let emailContent:Array<any>
+    if (result[0].invoice_tipe === "schedule"){
+      emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_ledger_sch_inv_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    }
+    else if (result[0].invoice_tipe === "manual"){
+      emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_inv_entry_post_manual_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    }
+    else if (result[0].invoice_tipe === "proforma"){
+      emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_inv_proforma_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    }
+    const sentFrom = new Sender(
+      mailConfig.data[0].sender_email,
+      mailConfig.data[0].sender_name,
+    );
+    const emailBody = {
+      doc_no,
+      debtor_name: emailContent[0].debtor_name || '',
+      address1: emailContent[0].address1 || '',
+      address2: emailContent[0].address2 || '',
+      descs: emailContent[0].descs || '',
+      descs_lot: emailContent[0].descs_lot || '',
+      project_name: emailContent[0].project_name || '',
+      start_date: emailContent[0].start_date || '',
+      end_date: emailContent[0].end_date || '',
+      due_date: emailContent[0].due_date || '',
+    }
+
+    try {
+      const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo([new Recipient(email, "Recipient")])
+      .setReplyTo(sentFrom)
+      .setSubject('This is a Subject')
+      .setHtml(
+        this.generateNewEmailTemplate(emailBody),
+      )
+      .setText('This is the text content')
+      .setAttachments(attachments);
+    const response = await mailerSend.email.send(emailParams)
+    const mailersend_id = response.headers['x-message-id']
+    await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_inv_msg_log
+          SET 
+            mailersend_id = ${mailersend_id},
+            audit_date = GETDATE()
+          WHERE
+            send_id = ${result[0].send_id} 
+      `)
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: "fail to resend invoice email",
+        data: []
+      })
+    }
+
+    // try {
+    //   await this.updateInvMsgLog(email, doc_no, 200, "response_message", result[0].send_id)
+    // } catch (error) {
+    //   throw error
+    // }
+
+    return({
+      statusCode: 200,
+      message: "success resending email",
+      date:[]
+    })
+  }
+
+  async resendMailersendOr(doc_no:string, process_id:string, email:string){
+    console.log("resending receipt to email : " + email)
+    const mailerSend = new MailerSend({
+      apiKey: process.env.API_KEY,
+    });
+    const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+      SELECT * FROM mgr.ar_blast_or 
+      WHERE doc_no = '${doc_no}'
+      AND process_id = '${process_id}'
+      `);
+      
+      if (!result || result.length === 0) {
+        throw new NotFoundException({
+          statusCode: 404,
+          message: 'No record found',
+          data: []
+        });
+      }
+      
+    const baseUrl = process.env.FTP_BASE_URL
+    const upper_file_type = result[0].invoice_tipe.toUpperCase();
+    const mailConfig = await this.getEmailConfig()
+    const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
+
+    const attachments = [];
+    const primaryFilename = result[0].file_name_sign ?? result[0].filenames;
+    const primaryFilePath = path.resolve(__dirname, `../../uploads/receipt/${primaryFilename}`);
+    const primaryFileContent = fs.readFileSync(primaryFilePath).toString('base64');
+    
+    attachments.push({
+      content: primaryFileContent,
+      filename: primaryFilename,
+    });
+    
+    // Optionally add filenames2
+    if (result[0].filenames2) {
+      const filePath2 = path.resolve(__dirname, `../../uploads/extraFiles/${result[0].filenames2}`);
+      const fileContent2 = fs.readFileSync(filePath2).toString('base64');
+    
+      attachments.push({
+        content: fileContent2,
+        filename: result[0].filenames2,
+      });
+    }
+    
+    // Optionally add filenames3
+    if (result[0].filenames3) {
+      const filePath3 = path.resolve(__dirname, `../../uploads/FAKTUR/${result[0].filenames3}`);
+      const fileContent3 = fs.readFileSync(filePath3).toString('base64');
+    
+      attachments.push({
+        content: fileContent3,
+        filename: result[0].filenames3,
+        disposition:attachments
+      });
+    }
+    if (result[0].filenames4) {
+      const filePath4 = path.resolve(__dirname, `../../uploads/schedule/${result[0].filenames4}`);
+      const fileContent4 = fs.readFileSync(filePath4).toString('base64');
+    
+      attachments.push({
+        content: fileContent4,
+        filename: result[0].filenames4,
+        disposition:attachments
+      });
+    }
+    if (result[0].filenames5) {
+      const filePath5 = path.resolve(__dirname, `../../uploads/extraFiles/${result[0].filenames5}`);
+      const fileContent5 = fs.readFileSync(filePath5).toString('base64');
+    
+      attachments.push({
+        content: fileContent5,
+        filename: result[0].filenames5,
+        disposition:attachments
+      });
+    }
+    const emailContent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+      SELECT * FROM mgr.v_ar_ledger_gen_or_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    const sentFrom = new Sender(
+      mailConfig.data[0].sender_email,
+      mailConfig.data[0].sender_name,
+    );
+    const emailBody = {
+      doc_no,
+      debtor_name: emailContent[0].debtor_name || '',
+      address1: emailContent[0].address1 || '',
+      address2: emailContent[0].address2 || '',
+      descs: emailContent[0].descs || '',
+      descs_lot: emailContent[0].descs_lot || '',
+      project_name: emailContent[0].project_name || '',
+      start_date: emailContent[0].start_date || '',
+      end_date: emailContent[0].end_date || '',
+      due_date: emailContent[0].due_date || '',
+    }
+
+    try {
+      const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo([new Recipient(email, "Recipient")])
+      .setReplyTo(sentFrom)
+      .setSubject('This is a Subject')
+      .setHtml(
+        this.generateNewEmailTemplate(emailBody),
+      )
+      .setText('This is the text content')
+      .setAttachments(attachments);
+    const response = await mailerSend.email.send(emailParams)
+    const mailersend_id = response.headers['x-message-id']
+    await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_or_msg_log
+          SET 
+            mailersend_id = ${mailersend_id},
+            audit_date = GETDATE()
+          WHERE
+            send_id = ${result[0].send_id} 
+      `)
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: "fail to resend receipt email",
+        data: []
+      })
+    }
+
+    // try {
+    //   await this.updateInvMsgLog(email, doc_no, 200, "response_message", result[0].send_id)
+    // } catch (error) {
+    //   throw error
+    // }
+
+    return({
+      statusCode: 200,
+      message: "success resending email",
+      date:[]
+    })
   }
 
   async resendEmailInv(doc_no:string, process_id:string, email:string){
@@ -910,19 +1552,53 @@ export class MailService {
         })
       }
     }
+    let emailContent:Array<any>
+    if (result[0].invoice_tipe === "schedule"){
+      emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_ledger_sch_inv_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    }
+    else if (result[0].invoice_tipe === "manual"){
+      emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_inv_entry_post_manual_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    }
+    else if (result[0].invoice_tipe === "proforma"){
+      emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT * FROM mgr.v_ar_inv_proforma_web
+        WHERE entity_cd = ${result[0].entity_cd}
+        AND project_no = ${result[0].project_no}
+        AND debtor_acct = ${result[0].debtor_acct}
+        AND doc_no = ${doc_no}
+      `)
+    }
 
+    const emailBody = {
+      doc_no,
+      debtor_name: emailContent[0].debtor_name || '',
+      address1: emailContent[0].address1 || '',
+      address2: emailContent[0].address2 || '',
+      descs: emailContent[0].descs || '',
+      descs_lot: emailContent[0].descs_lot || '',
+      project_name: emailContent[0].project_name || '',
+      start_date: emailContent[0].start_date || '',
+      end_date: emailContent[0].end_date || '',
+      due_date: emailContent[0].due_date || '',
+    }
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: email,
       subject: `INVOICE ${doc_no}`,
       text: "Please find the attached invoice ",
-      html: this.generateInvoiceTemplate(
-        mailConfig.data[0].sender_name,
-        mailConfig.data[0].sender_email,
-        result[0].email_addr,
-        result[0].doc_no,
-        'Invoice'
-      ),
+      html: this.generateNewEmailTemplate(emailBody),
       attachments: [
         ...(result[0].file_name_sign
           ? [
@@ -1113,6 +1789,60 @@ export class MailService {
       message: response_message,
       date:[]
     })
+  }
+
+  async mailerSendCallbackInv(body: Record<any, any>) {
+    const { type, data } = body;
+    const { email: emailData, recipient, type: status } = data;
+    const { id: recipientId, email: recipientEmail } = recipient;
+    const { id: messageId} = emailData.message
+    try {
+      const response = await this.fjiDatabase.$executeRaw(Prisma.sql`
+          UPDATE ar_blast_inv_msg_log
+            SET response_message = ${status}, audit_date = NOW()
+            WHERE mailersend_id = ${messageId}
+            AND email_addr = ${recipientEmail}
+        `)
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: "fail to update inv_msg_log"
+      })
+    }
+
+    return {
+      statusCode: 201,
+      message: "status updated successfuly",
+      data: []
+    }
+  }
+
+  async mailerSendCallbackOr(body: Record<any, any>) {
+    const { type, data } = body;
+    const { email: emailData, recipient, type: status } = data;
+    const { id: recipientId, email: recipientEmail } = recipient;
+    const { id: messageId} = emailData.message
+    try {
+      const response = await this.fjiDatabase.$executeRaw(Prisma.sql`
+          UPDATE ar_blast_or_msg_log
+            SET response_message = ${status}, audit_date = NOW()
+            WHERE mailersend_id = ${messageId}
+            AND email_addr = ${recipientEmail}
+        `)
+    } catch (error) {
+      console.log(error)
+      throw new BadRequestException({
+        statusCode: 400,
+        message: "fail to update or_msg_log"
+      })
+    }
+
+    return {
+      statusCode: 201,
+      message: "status updated successfuly",
+      data: []
+    }
   }
 
   async requestRegenerateInvoice(
