@@ -197,6 +197,115 @@ export class MailService {
         </html>   
     `
   }
+  private generateNewEmailTemplateOr(data:Record<any,any>){
+    const {
+      doc_no, debtor_name, address1, address2, descs, project_name, doc_date
+    } = data
+
+    return`
+      <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>E-Receipt</title>
+            <style>
+              body {
+                margin: 40px;
+                font-family: "Times New Roman", serif;
+                font-size: 16px;
+                color: #000;
+                max-width: 600px;
+                margin: 0 auto;
+              }
+              .bold { font-weight: bold; }
+              a      { color: #0000EE; text-decoration: underline; }
+
+              /* Invoice table now has three columns: label, colon, value */
+              .invoice-table {
+                margin-top: 20px;
+                border-collapse: collapse;
+              }
+              .invoice-table td {
+                vertical-align: top;
+                padding: 2px 4px 2px 4px;
+              }
+              .invoice-table .label {
+                width: 140px;
+              }
+              .invoice-table .colon {
+                width: 10px;
+                text-align: center;
+              }
+              .invoice-table .value {
+                padding-left: 50px;
+              }
+
+              .note {
+                margin-top: 20px;
+                line-height: 1.5;
+                text-align: justify;
+              }
+              .footer {
+                margin-top: 20px;
+                line-height: 1.5;
+              }
+            </style>
+          </head>
+          <body class="container">
+            <p class="bold">Kepada Yth.</p>
+            <p class="bold">
+              ${debtor_name}<br>
+              ${address1} – ${address2}<br>
+              DKI JAKARTA
+            </p>
+
+            <p class="bold">Bersama ini kami lampirkan e-Receipt :</p>
+
+            <table class="invoice-table">
+              <tr>
+                <td class="label bold">No. Invoice</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${doc_no}</td>
+              </tr>
+              <tr>
+                <td class="label bold">Tagihan</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${descs}</td>
+              </tr>
+              <tr>
+                <td class="label bold">Tanggal</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${moment(doc_date).format('DD-MMM-YY')}</td>
+              </tr>
+              <tr>
+                <td class="label bold">Lokasi</td>
+                <td class="colon bold">:</td>
+                <td class="value bold">${project_name}</td>
+              </tr>
+            </table>
+
+            <p class="note">
+              Note : Mohon receipt diperiksa Kembali dan jika ada keberatan kami tunggu maksimal 3 (tiga) hari kerja dari tanggal email ini dan dengan mengirim email ke
+              <a href="mailto:tr.property@fji.co.id">tr.property@fji.co.id</a> dengan cc.
+              <a href="mailto:ar.billing@fji.co.id">ar.billing@fji.co.id</a> atau dapat menghubungi Building Management di 021-5151515 dengan TENANT RELATION
+            </p>
+
+            <div class="footer">
+              <p>Kami mengucapkan terima kasih untuk perhatian dan kerja samanya.
+                <br>
+                <b>Hormat kami,</b>
+              </p>
+              <br>
+              <br>
+              <br>
+              <p class="bold">Building Management<br>
+                PT. First Jakarta International
+              </p>
+            </div>
+          </body>
+        </html>   
+    `
+  }
 
   private generateBaseTemplate(type: string, from: string, bodyContent: string): string {
     return `
@@ -842,22 +951,19 @@ export class MailService {
     }
     const emailBody = {
       doc_no,
-      debtor_name: emailContent[0].debtor_name || '',
+      debtor_name: emailContent[0].name || '',
       address1: emailContent[0].address1 || '',
       address2: emailContent[0].address2 || '',
       descs: emailContent[0].descs || '',
-      descs_lot: emailContent[0].descs_lot || '',
       project_name: emailContent[0].project_name || '',
-      start_date: emailContent[0].start_date || '',
-      end_date: emailContent[0].end_date || '',
-      due_date: emailContent[0].due_date || '',
+      doc_date: emailContent[0].doc_date || '',
     }
     for (let i = 0; i < email_addrs.length; i++) {
       const email = email_addrs[i];
       const mailOptions = {
         ...baseMailOptions,
         to: email,
-        html: this.generateNewEmailTemplate(emailBody),
+        html: this.generateNewEmailTemplateOr(emailBody),
       };
 
       // Update the send date for this email at the current index

@@ -103,7 +103,7 @@ export class ApiInvoiceService {
                 )
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast' 
-                AND status_process_sign <> 'C'
+                AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
                 `);
       if (!result || result.length === 0) {
         throw new NotFoundException({
@@ -829,7 +829,8 @@ export class ApiInvoiceService {
                         FROM mgr.ar_blast_inv
                         WHERE send_status <> 'R'
                           OR status_process_sign <> 'C'
-                          --OR send_status IS NULL
+                          OR status_process_sign IS NULL
+                          OR send_status IS NULL
                     )
               )
               AND mgr.v_assign_approval_level.email = '${auditUser}'
@@ -880,8 +881,9 @@ export class ApiInvoiceService {
                         SELECT doc_no 
                         FROM mgr.ar_blast_inv
                         WHERE send_status <> 'R'
-                            OR status_process_sign <> 'C'
-                          --OR send_status IS NULL
+                          OR status_process_sign <> 'C'
+                          OR status_process_sign IS NULL
+                          OR send_status IS NULL
                     )
               )
             AND mgr.v_assign_approval_level.email = '${auditUser}'
@@ -933,7 +935,8 @@ export class ApiInvoiceService {
                         FROM mgr.ar_blast_inv
                         WHERE send_status <> 'R'
                           OR status_process_sign <> 'C'
-                          --OR send_status IS NULL
+                          OR status_process_sign IS NULL
+                          OR send_status IS NULL
                     )
               )
           AND mgr.v_assign_approval_level.email = '${auditUser}'

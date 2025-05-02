@@ -112,7 +112,7 @@ export class ReceiptService {
                 )
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast'
-                AND status_process_sign <> 'C'
+                AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -448,8 +448,9 @@ export class ReceiptService {
                         SELECT doc_no 
                         FROM mgr.ar_blast_or
                         WHERE send_status <> 'R'
-                            OR status_process_sign <> 'C'
-                          --OR send_status IS NULL
+                          OR status_process_sign <> 'C'
+                          OR status_process_sign IS NULL
+                          OR send_status IS NULL
                     )
               )
             `)
