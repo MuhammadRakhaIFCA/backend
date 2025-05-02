@@ -770,7 +770,7 @@ export class MailService {
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     // const upper_file_type = result[0].invoice_tipe.toUpperCase();
   
-    const attachments = await this.buildAttachments(result[0]);
+    // const attachments = await this.buildAttachments(result[0]);
     
     let signedFileAttachment;
     if (result[0].file_name_sign) {
