@@ -768,7 +768,7 @@ export class MailService {
   
     const mailConfig = await this.getEmailConfig();
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
-    const upper_file_type = result[0].invoice_tipe.toUpperCase();
+    // const upper_file_type = result[0].invoice_tipe.toUpperCase();
   
     const attachments = await this.buildAttachments(result[0]);
     
@@ -776,7 +776,7 @@ export class MailService {
     if (result[0].file_name_sign) {
       try {
         const response = await axios.get(
-          `${baseUrl}/SIGNED/GQCINV/${upper_file_type}/${result[0].file_name_sign}`,
+          `${baseUrl}/SIGNED/GQCINV/RECEIPT/${result[0].file_name_sign}`,
           { responseType: 'arraybuffer' }
         );
         signedFileAttachment = {

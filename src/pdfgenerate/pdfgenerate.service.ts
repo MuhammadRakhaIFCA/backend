@@ -2118,7 +2118,7 @@ export class PdfgenerateService {
             .moveDown()
             .moveDown()
             .moveDown()
-            .text(data.signature, { width: 290, align: 'center' })
+            .text(data.signature, { width: 190, align: 'center' })
 
 
         doc.fontSize(8).font('Times-Bold')
