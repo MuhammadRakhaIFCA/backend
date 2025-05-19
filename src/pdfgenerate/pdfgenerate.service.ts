@@ -2497,6 +2497,7 @@ export class PdfgenerateService {
             .text('In Payment of', 20, 350)
             .text('Paid By', 20, 370)
             .text('Authorized Signature', 450, 400, { width: 100, align: 'center' })
+            .text(data.signature, 450, 500, { width: 100, align: 'center' })
             .font('Times-Roman')
             .text(':', 170, 300)
             .text(':', 170, 350)

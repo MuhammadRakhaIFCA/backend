@@ -446,11 +446,13 @@ export class ReceiptService {
                     )
                     AND doc_no NOT IN (
                         SELECT doc_no 
-                        FROM mgr.ar_blast_or
-                        WHERE send_status <> 'R'
-                          OR status_process_sign <> 'C'
-                          OR status_process_sign IS NULL
-                          OR send_status IS NULL
+                        FROM mgr.ar_blast_inv
+                        WHERE 
+                        (send_status <> 'R'
+                        OR send_status IS NULL) 
+                        AND
+                        (status_process_sign <> 'C'
+                        OR status_process_sign IS NULL)
                     )
               )
             `)
