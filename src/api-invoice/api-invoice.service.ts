@@ -2178,7 +2178,11 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
-      WHERE file_status_sign = 'F'
+      WHERE (
+        file_status_sign = 'P'
+        OR file_status_sign = 'A'
+        OR file_status_sign = 'F'
+      )
         AND send_id IS NULL
       ORDER BY rowID desc
     `);

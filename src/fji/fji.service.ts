@@ -24,23 +24,29 @@ export class FjiService {
 
 
     async getUser() {
-
         try {
-            const result = await this.fjiDatabase.$queryRawUnsafe(`
-               SELECT * FROM mgr.m_user
-                `)
-            return ({
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                SELECT * FROM mgr.m_user
+            `);
+
+            const sanitizedResult = result.map((user: any) => {
+                const { password, ...rest } = user;
+                return rest;
+            });
+
+            return {
                 statusCode: 201,
                 message: "user get",
-                data: result
-            })
+                data: sanitizedResult
+            };
         } catch (error) {
             throw new NotFoundException({
                 statusCode: 404,
                 message: "failed to get user",
                 data: []
-            })
+            });
         }
+
     }
     async getUserById(user_id: number) {
 
