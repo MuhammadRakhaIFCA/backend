@@ -1310,6 +1310,8 @@ export class ReceiptService {
             INNER JOIN mgr.ar_blast_inv_approval aba
                 ON abia.process_id = aba.process_id
                 AND abia.audit_user = aba.audit_user
+            INNER JOIN mgr.v_assign_approval_level aal
+                ON aal.type_cd = 'OR'
             where abia.progress_approval = 0
                 AND aba.invoice_tipe = 'receipt'
             --AND (abia.doc_no LIKE 'OR%'
