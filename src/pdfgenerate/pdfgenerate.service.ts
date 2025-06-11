@@ -345,13 +345,13 @@ export class PdfgenerateService {
             // .text(`${data.account_rp}`, 350, tableYStart + 305)
             // .text(`${data.account_usd}`, 350, tableYStart + 318)
             .fontSize(11).font('Times-Roman')
-            .text('Authorized officer', 480, tableYStart + 280, { width: 90, align: 'center' })
+            .text('Authorized officer', 460, tableYStart + 280, { width: 110, align: 'center' })
         if (baseAmt + taxAmt >= 5000000 || (data.currency_cd == "USD" && baseAmt + taxAmt >= 300)) {
-            doc.text('E-meterai', 480, tableYStart + 320, { width: 90, align: 'center' })
+            doc.text('E-meterai', 460, tableYStart + 320, { width: 110, align: 'center' })
         }
         doc.font('Times-Bold')
-            // .text(data.signature, 480, tableYStart + 380, { width: 90, align: 'center' })
-            .text(data.signature, 380, tableYStart + 380, { width: 180, align: 'right' })
+            .text(data.signature, 460, tableYStart + 380, { width: 110, align: 'center' })
+            // .text(data.signature, 380, tableYStart + 380, { width: 180, align: 'right' })
 
         doc.fontSize(8)
             .text('Disclaimer : ', 225, tableYStart + 400)
