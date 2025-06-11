@@ -1236,6 +1236,7 @@ export class ReceiptService {
               --AND abia.doc_no NOT LIKE 'OR%'
               --AND abia.doc_no NOT LIKE 'SP%'
               --AND abia.doc_no NOT LIKE 'OF%'
+              AND approval_date IS NOT NULL
               ORDER BY approval_date DESC
               `);
           }
@@ -1250,6 +1251,7 @@ export class ReceiptService {
               --AND abia.doc_no NOT LIKE 'OF%'
               and doc_date >= '${start_date}'
               and doc_date <= '${end_date}'
+              AND approval_date IS NOT NULL
               ORDER BY approval_date DESC
               `);
           }
