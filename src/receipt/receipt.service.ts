@@ -1311,11 +1311,12 @@ export class ReceiptService {
                 ON abia.process_id = aba.process_id
                 AND abia.audit_user = aba.audit_user
             where abia.progress_approval = 0
-                AND abia.audit_user = '${audit_user}'
                 AND aba.invoice_tipe = 'receipt'
             --AND (abia.doc_no LIKE 'OR%'
                 --OR abia.doc_no LIKE 'SP%'
                 --OR abia.doc_no LIKE 'OF%') 
+                AND aal.email = '${audit_user}' 
+                AND aal.job_task = 'Maker'
             ORDER BY gen_date DESC
             `)
             return {

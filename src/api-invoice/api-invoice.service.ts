@@ -1293,12 +1293,15 @@ export class ApiInvoiceService {
         INNER JOIN mgr.ar_blast_inv_approval aba
           ON abia.process_id = aba.process_id
           AND abia.audit_user = aba.audit_user
+        INNER JOIN mgr.v_assign_approval_level aal
+          ON abia.related_class = aal.type_cd 
         where abia.progress_approval = 0
-            AND abia.audit_user = '${audit_user}'
             AND aba.invoice_tipe <> 'receipt'
             --AND abia.doc_no NOT LIKE 'OR%'
             --AND abia.doc_no NOT LIKE 'SP%'
             --AND abia.doc_no NOT LIKE 'OF%'
+            AND aal.email = '${audit_user}' 
+            AND aal.job_task = 'Maker' 
         ORDER BY gen_date DESC
         `)
       return {
