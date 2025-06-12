@@ -347,9 +347,11 @@ export class PdfgenerateService {
             .fontSize(11).font('Times-Roman')
             .text('Authorized officer', 460, tableYStart + 280, { width: 110, align: 'center' })
         if (baseAmt + taxAmt >= 5000000 || (data.currency_cd == "USD" && baseAmt + taxAmt >= 300)) {
+            doc.fillColor('white')
             doc.text('E-meterai', 460, tableYStart + 320, { width: 110, align: 'center' })
         }
         doc.font('Times-Bold')
+            .fillColor('black')
             .text(data.signature, 460, tableYStart + 380, { width: 110, align: 'center' })
             // .text(data.signature, 380, tableYStart + 380, { width: 180, align: 'right' })
 
@@ -2510,7 +2512,9 @@ export class PdfgenerateService {
         }
         doc.text(`${data.descs}`, 190, 350)
         if (raw_fdoc_amt >= 5000000 || (data.currency_cd == "USD" && raw_fdoc_amt >= 300)) {
+            doc.fillColor('white')
             doc.text('E-meterai', 450, 450, { width: 100, align: 'center' })
+            doc.fillColor('black')
         }
         if (data.or_paid_by === 'C') {
             doc.text('Cash', 190, 370)
