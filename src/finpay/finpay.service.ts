@@ -249,7 +249,7 @@ export class FinpayService {
               SELECT count(rowID) as count FROM mgr.ar_blast_or_log_msg
             `)
             const totalTopup = completedTransaction.length > 0 
-            ? completedTransaction.reduce((sum, item) => sum + item.order_qty, 0)
+            ? completedTransaction.reduce((sum, item) => sum + Number(item.order_qty), 0)
             : 0;
           
             const totalEmailSent = 
