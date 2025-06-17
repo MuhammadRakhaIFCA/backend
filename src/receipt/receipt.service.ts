@@ -72,7 +72,7 @@ export class ReceiptService {
             throw new Error(`Failed to delete file: ${error.message}`);
         }
     }
-    
+
 
     async disconnect() {
         try {
@@ -84,7 +84,7 @@ export class ReceiptService {
         }
     }
 
-    async getReceipt(audit_user:string) {
+    async getReceipt(audit_user: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
@@ -113,6 +113,7 @@ export class ReceiptService {
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast'
                 AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
+                AND (send_status <> 'C' OR send_status IS NULL)
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -133,6 +134,39 @@ export class ReceiptService {
             );
         }
     }
+
+  async getCompletedReceipt(start_date: string, end_date: string){
+    try {
+      const result: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+                SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
+                FROM mgr.ar_blast_or abia 
+                INNER JOIN mgr.ar_debtor ad 
+                  ON abia.debtor_acct = ad.debtor_acct
+                  AND abia.entity_cd = ad.entity_cd
+                  AND abia.project_no = ad.project_no
+                INNER JOIN mgr.cf_entity ent
+                  ON abia.entity_cd = ent.entity_cd
+                INNER JOIN mgr.pl_project prj
+                  ON abia.entity_cd = prj.entity_cd
+                  AND abia.project_no = prj.project_no
+                WHERE send_status = 'C'
+                  AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+                ORDER BY abia.doc_date        
+        `)
+      return ({
+        statusCode: 200,
+        message: 'success getting completed receipt',
+        data: result
+      })
+    } catch (error) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Fail to get completed receipt',
+        data: [],
+      })
+    }
+  }
+
     async getReceiptDetail(doc_no: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -162,11 +196,11 @@ export class ReceiptService {
 
     async getHistory(data: Record<any, any>) {
         const { startDate, endDate, status, auditUser } = data;
-        let send_status_query:string
-        if(status === 'S') send_status_query = 'status_code = 200'
-        else if(status === 'F') send_status_query = 'status_code <> 200'
+        let send_status_query: string
+        if (status === 'S') send_status_query = 'status_code = 200'
+        else if (status === 'F') send_status_query = 'status_code <> 200'
         try {
-          const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                   SELECT 
                     ablm.*, 
                     debtor_name = ad.name, 
@@ -204,24 +238,24 @@ export class ReceiptService {
                       AND aal.job_task = 'Stamp & Blast'
                     ORDER BY ablm.send_date DESC
                 `);
-          // console.log(result)
-          if (!result || result.length === 0) {
-            throw new NotFoundException({
-              statusCode: 404,
-              message: 'No history yet',
-              data: [],
-            });
-          }
-          const formattedResult = result.map((row) => ({ ...row, send_status:status}));
-          return {
-            statusCode: 200,
-            message: 'history retrieved successfully',
-            data: formattedResult,
-          };
+            // console.log(result)
+            if (!result || result.length === 0) {
+                throw new NotFoundException({
+                    statusCode: 404,
+                    message: 'No history yet',
+                    data: [],
+                });
+            }
+            const formattedResult = result.map((row) => ({ ...row, send_status: status }));
+            return {
+                statusCode: 200,
+                message: 'history retrieved successfully',
+                data: formattedResult,
+            };
         } catch (error) {
-          throw error
+            throw error
         }
-      }
+    }
     async getHistoryDetail(email_addr: string, doc_no: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
@@ -479,18 +513,18 @@ export class ReceiptService {
                 data: []
             })
         }
-        const existingFile:Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const existingFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval 
             WHERE progress_approval = 0
                 AND doc_no = '${doc_no}'
             `)
-          if(existingFile[0].count > 0){
-            return({
-              statusCode:201,
-              message:'receipt already generated',
-              data:[]
+        if (existingFile[0].count > 0) {
+            return ({
+                statusCode: 201,
+                message: 'receipt already generated',
+                data: []
             })
-          }
+        }
         const process_id = Array(6)
             .fill(null)
             .map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26)))
@@ -627,23 +661,23 @@ export class ReceiptService {
             const approvalLevel = approvalLevelMatch
                 ? parseInt(approvalLevelMatch[1], 10)
                 : null;
-            if (approvalLevel > getType[0].approval_pic){
+            if (approvalLevel > getType[0].approval_pic) {
                 continue
             }
-            if (approvalLevel >= approval_level){
+            if (approvalLevel >= approval_level) {
                 approval_level = approvalLevel
             }
             const getUser = await this.fjiDatabase.$queryRawUnsafe(`
                   SELECT * FROM mgr.m_user WHERE user_id = ${row.user_id}
               `);
-              const existingDetail = await this.fjiDatabase.$queryRawUnsafe(`
+            const existingDetail = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT COUNT(doc_no) as count FROM mgr.ar_blast_inv_approval_dtl 
                 WHERE 
                   doc_no = '${doc_no}' 
                   AND approval_level = ${approvalLevel}
                   AND approval_user = '${getUser[0].email}'
                   AND process_id = '${process_id}'
-                `)  
+                `)
             const approvalDtlBody = {
                 entity_cd: result[0].entity_cd,
                 project_no: result[0].project_no,
@@ -656,8 +690,8 @@ export class ReceiptService {
                 process_id,
                 audit_user: audit_user,
             };
-            if (existingDetail[0].count === 0){
-            const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
+            if (existingDetail[0].count === 0) {
+                const approvalDtl = await this.addToApprovalDtl(approvalDtlBody);
                 if (approvalDtl.statusCode == 400) {
                     throw new BadRequestException({
                         statusCode: 400,
@@ -832,9 +866,9 @@ export class ReceiptService {
             if (result === 0) {
                 console.log("already approved")
                 throw new BadRequestException({
-                statusCode: 400,
-                message: 'this document have alrady been approved',
-                data: [],
+                    statusCode: 400,
+                    message: 'this document have alrady been approved',
+                    data: [],
                 });
             }
             await this.fjiDatabase.$executeRaw(Prisma.sql`
@@ -946,7 +980,7 @@ export class ReceiptService {
                 UPDATE mgr.ar_blast_inv_approval SET status_approve = '${approval_status}'
                 WHERE process_id = '${process_id}' 
                 `);
-                const previousFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+                    const previousFile: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                     SELECT * FROM mgr.ar_blast_or 
                     WHERE doc_no = '${doc_no}' 
                     AND process_id <> '${process_id}'
@@ -977,9 +1011,9 @@ export class ReceiptService {
                             AND process_id = '${process_id}'
                             `)
 
-                          if(existingDocNo[0].count === 0){
-                              await this.addToORTable(body)
-                            }
+                        if (existingDocNo[0].count === 0) {
+                            await this.addToORTable(body)
+                        }
                     } catch (error) {
                         console.log(error)
                         throw new BadRequestException({
@@ -1210,7 +1244,7 @@ export class ReceiptService {
                 WHERE process_id = '${item.process_id}'
             `);
             item.detail = details;
-          }
+        }
         if (result.length === 0) {
             throw new NotFoundException({
                 statusCode: 404,
@@ -1226,7 +1260,7 @@ export class ReceiptService {
     }
     async getApprovalHistory(approval_user: string, start_date: string, end_date: string) {
         console.log("start date : " + start_date)
-        let result:Array<any>
+        let result: Array<any>
         if (start_date === "all" || end_date === "all") {
             result = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.v_inv_approval_history
@@ -1239,8 +1273,8 @@ export class ReceiptService {
               AND approval_date IS NOT NULL
               ORDER BY approval_date DESC
               `);
-          }
-          else {
+        }
+        else {
             result = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.v_inv_approval_history
               WHERE approval_user = '${approval_user}'
@@ -1254,7 +1288,7 @@ export class ReceiptService {
               AND approval_date IS NOT NULL
               ORDER BY approval_date DESC
               `);
-          }
+        }
         for (const item of result) {
             const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.ar_blast_inv_approval_dtl
@@ -1337,61 +1371,61 @@ export class ReceiptService {
 
     async uploadExtraFile(
         fileName: string, filePath: string, doc_no: string, process_id: string, file_type: string
-      ){
+    ) {
         try {
-          await this.connect();
-          if (!fs.existsSync(filePath)) {
-              console.error(`Local file does not exist: ${filePath}`);
-          }
-    
-          await this.upload(filePath, `/UNSIGNED/GQCINV/EXTRA/${fileName}`);
-    
-      } catch (error) {
-          console.log("Error during upload:.", error);
-          throw new BadRequestException({
-              statusCode: 400,
-              message: 'Failed to upload to FTP',
-              data: [error],
-          });
-      }
-      finally {
-          console.log("Disconnecting from FTP servers");
-          await this.disconnect();
-      }
-    let result = 0;
-    if(file_type === 'receipt'){
-        result = await this.fjiDatabase.$executeRawUnsafe(`
+            await this.connect();
+            if (!fs.existsSync(filePath)) {
+                console.error(`Local file does not exist: ${filePath}`);
+            }
+
+            await this.upload(filePath, `/UNSIGNED/GQCINV/EXTRA/${fileName}`);
+
+        } catch (error) {
+            console.log("Error during upload:.", error);
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to upload to FTP',
+                data: [error],
+            });
+        }
+        finally {
+            console.log("Disconnecting from FTP servers");
+            await this.disconnect();
+        }
+        let result = 0;
+        if (file_type === 'receipt') {
+            result = await this.fjiDatabase.$executeRawUnsafe(`
                 UPDATE mgr.ar_blast_or SET filenames2 = '${fileName}'
                 WHERE doc_no = '${doc_no}'
                 AND process_id = '${process_id}'
             `)
-    }
-    else {
-        result = await this.fjiDatabase.$executeRawUnsafe(`
+        }
+        else {
+            result = await this.fjiDatabase.$executeRawUnsafe(`
             UPDATE mgr.ar_blast_inv SET filenames5 = '${fileName}'
             WHERE doc_no = '${doc_no}'
             AND process_id = '${process_id}'
             `)
-    }
-    if (result === 0) {
-          throw new BadRequestException({
-              statusCode: 400,
-              message: 'Failed to update ar blast table',
-              data: [],
-          });
-      }
-      return {
-          statusCode: 201,
-          message: 'extra files uploaded successfully',
-          data: []
-      }
+        }
+        if (result === 0) {
+            throw new BadRequestException({
+                statusCode: 400,
+                message: 'Failed to update ar blast table',
+                data: [],
+            });
+        }
+        return {
+            statusCode: 201,
+            message: 'extra files uploaded successfully',
+            data: []
+        }
     }
 
-    async deleteExtraFile(file_type:string, doc_no: string, file_name) {
+    async deleteExtraFile(file_type: string, doc_no: string, file_name) {
         try {
             await this.connect()
             await this.delete(`/UNSIGNED/GQCINV/EXTRA/${file_name}`);
-            if (file_type === 'invoice'){
+            if (file_type === 'invoice') {
                 const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                     UPDATE mgr.ar_blast_inv SET filenames5 = NULL
                     WHERE doc_no = ${doc_no}
@@ -1409,7 +1443,7 @@ export class ReceiptService {
                     data: []
                 }
             }
-            else if (file_type === 'receipt'){
+            else if (file_type === 'receipt') {
                 const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
                     UPDATE mgr.ar_blast_or SET filenames2 = NULL
                     WHERE doc_no = ${doc_no}
@@ -1430,7 +1464,7 @@ export class ReceiptService {
         } catch (error) {
             console.log("Error during delete:.", error);
             // throw new BadRequestException({
-            return({
+            return ({
                 statusCode: 400,
                 message: 'Failed to delete file from FTP',
                 data: [],
@@ -1443,29 +1477,48 @@ export class ReceiptService {
 
     }
 
-    async cancelApprovedReceipt(doc_no: string, process_id: string){
+    async cancelApprovedReceipt(doc_no: string, process_id: string) {
         try {
-        const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
+            const result = await this.fjiDatabase.$executeRaw(Prisma.sql`
             UPDATE mgr.ar_blast_or SET status_process_sign = 'C'
             WHERE doc_no = ${doc_no}
             AND process_id = ${process_id}
-            `)      
+            `)
         } catch (error) {
-        console.log(error)
-        throw new BadRequestException({
-            statusCode:400,
-            message: "fail to cancel receipt"
-        })
+            console.log(error)
+            throw new BadRequestException({
+                statusCode: 400,
+                message: "fail to cancel receipt"
+            })
         }
 
         return {
-        statusCode:201,
-        message : "receipt cancelled",
-        data:[]
+            statusCode: 201,
+            message: "receipt cancelled",
+            data: []
         }
-    }    
+    }
 
-    async receiptInqueries() {
+    async receiptInqueries(start_date: string, end_date: string) {
+        const orCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            FROM mgr.ar_blast_inv abia
+            INNER JOIN mgr.ar_debtor ad 
+            ON abia.debtor_acct = ad.debtor_acct
+              AND abia.entity_cd = ad.entity_cd
+              AND abia.project_no = ad.project_no
+            INNER JOIN mgr.cf_entity ent
+              ON abia.entity_cd = ent.entity_cd
+            INNER JOIN mgr.pl_project prj
+              ON abia.entity_cd = prj.entity_cd
+              AND abia.project_no = prj.project_no      
+            WHERE
+              send_status = 'C'
+              AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+            ORDER BY rowID desc 
+      `)
+        const orCompletedWithStatus = orCompleted.map((row) => ({ ...row, status: 'completed (not blasted)' }))
+
         const orCancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
             SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
@@ -1479,10 +1532,11 @@ export class ReceiptService {
               ON abia.entity_cd = prj.entity_cd
               AND abia.project_no = prj.project_no
             WHERE status_process_sign = 'C'
+            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
             ORDER BY rowID desc
             `)
         const orCancelledWithStatus = orCancelled.map((row) => ({ ...row, status: 'cancelled' }));
-        const orRegenerate: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const orRegenerate: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
             SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1497,11 +1551,12 @@ export class ReceiptService {
             WHERE send_status = 'R'
             AND send_date IS NOT NULL
             AND send_id IS NOT NULL
+            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
             ORDER BY rowID desc
           `);
         const orRegenerateWithStatus = orRegenerate.map((row) => ({ ...row, status: 'cancelled for resending' }));
-          
-        const orNotStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+
+        const orNotStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1514,11 +1569,13 @@ export class ReceiptService {
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
           WHERE status_process_sign = 'N'
-          AND send_id IS NULL
+            AND send_id IS NULL
+            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+            AND send_status <> 'C'
         `);
         const orNotStampedWithStatus = orNotStamped.map((row) => ({ ...row, status: 'no stamp' }));
 
-        const orFailStamp: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const orFailStamp: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1536,10 +1593,11 @@ export class ReceiptService {
                 OR file_status_sign = 'F'
             )
           AND send_id IS NULL
+          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
         `);
         const orFailStampWithStatus = orFailStamp.map((row) => ({ ...row, status: 'fail stamp' }));
 
-        const approvalPending: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const approvalPending: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_inv_approval abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1554,13 +1612,14 @@ export class ReceiptService {
           WHERE status_approve = 'P'
           AND progress_approval > 0
           AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_or)
+          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
           AND related_class = 'OR'
           `)
 
         const approvalPendingWithStatus = await Promise.all(
             approvalPending.map(async (row) => {
-                const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                  SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = '${row.process_id}'
+                const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+                  SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
                 `);
 
                 return {
@@ -1571,7 +1630,7 @@ export class ReceiptService {
                 };
             })
         )
-        const cancelled: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const cancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
             SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_inv_approval abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1587,13 +1646,14 @@ export class ReceiptService {
               AND progress_approval > 0
               AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
               AND related_class = 'OR'
+              AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
             ORDER BY rowID desc
         `)
 
         const cancelledWithStatus = await Promise.all(
             cancelled.map(async (row) => {
-                const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                    SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = '${row.process_id}'
+                const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+                    SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
                   `);
 
                 return {
@@ -1605,7 +1665,7 @@ export class ReceiptService {
             })
         )
 
-        const generated: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const generated: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_inv_approval abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1618,12 +1678,13 @@ export class ReceiptService {
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
           WHERE progress_approval = 0
+          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
           AND related_class = 'OR'
           `)
 
         const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated', file_status_sign: null, }))
 
-        const orSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const orSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1635,10 +1696,11 @@ export class ReceiptService {
             INNER JOIN mgr.pl_project prj
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
+                AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
           WHERE send_status = 'S'
         `);
         const orSentWithStatus = orSent.map((row) => ({ ...row, status: 'sent' }));
-        const orFailSent: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const orFailSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1651,10 +1713,11 @@ export class ReceiptService {
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
           WHERE send_status = 'F'
+            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
         `);
         const orFailSentWithStatus = orFailSent.map((row) => ({ ...row, status: 'fail to send' }));
 
-        const orStamped: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const orStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1667,17 +1730,19 @@ export class ReceiptService {
                 ON abia.entity_cd = prj.entity_cd
                 AND abia.project_no = prj.project_no
           WHERE (
-            doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
-            OR 
-            doc_amt >= 300 AND abia.currency_cd = 'USD'
+                doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
+                OR 
+                doc_amt >= 300 AND abia.currency_cd = 'USD'
             )
-          AND status_process_sign = 'Y'
-          AND file_status_sign = 'S' 
-          AND send_id IS NULL
+            AND status_process_sign = 'Y'
+            AND file_status_sign = 'S' 
+            AND send_id IS NULL
+            AND send_status <> 'C'
+            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
         `);
         const orStampedWithStatus = orStamped.map((row) => ({ ...row, status: 'stamped' }));
 
-        const orApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+        const orApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
           SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
             FROM mgr.ar_blast_or abia
             INNER JOIN mgr.ar_debtor ad 
@@ -1692,11 +1757,12 @@ export class ReceiptService {
           WHERE status_process_sign IS NULL
           AND send_id IS NULL
           AND send_status IS NULL
+          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
         `);
         const orApprovedCompletedWithStatus = await Promise.all(
             orApprovedCompleted.map(async (row) => {
-                const details: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                  SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = '${row.process_id}'
+                const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+                  SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
                 `);
 
                 return {
@@ -1720,7 +1786,8 @@ export class ReceiptService {
             ...orCancelledWithStatus,
             ...orSentWithStatus,
             ...orFailSentWithStatus,
-            ...orRegenerateWithStatus
+            ...orRegenerateWithStatus,
+            ...orCompletedWithStatus
         ];
 
         return {

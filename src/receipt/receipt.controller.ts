@@ -30,6 +30,14 @@ export class ReceiptController {
   async getHistory(@Body() data: Record<any, any>) {
     return this.receiptService.getHistory(data);
   }
+  @Get('receipt/completed')
+  async getCompletedReceipt(
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+  ){
+    return this.receiptService.getCompletedReceipt(start_date, end_date);
+  }
+
   @Get('receipt/email-history-detail/:email_addr/:doc_no')
   async getHistoryDetail(
     @Param('email_addr') email_addr: string,
@@ -177,8 +185,11 @@ export class ReceiptController {
     return this.receiptService.getApprovalList(audit_user)
   }
   @Get('receipt-inqueries')
-  async getInvoiceInqueries() {
-    return this.receiptService.receiptInqueries()
+  async getInvoiceInqueries(
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+  ) {
+    return this.receiptService.receiptInqueries(start_date, end_date)
   }
   @Post('upload-extra-file')
   @UseInterceptors(

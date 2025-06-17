@@ -38,6 +38,13 @@ export class ApiInvoiceController {
   async getHistory(@Body() data: Record<any, any>) {
     return this.apiInvoiceService.getHistory(data);
   }
+  @Get('invoice/completed')
+  async getCompletedReceipt(
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+  ){
+    return this.apiInvoiceService.getCompletedInvoice(start_date, end_date);
+  }
   @Get('invoice/email-history-detail/:email_addr/:doc_no')
   //@UseGuards(AuthGuard('jwt'))
   async getHistoryDetail(
@@ -190,7 +197,10 @@ export class ApiInvoiceController {
 
 
   @Get('invoice-inqueries')
-  async getInvoiceInqueries() {
-    return this.apiInvoiceService.invoiceInqueries()
+  async getInvoiceInqueries(
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+  ) {
+    return this.apiInvoiceService.invoiceInqueries(start_date, end_date)
   }
 }

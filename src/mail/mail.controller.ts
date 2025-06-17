@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Query, Put } from '@nestjs/common';
 import { MailService } from './mail.service';
 import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
@@ -96,5 +96,12 @@ export class MailController {
     const {doc_no, process_id} = body
     return this.mailService.requestRegenerateReceipt(doc_no, process_id)
   }
-
+  @Put('complete/invoice')
+  async completeInvoice(@Body() body: Record<any,any>){
+    return this.mailService.completeInvoice(body)
+  }
+  @Put('complete/receipt')
+  async completeReceipt(@Body() body: Record<any,any>){
+    return this.mailService.completeReceipt(body)
+  }
 }

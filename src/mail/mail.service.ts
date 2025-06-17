@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, RequestTimeoutException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, RequestTimeoutException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer'
 import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
@@ -893,6 +893,46 @@ export class MailService {
       ? result[0].email_addr.split(';').map((email: string) => email.trim())
       : [];
 
+    const emailToSendCount: number = email_addrs.length
+    try {
+      const completedTransaction: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+              SELECT * FROM mgr.finpay_transaction
+              WHERE status_payment = 'COMPLETED'
+              AND type_topup = 'E'
+              AND company_cd = 'GQCINV'
+            `)
+      const invoiceEmailSent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+              SELECT count(rowID) as count FROM mgr.ar_blast_inv_log_msg
+            `)
+      const receiptEmailSent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+              SELECT count(rowID) as count FROM mgr.ar_blast_or_log_msg
+            `)
+      const totalTopup = completedTransaction.length > 0
+        ? completedTransaction.reduce((sum, item) => sum + Number(item.order_qty), 0)
+        : 0;
+
+      const totalEmailSent: number =
+        (invoiceEmailSent[0]?.count || 0) + (receiptEmailSent[0]?.count || 0);
+
+      if (totalTopup - totalEmailSent < emailToSendCount) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: "You don't have enough quota, please top up first",
+          data: {
+            totalEmailSent,
+            totalTopup
+          }
+        })
+      }
+
+    } catch (error) {
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: 'fail to get email quota',
+        data: error
+      })
+    }
+
     const mailConfig = await this.getEmailConfig();
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
     // const upper_file_type = result[0].invoice_tipe.toUpperCase();
@@ -1102,6 +1142,53 @@ export class MailService {
       });
     }
 
+
+
+    // Split the email_addr column into an array of strings
+    const email_addrs = result[0].email_addr
+      ? result[0].email_addr.split(';').map((email: string) => email.trim())
+      : [];
+
+    const emailToSendCount: number = email_addrs.length
+    try {
+      const completedTransaction: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+              SELECT * FROM mgr.finpay_transaction
+              WHERE status_payment = 'COMPLETED'
+              AND type_topup = 'E'
+              AND company_cd = 'GQCINV'
+            `)
+      const invoiceEmailSent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+              SELECT count(rowID) as count FROM mgr.ar_blast_inv_log_msg
+            `)
+      const receiptEmailSent = await this.fjiDatabase.$queryRaw(Prisma.sql`
+              SELECT count(rowID) as count FROM mgr.ar_blast_or_log_msg
+            `)
+      const totalTopup = completedTransaction.length > 0
+        ? completedTransaction.reduce((sum, item) => sum + Number(item.order_qty), 0)
+        : 0;
+
+      const totalEmailSent: number =
+        (invoiceEmailSent[0]?.count || 0) + (receiptEmailSent[0]?.count || 0);
+
+      if (totalTopup - totalEmailSent < emailToSendCount) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: "You don't have enough quota, please top up first",
+          data: {
+            totalEmailSent,
+            totalTopup
+          }
+        })
+      }
+
+    } catch (error) {
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: 'fail to get email quota',
+        data: error
+      })
+    }
+
     let emailContent: Array<any>
     if (result[0].invoice_tipe === "schedule") {
       emailContent = await this.fjiDatabase.$queryRaw(Prisma.sql`
@@ -1130,12 +1217,6 @@ export class MailService {
         AND doc_no = ${doc_no}
       `)
     }
-
-
-    // Split the email_addr column into an array of strings
-    const email_addrs = result[0].email_addr
-      ? result[0].email_addr.split(';').map((email: string) => email.trim())
-      : [];
 
     const mailConfig = await this.getEmailConfig();
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER);
@@ -2075,7 +2156,54 @@ export class MailService {
     }
   }
 
+  async completeInvoice(body: Record<any,any>){
+    const {doc_no, process_id} = body
+    try {
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_inv 
+          SET send_status = 'C'
+        WHERE
+          doc_no = ${doc_no}
+          AND process_id = ${process_id}
+        `)
+    } catch (error) {
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: "fail to complete invoice",
+        data: []
+      })
+    }
 
+    return {
+      statusCode: 200,
+      message: "success completing invoice",
+      data: []
+    }
+  }
+
+  async completeReceipt(body: Record<any,any>){
+    const {doc_no, process_id} = body
+    try {
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_or 
+          SET send_status = 'C'
+        WHERE
+          doc_no = ${doc_no}
+          AND process_id = ${process_id}
+        `)
+    } catch (error) {
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: "fail to complete receipt",
+        data: []
+      })
+    }
+    return {
+      statusCode: 200,
+      message: "success completing receipt",
+      data: []
+    }
+  }
 
   async updateArBlastInvTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
