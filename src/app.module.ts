@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { FinpayModule } from './finpay/finpay.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { PrintDocumentModule } from './print-document/print-document.module';
 
 @Module({
   imports: [PeruriModule, UploadModule, MailModule,
@@ -30,6 +31,7 @@ import { join } from 'path';
       rootPath: join(__dirname, '..', 'uploads'), // Serve files from 'uploads' directory
       serveRoot: '/uploads', // Serve files at '/uploads' route
     }),
+    PrintDocumentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

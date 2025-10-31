@@ -39,7 +39,7 @@ export class PeruriService {
         user: process.env.FTP_USERNAME,
         password: process.env.FTP_PASSWORD,
         secure: false,
-        port: 21,
+        port: Number(process.env.FTP_PORT),
       });
     }
     console.log('Connected to FTP server.');
