@@ -844,30 +844,21 @@ export class ApiInvoiceService {
             WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
               AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
               AND (
-                    doc_no NOT IN (
-                      SELECT doc_no 
-                      FROM mgr.ar_blast_inv_approval 
-                      WHERE status_approve != 'C'
-                        OR status_approve IS NULL
-                    )
-                  OR
-                    doc_no IN (
-                      SELECT doc_no 
-                      FROM mgr.ar_blast_inv
-                      WHERE send_status = 'R'
-                        OR status_process_sign = 'C' 
-                    )
-                    AND doc_no NOT IN (
-                        SELECT doc_no 
-                        FROM mgr.ar_blast_inv
-                        WHERE 
-                        (send_status <> 'R'
-                        OR send_status <> 'C'
-                        OR send_status IS NULL) 
-                        AND
-                        (status_process_sign <> 'C'
-                        OR status_process_sign IS NULL)
-                    )
+                doc_no NOT IN (
+                  SELECT doc_no FROM mgr.ar_blast_inv_approval
+                  WHERE status_approve <> 'C' OR status_approve IS NULL
+                )
+                OR (
+                  doc_no IN (
+                    SELECT doc_no FROM mgr.ar_blast_inv
+                    WHERE send_status = 'R' OR status_process_sign = 'C'
+                  )
+                  AND doc_no NOT IN (
+                    SELECT doc_no FROM mgr.ar_blast_inv
+                    WHERE (send_status NOT IN ('R','C') OR send_status IS NULL)
+                      AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
+                  )
+                )
               )
               AND mgr.v_assign_approval_level.email = '${auditUser}'
               AND mgr.v_assign_approval_level.job_task = 'Maker' 
@@ -899,32 +890,23 @@ export class ApiInvoiceService {
           ON m.related_class = mgr.v_assign_approval_level.type_cd
           WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
           AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-              AND (
-                    doc_no NOT IN (
-                      SELECT doc_no 
-                      FROM mgr.ar_blast_inv_approval 
-                      WHERE status_approve != 'C'
-                        OR status_approve IS NULL
-                    )
-                  OR
-                    doc_no IN (
-                      SELECT doc_no 
-                      FROM mgr.ar_blast_inv
-                      WHERE send_status = 'R'
-                        OR status_process_sign = 'C'
-                    )
-                    AND doc_no NOT IN (
-                        SELECT doc_no 
-                        FROM mgr.ar_blast_inv
-                        WHERE 
-                        (send_status <> 'R'
-                        OR send_status <> 'C' 
-                        OR send_status IS NULL) 
-                        AND
-                        (status_process_sign <> 'C'
-                        OR status_process_sign IS NULL)
-                    )
+          AND (
+            doc_no NOT IN (
+              SELECT doc_no FROM mgr.ar_blast_inv_approval
+              WHERE status_approve <> 'C' OR status_approve IS NULL
+            )
+            OR (
+              doc_no IN (
+                SELECT doc_no FROM mgr.ar_blast_inv
+                WHERE send_status = 'R' OR status_process_sign = 'C'
               )
+              AND doc_no NOT IN (
+                SELECT doc_no FROM mgr.ar_blast_inv
+                WHERE (send_status NOT IN ('R','C') OR send_status IS NULL)
+                  AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
+              )
+            )
+          )
             AND mgr.v_assign_approval_level.email = '${auditUser}'
             AND mgr.v_assign_approval_level.job_task = 'Maker' 
           `);
@@ -955,32 +937,23 @@ export class ApiInvoiceService {
           ON m.related_class = mgr.v_assign_approval_level.type_cd
           WHERE year(doc_date)*10000+month(doc_date)*100+day(doc_date) >= '${startDate}' 
           AND year(doc_date)*10000+month(doc_date)*100+day(doc_date) <= '${endDate}'
-              AND (
-                    doc_no NOT IN (
-                      SELECT doc_no 
-                      FROM mgr.ar_blast_inv_approval 
-                      WHERE status_approve != 'C'
-                        OR status_approve IS NULL
-                    )
-                  OR
-                    doc_no IN (
-                      SELECT doc_no 
-                      FROM mgr.ar_blast_inv
-                      WHERE send_status = 'R'
-                        OR status_process_sign = 'C'
-                    )
-                    AND doc_no NOT IN (
-                        SELECT doc_no 
-                        FROM mgr.ar_blast_inv
-                        WHERE 
-                        (send_status <> 'R'
-                        OR send_status <> 'C' 
-                        OR send_status IS NULL) 
-                        AND
-                        (status_process_sign <> 'C'
-                        OR status_process_sign IS NULL)
-                    )
+            AND (
+              doc_no NOT IN (
+                SELECT doc_no FROM mgr.ar_blast_inv_approval
+                WHERE status_approve <> 'C' OR status_approve IS NULL
               )
+              OR (
+                doc_no IN (
+                  SELECT doc_no FROM mgr.ar_blast_inv
+                  WHERE send_status = 'R' OR status_process_sign = 'C'
+                )
+                AND doc_no NOT IN (
+                  SELECT doc_no FROM mgr.ar_blast_inv
+                  WHERE (send_status NOT IN ('R','C') OR send_status IS NULL)
+                    AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
+                )
+              )
+            )
           AND mgr.v_assign_approval_level.email = '${auditUser}'
           AND mgr.v_assign_approval_level.job_task = 'Maker'  
                 `);
