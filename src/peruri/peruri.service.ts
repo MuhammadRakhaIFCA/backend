@@ -709,8 +709,8 @@ export class PeruriService {
         }
       } else {
         throw new NotFoundException({
-          statusCode: 200,
-          message: 'get saldo success',
+          statusCode: 404,
+          message: 'kuota stamp habis',
           data: 0
         })
       }
