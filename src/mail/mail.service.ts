@@ -178,7 +178,7 @@ export class MailService {
             <p class="note">
               Note : Mohon invoice diperiksa Kembali dan jika ada keberatan kami tunggu maksimal 3 (tiga) hari kerja dari tanggal email ini dan dengan mengirim email ke
               <a href="mailto:tr.property@fji.co.id">tr.property@fji.co.id</a> dengan cc.
-              <a href="mailto:ar.billing@fji.co.id">ar.billing@fji.co.id</a> atau dapat menghubungi Building Management di 021-5151515 dengan TENANT RELATION
+              <a href="mailto:arbilling.bm@fji.co.id">arbilling.bm@fji.co.id</a> atau dapat menghubungi Building Management di 021-5151515 dengan TENANT RELATION
             </p>
 
             <div class="footer">
@@ -287,7 +287,7 @@ export class MailService {
             <p class="note">
               Note : Mohon receipt diperiksa Kembali dan jika ada keberatan kami tunggu maksimal 3 (tiga) hari kerja dari tanggal email ini dan dengan mengirim email ke
               <a href="mailto:tr.property@fji.co.id">tr.property@fji.co.id</a> dengan cc.
-              <a href="mailto:ar.billing@fji.co.id">ar.billing@fji.co.id</a> atau dapat menghubungi Building Management di 021-5151515 dengan TENANT RELATION
+              <a href="mailto:arbilling.bm@fji.co.id">arbilling.bm@fji.co.id</a> atau dapat menghubungi Building Management di 021-5151515 dengan TENANT RELATION
             </p>
 
             <div class="footer">
