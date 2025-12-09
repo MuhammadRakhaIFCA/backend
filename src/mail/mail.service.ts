@@ -1426,13 +1426,12 @@ export class MailService {
         send_id,
         sender,
         moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
-        send_dates[i]
       );
     }
 
       for (let i = 0; i < bcc.length; i++) {
       console.log("send date : " + send_dates[i])
-      await this.insertToOrMsgLog(
+      await this.insertToInvMsgLog(
         result[0].entity_cd,
         result[0].project_no,
         result[0].debtor_acct,
@@ -1442,7 +1441,7 @@ export class MailService {
         response_messages[i] || response_messages[0],
         send_id,
         sender,
-        send_dates[i] || send_dates[0],
+        moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
       );
     }
 
@@ -2229,6 +2228,31 @@ export class MailService {
       data: []
     }
   }
+  async cancelCompleteInvoice(body: Record<any,any>){
+    const {doc_no, process_id} = body
+    try {
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_inv 
+          SET send_status = null
+        WHERE
+          doc_no = ${doc_no}
+          AND process_id = ${process_id}
+          AND send_status = 'C'
+        `)
+    } catch (error) {
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: "fail to complete invoice",
+        data: []
+      })
+    }
+
+    return {
+      statusCode: 200,
+      message: "success completing invoice",
+      data: []
+    }
+  }
 
   async completeReceipt(body: Record<any,any>){
     const {doc_no, process_id} = body
@@ -2239,6 +2263,30 @@ export class MailService {
         WHERE
           doc_no = ${doc_no}
           AND process_id = ${process_id}
+        `)
+    } catch (error) {
+      throw new InternalServerErrorException({
+        statusCode: 500,
+        message: "fail to complete receipt",
+        data: []
+      })
+    }
+    return {
+      statusCode: 200,
+      message: "success completing receipt",
+      data: []
+    }
+  }
+  async cancelCompleteReceipt(body: Record<any,any>){
+    const {doc_no, process_id} = body
+    try {
+      await this.fjiDatabase.$executeRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_or 
+          SET send_status = null
+        WHERE
+          doc_no = ${doc_no}
+          AND process_id = ${process_id}
+          AND send_status = 'C'
         `)
     } catch (error) {
       throw new InternalServerErrorException({
@@ -2344,7 +2392,7 @@ export class MailService {
   async insertToInvMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_id: string, audit_user: string, audit_date: string, send_date: string
+    send_id: string, audit_user: string, send_date: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`

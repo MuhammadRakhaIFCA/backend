@@ -1232,12 +1232,11 @@ export class ReceiptService {
     async getApprovalByUser(approval_user: string) {
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT via.*, ec.bcc FROM mgr.v_inv_approval via
-            WHERE approval_user = '${approval_user}'
             LEFT JOIN mgr.email_configuration ec
                 ON ec.id > 0
+            WHERE approval_user = '${approval_user}'
               AND approval_status = 'P'
               AND invoice_tipe = 'receipt'
-=
             ORDER BY gen_date DESC
         `);
         for (const item of result) {
