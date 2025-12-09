@@ -104,4 +104,12 @@ export class MailController {
   async completeReceipt(@Body() body: Record<any,any>){
     return this.mailService.completeReceipt(body)
   }
+  @Put('complete/invoice/cancel')
+  async cancelCompleteInvoice(@Body() body: Record<any,any>){
+    return this.mailService.cancelCompleteInvoice(body)
+  }
+  @Put('complete/receipt/cancel')
+  async cancelCompleteReceipt(@Body() body: Record<any,any>){
+    return this.mailService.cancelCompleteReceipt(body)
+  }
 }

@@ -1501,301 +1501,312 @@ export class ReceiptService {
     }
 
     async receiptInqueries(start_date: string, end_date: string) {
-        const orCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_inv abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-              AND abia.entity_cd = ad.entity_cd
-              AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-              ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-              ON abia.entity_cd = prj.entity_cd
-              AND abia.project_no = prj.project_no      
-            WHERE
-              send_status = 'C'
-              AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-            ORDER BY rowID desc 
-      `)
-        const orCompletedWithStatus = orCompleted.map((row) => ({ ...row, status: 'completed (not blasted)' }))
+    const orCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_inv abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no      
+        WHERE
+        send_status = 'C'
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc 
+    `);
+    const orCompletedWithStatus = orCompleted.map((row) => ({ ...row, status: 'completed (not blasted)' }));
 
-        const orCancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-              AND abia.entity_cd = ad.entity_cd
-              AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-              ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-              ON abia.entity_cd = prj.entity_cd
-              AND abia.project_no = prj.project_no
-            WHERE status_process_sign = 'C'
-            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-            ORDER BY rowID desc
-            `)
-        const orCancelledWithStatus = orCancelled.map((row) => ({ ...row, status: 'cancelled' }));
-        const orRegenerate: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-              AND abia.entity_cd = ad.entity_cd
-              AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-              ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-              ON abia.entity_cd = prj.entity_cd
-              AND abia.project_no = prj.project_no
-            WHERE send_status = 'R'
-            AND send_date IS NOT NULL
-            AND send_id IS NOT NULL
-            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-            ORDER BY rowID desc
-          `);
-        const orRegenerateWithStatus = orRegenerate.map((row) => ({ ...row, status: 'cancelled for resending' }));
+    const orCancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE status_process_sign = 'C'
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orCancelledWithStatus = orCancelled.map((row) => ({ ...row, status: 'cancelled' }));
 
-        const orNotStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-          WHERE status_process_sign = 'N'
-            AND send_id IS NULL
-            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-            AND send_status <> 'C'
-        `);
-        const orNotStampedWithStatus = orNotStamped.map((row) => ({ ...row, status: 'no stamp' }));
+    const orRegenerate: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE send_status = 'R'
+        AND send_date IS NOT NULL
+        AND send_id IS NOT NULL
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orRegenerateWithStatus = orRegenerate.map((row) => ({ ...row, status: 'cancelled for resending' }));
 
-        const orFailStamp: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-            WHERE (
-                file_status_sign = 'P'
-                OR file_status_sign = 'A'
-                OR file_status_sign = 'F'
-            )
-          AND send_id IS NULL
-          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-        `);
-        const orFailStampWithStatus = orFailStamp.map((row) => ({ ...row, status: 'fail stamp' }));
+    const orNotStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE status_process_sign = 'N'
+        AND send_id IS NULL
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        AND send_status <> 'C'
+        ORDER BY rowID desc
+    `);
+    const orNotStampedWithStatus = orNotStamped.map((row) => ({ ...row, status: 'no stamp' }));
 
-        const approvalPending: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_inv_approval abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-          WHERE status_approve = 'P'
-          AND progress_approval > 0
-          AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_or)
-          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-          AND related_class = 'OR'
-          `)
-
-        const approvalPendingWithStatus = await Promise.all(
-            approvalPending.map(async (row) => {
-                const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-                  SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
-                `);
-
-                return {
-                    ...row,
-                    status: `approval pending (${row.progress_approval})`,
-                    details,
-                    file_status_sign: null,
-                };
-            })
+    const orFailStamp: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE (
+            file_status_sign = 'P'
+            OR file_status_sign = 'A'
+            OR file_status_sign = 'F'
         )
-        const cancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_inv_approval abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-              AND abia.entity_cd = ad.entity_cd
-              AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-              ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-              ON abia.entity_cd = prj.entity_cd
-              AND abia.project_no = prj.project_no
-            WHERE status_approve = 'C'
-              AND progress_approval > 0
-              AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
-              AND related_class = 'OR'
-              AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-            ORDER BY rowID desc
-        `)
+        AND send_id IS NULL
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orFailStampWithStatus = orFailStamp.map((row) => ({ ...row, status: 'fail stamp' }));
 
-        const cancelledWithStatus = await Promise.all(
-            cancelled.map(async (row) => {
-                const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-                    SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
-                  `);
+    const approvalPending: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_inv_approval abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE status_approve = 'P'
+        AND progress_approval > 0
+        AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_or)
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        AND related_class = 'OR'
+        ORDER BY rowID desc
+    `);
 
-                return {
-                    ...row,
-                    status: `cancelled`,
-                    details,
-                    file_status_sign: null,
-                };
-            })
-        )
-
-        const generated: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_inv_approval abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-          WHERE progress_approval = 0
-          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-          AND related_class = 'OR'
-          `)
-
-        const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated', file_status_sign: null, }))
-
-        const orSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-                AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-          WHERE send_status = 'S'
+    const approvalPendingWithStatus = await Promise.all(
+        approvalPending.map(async (row) => {
+        const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
         `);
-        const orSentWithStatus = orSent.map((row) => ({ ...row, status: 'sent' }));
-        const orFailSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-          WHERE send_status = 'F'
-            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-        `);
-        const orFailSentWithStatus = orFailSent.map((row) => ({ ...row, status: 'fail to send' }));
-
-        const orStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-          WHERE (
-                doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
-                OR 
-                doc_amt >= 300 AND abia.currency_cd = 'USD'
-            )
-            AND status_process_sign = 'Y'
-            AND file_status_sign = 'S' 
-            AND send_id IS NULL
-            AND send_status <> 'C'
-            AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-        `);
-        const orStampedWithStatus = orStamped.map((row) => ({ ...row, status: 'stamped' }));
-
-        const orApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
-            FROM mgr.ar_blast_or abia
-            INNER JOIN mgr.ar_debtor ad 
-            ON abia.debtor_acct = ad.debtor_acct
-                AND abia.entity_cd = ad.entity_cd
-                AND abia.project_no = ad.project_no
-            INNER JOIN mgr.cf_entity ent
-                ON abia.entity_cd = ent.entity_cd
-            INNER JOIN mgr.pl_project prj
-                ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.project_no
-          WHERE status_process_sign IS NULL
-          AND send_id IS NULL
-          AND send_status IS NULL
-          AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-        `);
-        const orApprovedCompletedWithStatus = await Promise.all(
-            orApprovedCompleted.map(async (row) => {
-                const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-                  SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
-                `);
-
-                return {
-                    ...row,
-                    status: `approve completed`,
-                    details,
-                    file_status_sign: null,
-                };
-            })
-        )
-
-        // Combine all results into a single array
-        const combinedResults = [
-            ...generatedWithStatus,
-            ...approvalPendingWithStatus,
-            ...cancelledWithStatus,
-            ...orApprovedCompletedWithStatus,
-            ...orFailStampWithStatus,
-            ...orNotStampedWithStatus,
-            ...orStampedWithStatus,
-            ...orCancelledWithStatus,
-            ...orSentWithStatus,
-            ...orFailSentWithStatus,
-            ...orRegenerateWithStatus,
-            ...orCompletedWithStatus
-        ];
 
         return {
-            statusCode: 200,
-            message: "get or success",
-            data: combinedResults
+            ...row,
+            status: `approval pending (${row.progress_approval})`,
+            details,
+            file_status_sign: null,
         };
+        })
+    );
 
+    const cancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_inv_approval abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE status_approve = 'C'
+        AND progress_approval > 0
+        AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
+        AND related_class = 'OR'
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+
+    const cancelledWithStatus = await Promise.all(
+        cancelled.map(async (row) => {
+        const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
+        `);
+
+        return {
+            ...row,
+            status: `cancelled`,
+            details,
+            file_status_sign: null,
+        };
+        })
+    );
+
+    const generated: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_inv_approval abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE progress_approval = 0
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        AND related_class = 'OR'
+        ORDER BY rowID desc
+    `);
+
+    const generatedWithStatus = generated.map((row) => ({ ...row, status: 'generated', file_status_sign: null }));
+
+    const orSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs, abia.bcc 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE send_status = 'S'
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orSentWithStatus = orSent.map((row) => ({ ...row, status: 'sent' }));
+
+    const orFailSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs, abia.bcc 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE send_status = 'F'
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orFailSentWithStatus = orFailSent.map((row) => ({ ...row, status: 'fail to send' }));
+
+    const orStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE (
+            doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
+            OR 
+            doc_amt >= 300 AND abia.currency_cd = 'USD'
+        )
+        AND status_process_sign = 'Y'
+        AND file_status_sign = 'S' 
+        AND send_id IS NULL
+        AND send_status <> 'C'
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orStampedWithStatus = orStamped.map((row) => ({ ...row, status: 'stamped' }));
+
+    const orApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+        SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+        FROM mgr.ar_blast_or abia
+        INNER JOIN mgr.ar_debtor ad 
+        ON abia.debtor_acct = ad.debtor_acct
+        AND abia.entity_cd = ad.entity_cd
+        AND abia.project_no = ad.project_no
+        INNER JOIN mgr.cf_entity ent
+        ON abia.entity_cd = ent.entity_cd
+        INNER JOIN mgr.pl_project prj
+        ON abia.entity_cd = prj.entity_cd
+        AND abia.project_no = prj.project_no
+        WHERE status_process_sign IS NULL
+        AND send_id IS NULL
+        AND send_status IS NULL
+        AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
+        ORDER BY rowID desc
+    `);
+    const orApprovedCompletedWithStatus = await Promise.all(
+        orApprovedCompleted.map(async (row) => {
+        const details: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
+            SELECT * FROM mgr.ar_blast_inv_approval_dtl WHERE process_id = ${row.process_id}
+        `);
+
+        return {
+            ...row,
+            status: `approve completed`,
+            details,
+            file_status_sign: null,
+        };
+        })
+    );
+
+    // Combine all results into a single array
+    const combinedResults = [
+        ...generatedWithStatus,
+        ...approvalPendingWithStatus,
+        ...cancelledWithStatus,
+        ...orApprovedCompletedWithStatus,
+        ...orFailStampWithStatus,
+        ...orNotStampedWithStatus,
+        ...orStampedWithStatus,
+        ...orCancelledWithStatus,
+        ...orSentWithStatus,
+        ...orFailSentWithStatus,
+        ...orRegenerateWithStatus,
+        ...orCompletedWithStatus
+    ];
+
+    return {
+        statusCode: 200,
+        message: "get or success",
+        data: combinedResults
+    };
     }
+
 }
