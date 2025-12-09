@@ -15,6 +15,7 @@ import { FinpayModule } from './finpay/finpay.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { PrintDocumentModule } from './print-document/print-document.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [PeruriModule, UploadModule, MailModule,
@@ -32,6 +33,7 @@ import { PrintDocumentModule } from './print-document/print-document.module';
       serveRoot: '/uploads', // Serve files at '/uploads' route
     }),
     PrintDocumentModule,
+    WhatsappModule,
   ],
   controllers: [AppController],
   providers: [AppService],

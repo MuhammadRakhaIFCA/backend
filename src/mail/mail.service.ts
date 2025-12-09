@@ -872,7 +872,9 @@ export class MailService {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_or WHERE doc_no = '${doc_no}' AND process_id = '${process_id}'
     `);
-
+    const bccs: Array<any> = await this.fjiDatabase.$queryRaw`
+      SELECT bcc FROM mgr.email_configuration
+    `
     if (!result || result.length === 0) {
       throw new NotFoundException({
         statusCode: 404,
@@ -892,6 +894,10 @@ export class MailService {
     const email_addrs = result[0].email_addr
       ? result[0].email_addr.split(';').map((email: string) => email.trim())
       : [];
+
+    const bcc = bccs[0].bcc?
+    result[0].bcc.split(';').map((email: string) => email.trim())
+    : [];
 
     const emailToSendCount: number = email_addrs.length
     try {
@@ -1021,6 +1027,7 @@ export class MailService {
       const mailOptions = {
         ...baseMailOptions,
         to: email,
+        bcc: bcc,
         html: this.generateNewEmailTemplateOr(emailBody),
       };
 
@@ -1071,7 +1078,8 @@ export class MailService {
       result[0].project_no,
       result[0].debtor_acct,
       result[0].invoice_tipe,
-      process_id
+      process_id,
+      bccs[0].bcc
     );
 
     // Loop through the email addresses to insert a log for each email
@@ -1088,6 +1096,21 @@ export class MailService {
         send_id,
         sender,
         send_dates[i],
+      );
+    }
+    for (let i = 0; i < bcc.length; i++) {
+      console.log("send date : " + send_dates[i])
+      await this.insertToOrMsgLog(
+        result[0].entity_cd,
+        result[0].project_no,
+        result[0].debtor_acct,
+        bcc[i],
+        doc_no,
+        status_codes[i] || status_codes[0],
+        response_messages[i] || response_messages[0],
+        send_id,
+        sender,
+        send_dates[i] || send_dates[0],
       );
     }
 
@@ -1133,6 +1156,9 @@ export class MailService {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
       SELECT * FROM mgr.ar_blast_inv WHERE doc_no = '${doc_no}' AND process_id = '${process_id}'
     `);
+    const bccs: Array<any> = await this.fjiDatabase.$queryRaw`
+      SELECT bcc FROM mgr.email_configuration
+    `
 
     if (!result || result.length === 0) {
       throw new NotFoundException({
@@ -1149,7 +1175,12 @@ export class MailService {
       ? result[0].email_addr.split(';').map((email: string) => email.trim())
       : [];
 
-    const emailToSendCount: number = email_addrs.length
+
+    const bcc = bccs[0].bcc?
+    bccs[0].bcc.split(';').map((email: string) => email.trim())
+    : [];
+
+    const emailToSendCount: number = email_addrs.length + bccs.length
     try {
       const completedTransaction: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
               SELECT * FROM mgr.finpay_transaction
@@ -1324,6 +1355,7 @@ export class MailService {
       const mailOptions = {
         ...baseMailOptions,
         to: email,
+        bcc: bcc,
         html: this.generateNewEmailTemplate(emailBody),
       };
 
@@ -1376,7 +1408,8 @@ export class MailService {
       result[0].project_no,
       result[0].debtor_acct,
       result[0].invoice_tipe,
-      result[0].process_id
+      result[0].process_id,
+      bccs[0].bcc
     );
 
     // Loop through the email addresses to insert a log for each email
@@ -1394,6 +1427,22 @@ export class MailService {
         sender,
         moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
         send_dates[i]
+      );
+    }
+
+      for (let i = 0; i < bcc.length; i++) {
+      console.log("send date : " + send_dates[i])
+      await this.insertToOrMsgLog(
+        result[0].entity_cd,
+        result[0].project_no,
+        result[0].debtor_acct,
+        bcc[i],
+        doc_no,
+        status_codes[i] || status_codes[0],
+        response_messages[i] || response_messages[0],
+        send_id,
+        sender,
+        send_dates[i] || send_dates[0],
       );
     }
 
@@ -2208,13 +2257,13 @@ export class MailService {
   async updateArBlastInvTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
     entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string,
-    process_id: string
+    process_id: string, bcc: string
   ) {
 
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         UPDATE mgr.ar_blast_inv SET send_id = '${send_id}', send_date = '${send_date}',
-        send_status = '${send_status}'
+        send_status = '${send_status}', bcc = '${bcc}'
         WHERE
         entity_cd = '${entity_cd}'
         AND project_no = '${project_no}'
@@ -2237,12 +2286,12 @@ export class MailService {
   async updateArBlastOrTable(
     doc_no: string, send_date: string, send_status: string, send_id: string,
     entity_cd: string, project_no: string, debtor_acct: string, invoice_tipe: string,
-    process_id
+    process_id: string, bcc: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         UPDATE mgr.ar_blast_or SET send_id = '${send_id}', send_date = '${send_date}',
-        send_status = '${send_status}'
+        send_status = '${send_status}', bcc = '${bcc}'
         WHERE
         entity_cd = '${entity_cd}'
         AND project_no = '${project_no}'
@@ -2412,7 +2461,7 @@ export class MailService {
     console.log(data)
     const {
       driver, host, port, username, password,
-      encryption, sender_name, sender_email, audit_user
+      encryption, sender_name, sender_email, audit_user, bcc
     } = data
 
 
@@ -2428,7 +2477,7 @@ export class MailService {
           driver = '${driver}', host = '${host}', port = '${port}',
           username = '${username}', password = '${encryptedPassword}', encryption = '${encryption}',
           sender_name = '${sender_name}', sender_email = '${sender_email}',
-          audit_user = '${audit_user}', audit_date = GETDATE()
+          audit_user = '${audit_user}', audit_date = GETDATE(), bcc = '${bcc}'
           `)
         if (result === 0) {
           throw new BadRequestException({
@@ -2441,10 +2490,10 @@ export class MailService {
         const result = await this.fjiDatabase.$executeRawUnsafe(`
           INSERT INTO mgr.email_configuration
           (driver, host, port, username, password, encryption, sender_name, sender_email,
-          audit_user, audit_date)
+          audit_user, audit_date, bcc)
           VALUES
           ('${driver}', '${host}', '${port}', '${username}', '${encryptedPassword}', '${encryption}', 
-           '${sender_name}', '${sender_email}', '${audit_user}', GETDATE())
+           '${sender_name}', '${sender_email}', '${audit_user}', GETDATE(), ${bcc})
           `)
         if (result === 0) {
           throw new BadRequestException({

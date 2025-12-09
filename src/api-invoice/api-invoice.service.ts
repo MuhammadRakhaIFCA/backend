@@ -78,7 +78,9 @@ export class ApiInvoiceService {
   async getInvoice(audit_user: string) {
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
+                SELECT abia.*, debtor_name = ad.name, 
+                entity_name = ent.entity_name, project_name = prj.descs,
+                ec.bcc
                 FROM mgr.ar_blast_inv abia 
                 INNER JOIN mgr.ar_debtor ad 
                   ON abia.debtor_acct = ad.debtor_acct
@@ -91,6 +93,8 @@ export class ApiInvoiceService {
                   AND abia.project_no = prj.project_no
                 INNER JOIN mgr.v_assign_approval_level aal
                   ON abia.related_class = aal.type_cd
+                LEFT JOIN mgr.email_configuration ec 
+                  ON ec.id > 0
                 WHERE ( 
                   doc_amt <= 5000000
                   AND file_status_sign IS NULL
@@ -213,7 +217,8 @@ export class ApiInvoiceService {
                 doc_amt = abia.doc_amt, 
                 invoice_tipe = abia.invoice_tipe,
                 file_name_sign = abia.file_name_sign,
-                file_status_sign = abia.file_status_sign
+                file_status_sign = abia.file_status_sign,
+                bcc = abia.bcc
               FROM mgr.ar_blast_inv_log_msg ablm
                 INNER JOIN mgr.ar_debtor ad 
                   ON ablm.debtor_acct = ad.debtor_acct
@@ -1289,7 +1294,9 @@ export class ApiInvoiceService {
   async getApprovalList(audit_user: string) {
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-        SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs FROM mgr.ar_blast_inv_approval abia
+        SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs,
+        ec.bcc
+        FROM mgr.ar_blast_inv_approval abia
         INNER JOIN mgr.ar_debtor ad 
           ON abia.debtor_acct = ad.debtor_acct
           AND abia.entity_cd = ad.entity_cd
@@ -1304,6 +1311,8 @@ export class ApiInvoiceService {
           AND abia.audit_user = aba.audit_user
         INNER JOIN mgr.v_assign_approval_level aal
           ON abia.related_class = aal.type_cd 
+        LEFT JOIN mgr.email_configuration ec
+          ON ec.id > 0
         where abia.progress_approval = 0
             AND aba.invoice_tipe <> 'receipt'
             --AND abia.doc_no NOT LIKE 'OR%'
@@ -1667,13 +1676,12 @@ export class ApiInvoiceService {
   }
   async getApprovalByUser(approval_user: string) {
     const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-        SELECT * FROM mgr.v_inv_approval
+        SELECT via.*, ec.bcc FROM mgr.v_inv_approval via
+        LEFT JOIN mgr.email_configuration ec
+          ON ec.id > 0
         WHERE approval_user = '${approval_user}'
           AND approval_status = 'P'
           AND invoice_tipe <> 'receipt'
-          --AND abia.doc_no NOT LIKE 'OR%'
-          --AND abia.doc_no NOT LIKE 'SP%'
-          --AND abia.doc_no NOT LIKE 'OF%'
         ORDER BY gen_date DESC
     `);
     for (const item of result) {
@@ -1800,7 +1808,9 @@ export class ApiInvoiceService {
     }
     try {
       const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs 
+                SELECT abia.*, debtor_name = ad.name, 
+                entity_name = ent.entity_name, project_name = prj.descs,
+                ec.bcc
                 FROM mgr.ar_blast_inv abia 
                 INNER JOIN mgr.ar_debtor ad 
                   ON abia.debtor_acct = ad.debtor_acct
@@ -1813,6 +1823,8 @@ export class ApiInvoiceService {
                     AND abia.project_no = prj.project_no
                 INNER JOIN mgr.v_assign_approval_level aal
                   ON abia.related_class = aal.type_cd
+                LEFT JOIN mgr.email_configuration ec 
+                  ON ec.id > 0
                 WHERE (
                         doc_amt >= 5000000 AND abia.currency_cd = 'RP'
                         OR
@@ -2070,7 +2082,8 @@ export class ApiInvoiceService {
 
   async invoiceInqueries(start_date: string, end_date: string) {
     const invCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            SELECT abia.*, debtor_name = name, 
+            entity_name = ent.entity_name, project_name = prj.descs
             FROM mgr.ar_blast_inv abia
             INNER JOIN mgr.ar_debtor ad 
             ON abia.debtor_acct = ad.debtor_acct
@@ -2081,6 +2094,8 @@ export class ApiInvoiceService {
             INNER JOIN mgr.pl_project prj
               ON abia.entity_cd = prj.entity_cd
               AND abia.project_no = prj.project_no      
+            LEFT JOIN mgr.email_configuration ec 
+              ON ec.id > 0
             WHERE
               send_status = 'C'
               AND abia.doc_date >= ${start_date}
@@ -2089,7 +2104,9 @@ export class ApiInvoiceService {
       `)
     const invCompletedWithStatus = invCompleted.map((row) => ({ ...row, status: 'completed (not blasted)' }))
     const invCancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-            SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+            SELECT abia.*, debtor_name = name, 
+            entity_name = ent.entity_name, project_name = prj.descs,
+            ec.bcc
             FROM mgr.ar_blast_inv abia
             INNER JOIN mgr.ar_debtor ad 
             ON abia.debtor_acct = ad.debtor_acct
@@ -2100,6 +2117,8 @@ export class ApiInvoiceService {
             INNER JOIN mgr.pl_project prj
               ON abia.entity_cd = prj.entity_cd
               AND abia.project_no = prj.project_no
+            LEFT JOIN mgr.email_configuration ec
+              ON ec.id > 0
             WHERE status_process_sign = 'C'
               AND abia.doc_date >= ${start_date}
               AND abia.doc_date <= ${end_date}
@@ -2107,7 +2126,9 @@ export class ApiInvoiceService {
             `)
     const invCancelledWithStatus = invCancelled.map((row) => ({ ...row, status: 'cancelled' }));
     const invRegenerate: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, 
+      entity_name = ent.entity_name, project_name = prj.descs,
+      ec.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2118,6 +2139,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0 
       WHERE send_status = 'R'
       AND send_date IS NOT NULL
       AND send_id IS NOT NULL
@@ -2127,7 +2150,9 @@ export class ApiInvoiceService {
     `);
     const invRegenerateWithStatus = invRegenerate.map((row) => ({ ...row, status: 'cancelled for resending' }));
     const invSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, 
+      entity_name = ent.entity_name, project_name = prj.descs,
+      abia.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2138,6 +2163,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0
       WHERE send_status = 'S'
       AND send_date IS NOT NULL
       AND send_id IS NOT NULL
@@ -2147,7 +2174,9 @@ export class ApiInvoiceService {
     `);
     const invSentWithStatus = invSent.map((row) => ({ ...row, status: 'sent' }));
     const invFailSent: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, 
+      entity_name = ent.entity_name, project_name = prj.descs,
+      abia.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2158,6 +2187,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0
       WHERE send_status = 'F'
       AND abia.doc_date >= ${start_date}
       AND abia.doc_date <= ${end_date}
@@ -2166,7 +2197,9 @@ export class ApiInvoiceService {
     const invFailSentWithStatus = invFailSent.map((row) => ({ ...row, status: 'fail to send' }));
 
     const invStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, 
+      entity_name = ent.entity_name, project_name = prj.descs,
+      ec.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2177,6 +2210,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0
       WHERE (
             doc_amt >= 5000000 AND abia.currency_cd = 'RP' 
             OR 
@@ -2193,7 +2228,9 @@ export class ApiInvoiceService {
     const invStampedWithStatus = invStamped.map((row) => ({ ...row, status: 'stamped' }));
 
     const invNotStamped: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, 
+      entity_name = ent.entity_name, project_name = prj.descs,
+      ec.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2204,6 +2241,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0
       WHERE status_process_sign = 'N'
         AND send_id IS NULL
         AND send_status <> 'C'
@@ -2214,7 +2253,8 @@ export class ApiInvoiceService {
     const invNotStampedWithStatus = invNotStamped.map((row) => ({ ...row, status: 'no stamp' }));
 
     const invFailStamp: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, 
+      project_name = prj.descs, ec.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2225,6 +2265,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0
       WHERE (
         file_status_sign = 'P'
         OR file_status_sign = 'A'
@@ -2238,7 +2280,8 @@ export class ApiInvoiceService {
     const invFailStampWithStatus = invFailStamp.map((row) => ({ ...row, status: 'fail stamp' }));
 
     const invApprovedCompleted: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, 
+      project_name = prj.descs, ec.bcc
       FROM mgr.ar_blast_inv abia
       INNER JOIN mgr.ar_debtor ad 
       ON abia.debtor_acct = ad.debtor_acct
@@ -2249,6 +2292,8 @@ export class ApiInvoiceService {
       INNER JOIN mgr.pl_project prj
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
+      LEFT JOIN mgr.email_configuration ec 
+        ON ec.id > 0
       WHERE status_process_sign IS NULL
         AND send_id IS NULL
         AND send_status IS NULL
@@ -2272,7 +2317,8 @@ export class ApiInvoiceService {
     )
 
     const approvalPending: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, 
+          project_name = prj.descs, ec.bcc
           FROM mgr.ar_blast_inv_approval abia
           INNER JOIN mgr.ar_debtor ad 
           ON abia.debtor_acct = ad.debtor_acct
@@ -2283,6 +2329,8 @@ export class ApiInvoiceService {
           INNER JOIN mgr.pl_project prj
             ON abia.entity_cd = prj.entity_cd
             AND abia.project_no = prj.project_no
+          LEFT JOIN mgr.email_configuration ec 
+            ON ec.id > 0
           WHERE status_approve = 'P'
             AND progress_approval > 0
             AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
@@ -2307,7 +2355,8 @@ export class ApiInvoiceService {
       })
     )
     const cancelled: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+          SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, 
+          project_name = prj.descs, ec.bcc
           FROM mgr.ar_blast_inv_approval abia
           INNER JOIN mgr.ar_debtor ad 
           ON abia.debtor_acct = ad.debtor_acct
@@ -2318,6 +2367,8 @@ export class ApiInvoiceService {
           INNER JOIN mgr.pl_project prj
             ON abia.entity_cd = prj.entity_cd
             AND abia.project_no = prj.project_no
+          LEFT JOIN mgr.email_configuration ec 
+            ON ec.id > 0
           WHERE status_approve = 'C'
             AND progress_approval > 0
             AND abia.doc_no NOT IN (SELECT doc_no from mgr.ar_blast_inv)
@@ -2343,7 +2394,8 @@ export class ApiInvoiceService {
     )
 
     const generated: Array<any> = await this.fjiDatabase.$queryRaw(Prisma.sql`
-      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, project_name = prj.descs 
+      SELECT abia.*, debtor_name = name, entity_name = ent.entity_name, 
+      project_name = prj.descs, ec.bcc
           FROM mgr.ar_blast_inv_approval abia
           INNER JOIN mgr.ar_debtor ad 
           ON abia.debtor_acct = ad.debtor_acct
@@ -2354,6 +2406,8 @@ export class ApiInvoiceService {
           INNER JOIN mgr.pl_project prj
             ON abia.entity_cd = prj.entity_cd
             AND abia.project_no = prj.project_no 
+          LEFT JOIN mgr.email_configuration ec 
+            ON ec.id > 0
         WHERE progress_approval = 0
           AND related_class <> 'OR'
           AND abia.doc_date >= ${start_date}
