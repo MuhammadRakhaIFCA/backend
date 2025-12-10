@@ -1096,6 +1096,7 @@ export class MailService {
         send_id,
         sender,
         send_dates[i],
+        'to'
       );
     }
     for (let i = 0; i < bcc.length; i++) {
@@ -1111,6 +1112,7 @@ export class MailService {
         send_id,
         sender,
         send_dates[i] || send_dates[0],
+        'bcc'
       );
     }
 
@@ -1426,6 +1428,7 @@ export class MailService {
         send_id,
         sender,
         moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
+        "to"
       );
     }
 
@@ -1442,6 +1445,7 @@ export class MailService {
         send_id,
         sender,
         moment(result[0].audit_date).format('YYYYMMDD HH:mm:ss'),
+        "bcc"
       );
     }
 
@@ -2362,18 +2366,18 @@ export class MailService {
   async insertToOrMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_id: string, audit_user: string, send_date: string
+    send_id: string, audit_user: string, send_date: string, type: string
   ) {
     try {
       console.log(send_date)
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         INSERT INTO mgr.ar_blast_or_log_msg
         (entity_cd, project_no, debtor_acct, email_addr, doc_no, status_code, response_message,
-        send_date, send_id, audit_user, audit_date)
+        send_date, send_id, audit_user, audit_date, type: string)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
         '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
-        '${audit_user}', GETDATE())
+        '${audit_user}', GETDATE(), '${type}')
         `)
       if (result === 0) {
         throw new BadRequestException({
@@ -2392,17 +2396,17 @@ export class MailService {
   async insertToInvMsgLog(
     entity_cd: string, project_no: string, debtor_acct: string, email_addr: string,
     doc_no: string, status_code: number, response_message: string,
-    send_id: string, audit_user: string, send_date: string
+    send_id: string, audit_user: string, send_date: string, type: string
   ) {
     try {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         INSERT INTO mgr.ar_blast_inv_log_msg
         (entity_cd, project_no, debtor_acct, email_addr, doc_no, status_code, response_message,
-        send_date, send_id, audit_user, audit_date)
+        send_date, send_id, audit_user, audit_date, type)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
         '${doc_no}', ${status_code}, '${response_message}', GETDATE(), '${send_id}',
-        '${audit_user}', GETDATE())
+        '${audit_user}', GETDATE(), '${type}')
         `)
       if (result === 0) {
         throw new BadRequestException({
