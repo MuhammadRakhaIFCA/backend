@@ -1350,7 +1350,7 @@ export class ReceiptService {
                 ON abia.entity_cd = ent.entity_cd
             INNER JOIN mgr.pl_project prj
                 ON abia.entity_cd = prj.entity_cd
-                AND abia.project_no = prj.prgioject_no
+                AND abia.project_no = prj.project_no
             INNER JOIN mgr.ar_blast_inv_approval aba
                 ON abia.process_id = aba.process_id
                 AND abia.audit_user = aba.audit_user
