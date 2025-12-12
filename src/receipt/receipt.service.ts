@@ -1339,7 +1339,10 @@ export class ReceiptService {
     async getApprovalList(audit_user: string) {
         try {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-            SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, project_name = prj.descs FROM mgr.ar_blast_inv_approval abia
+            SELECT abia.*, debtor_name = ad.name, entity_name = ent.entity_name, 
+            project_name = prj.descs,
+            ec.bcc
+            FROM mgr.ar_blast_inv_approval abia
             INNER JOIN mgr.ar_debtor ad 
                 ON abia.debtor_acct = ad.debtor_acct
                 AND abia.entity_cd = ad.entity_cd
@@ -1354,6 +1357,8 @@ export class ReceiptService {
                 AND abia.audit_user = aba.audit_user
             INNER JOIN mgr.v_assign_approval_level aal
                 ON aal.type_cd = 'OR'
+            LEFT JOIN mgr.email_configuration ec
+                ON ec.id > 0
             where abia.progress_approval = 0
                 AND aba.invoice_tipe = 'receipt'
             --AND (abia.doc_no LIKE 'OR%'
