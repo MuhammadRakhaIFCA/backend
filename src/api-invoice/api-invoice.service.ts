@@ -351,6 +351,13 @@ export class ApiInvoiceService {
         data: [],
       });
     }
+    if (!result[0].email_addr) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'cannot proceed, email must not be empty',
+        data: [],
+      });
+    }
     let filenames = `${doc_no}.pdf`;
     if (revision_count > 0) {
       filenames = `${doc_no}_rev_${revision_count}.pdf`
@@ -574,6 +581,13 @@ export class ApiInvoiceService {
         data: [],
       });
     }
+    if (!result[0].email_addr) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'cannot proceed, email must not be empty',
+        data: [],
+      });
+    }
     const pdfBody = {
       debtor_name: result[0].debtor_name,
       address1: result[0].address1,
@@ -769,6 +783,13 @@ export class ApiInvoiceService {
       throw new NotFoundException({
         statusCode: 404,
         message: 'invoice data not found',
+        data: [],
+      });
+    }
+    if (!result[0].email_addr) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'cannot proceed, email must not be empty',
         data: [],
       });
     }

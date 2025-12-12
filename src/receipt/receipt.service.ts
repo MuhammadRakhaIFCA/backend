@@ -542,6 +542,13 @@ export class ReceiptService {
                 data: [],
             })
         }
+        if (!result[0].email_addr) {
+        throw new BadRequestException({
+            statusCode: 400,
+            message: 'cannot proceed, email must not be empty',
+            data: [],
+        });
+        }
         const count: Array<{ count: number }> = await this.fjiDatabase.$queryRawUnsafe(`
             SELECT count(doc_no) from mgr.ar_blast_inv_approval
             WHERE doc_no = '${doc_no}'

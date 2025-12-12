@@ -1787,7 +1787,12 @@ export class MailService {
         data: []
       });
     }
-
+    const bccs: Array<any> = await this.fjiDatabase.$queryRaw`
+      SELECT bcc FROM mgr.email_configuration
+    `
+    const bcc = bccs[0].bcc?
+    bccs[0].bcc.split(';').map((email: string) => email.trim())
+    : [];
     const baseUrl = process.env.FTP_BASE_URL
     const upper_file_type = result[0].invoice_tipe.toUpperCase();
     const mailConfig = await this.getEmailConfig()
@@ -1853,6 +1858,7 @@ export class MailService {
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: email,
+      bcc: bcc,
       subject: `INVOICE ${doc_no}`,
       text: "Please find the attached invoice ",
       html: this.generateNewEmailTemplate(emailBody),
@@ -1922,6 +1928,11 @@ export class MailService {
 
     try {
       await this.updateInvMsgLog(email, doc_no, status_code, response_message, result[0].send_id)
+      await this.fjiDatabase.$queryRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_inv SET bcc = ${bccs[0].bcc}
+        WHERE process_id = ${process_id}
+        AND doc_no = ${doc_no}
+        `)
     } catch (error) {
       throw error
     }
@@ -1946,7 +1957,12 @@ export class MailService {
         data: []
       });
     }
-
+    const bccs: Array<any> = await this.fjiDatabase.$queryRaw`
+      SELECT bcc FROM mgr.email_configuration
+    `
+    const bcc = bccs[0].bcc?
+    bccs[0].bcc.split(';').map((email: string) => email.trim())
+    : [];
     const baseUrl = process.env.FTP_BASE_URL
     const mailConfig = await this.getEmailConfig()
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
@@ -1989,6 +2005,7 @@ export class MailService {
     const mailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: email,
+      bcc: bcc,
       subject: `OFFICIAL RECEIPT ${doc_no}`,
       text: "Please find the attached receipt ",
       html: this.generateNewEmailTemplateOr(emailBody),
@@ -2049,6 +2066,11 @@ export class MailService {
 
     try {
       await this.updateOrMsgLog(email, doc_no, status_code, response_message, result[0].send_id)
+      await this.fjiDatabase.$queryRaw(Prisma.sql`
+        UPDATE mgr.ar_blast_or SET bcc = ${bccs[0].bcc}
+        WHERE process_id = ${process_id}
+        AND doc_no = ${doc_no}
+        `)
     } catch (error) {
       throw error
     }
