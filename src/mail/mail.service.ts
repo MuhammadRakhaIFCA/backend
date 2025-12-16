@@ -263,12 +263,12 @@ export class MailService {
 
             <table class="invoice-table">
               <tr>
-                <td class="label bold">No. Invoice</td>
+                <td class="label bold">No. Receipt</td>
                 <td class="colon bold">:</td>
                 <td class="value bold">${doc_no}</td>
               </tr>
               <tr>
-                <td class="label bold">Tagihan</td>
+                <td class="label bold">Untuk Pembayaran</td>
                 <td class="colon bold">:</td>
                 <td class="value bold">${descs}</td>
               </tr>
@@ -2395,7 +2395,7 @@ export class MailService {
       const result = await this.fjiDatabase.$executeRawUnsafe(`
         INSERT INTO mgr.ar_blast_or_log_msg
         (entity_cd, project_no, debtor_acct, email_addr, doc_no, status_code, response_message,
-        send_date, send_id, audit_user, audit_date, type: string)
+        send_date, send_id, audit_user, audit_date, type)
         VALUES
         ('${entity_cd}', '${project_no}', '${debtor_acct}', '${email_addr}',
         '${doc_no}', ${status_code}, '${response_message}', '${send_date}', '${send_id}',
