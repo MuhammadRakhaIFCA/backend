@@ -896,7 +896,7 @@ export class MailService {
       : [];
 
     const bcc = bccs[0].bcc?
-    result[0].bcc.split(';').map((email: string) => email.trim())
+    bccs[0].bcc.split(';').map((email: string) => email.trim())
     : [];
 
     const emailToSendCount: number = email_addrs.length
