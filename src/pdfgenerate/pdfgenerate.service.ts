@@ -1258,7 +1258,7 @@ export class PdfgenerateService {
         .text(result[0].entity_name, 30, 30, { align: 'center', width:780 })
         .text(currentDate, 30, 30, { align: 'left', width:780 })
         .text('page 1 of 1', 30, 30, { align: 'right', width:780 })
-        .text('"Monthly Water Monthly List"', 30, 40, { align: 'center', width:780 })
+        .text('"Monthly Electricity Monthly List"', 30, 40, { align: 'center', width:780 })
         .text(currentTime, 30, 40, { align: 'left', width:780 })
 
         .text('Period', 30, 100)
