@@ -968,7 +968,7 @@ export class MailService {
     // Base mail options (common for all emails)
     const baseMailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
-      subject: `OFFICIAL RECEIPT ${doc_no}`,
+      subject: `IMPORTANCE : OFFICIAL RECEIPT ${doc_no}`,
       text: "text",
       priority: 'high',
       headers: {
@@ -1286,7 +1286,7 @@ export class MailService {
     // Base mail options (common for all emails)
     const baseMailOptions: any = {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
-      subject: `INVOICE ${doc_no}`,
+      subject: `IMPORTANCE : INVOICE ${doc_no}`,
       text: "text",
       headers: {
         'Importance': 'High',
@@ -1874,7 +1874,7 @@ export class MailService {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: email,
       bcc: bcc,
-      subject: `INVOICE ${doc_no}`,
+      subject: `IMPORTANCE : INVOICE ${doc_no}`,
       text: "Please find the attached invoice ",
       html: this.generateNewEmailTemplate(emailBody),
       priority: 'high',
@@ -2028,7 +2028,7 @@ export class MailService {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       to: email,
       bcc: bcc,
-      subject: `OFFICIAL RECEIPT ${doc_no}`,
+      subject: `IMPORTANCE : OFFICIAL RECEIPT ${doc_no}`,
       text: "Please find the attached receipt ",
       html: this.generateNewEmailTemplateOr(emailBody),
       priority: 'high',
