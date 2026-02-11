@@ -895,9 +895,9 @@ export class MailService {
       ? result[0].email_addr.split(';').map((email: string) => email.trim())
       : [];
 
-    const bcc = bccs[0].bcc?
-    bccs[0].bcc.split(';').map((email: string) => email.trim())
-    : [];
+    const bcc = bccs[0].bcc ?
+      bccs[0].bcc.split(';').map((email: string) => email.trim())
+      : [];
 
     const emailToSendCount: number = email_addrs.length
     try {
@@ -970,6 +970,13 @@ export class MailService {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       subject: `OFFICIAL RECEIPT ${doc_no}`,
       text: "text",
+      priority: 'high',
+      headers: {
+        'Importance': 'High',
+        'Priority': 'urgent',
+        'X-MSMail-Priority': 'High',
+        'X-Priority': '1'
+      },
       attachments: [
         ...(result[0].file_name_sign
           ? [signedFileAttachment]
@@ -1178,9 +1185,9 @@ export class MailService {
       : [];
 
 
-    const bcc = bccs[0].bcc?
-    bccs[0].bcc.split(';').map((email: string) => email.trim())
-    : [];
+    const bcc = bccs[0].bcc ?
+      bccs[0].bcc.split(';').map((email: string) => email.trim())
+      : [];
 
     const emailToSendCount: number = email_addrs.length + bccs.length
     try {
@@ -1215,6 +1222,7 @@ export class MailService {
       }
 
     } catch (error) {
+                  console.log(error)
       throw new InternalServerErrorException({
         statusCode: 500,
         message: 'fail to get email quota',
@@ -1280,6 +1288,12 @@ export class MailService {
       from: `${mailConfig.data[0].sender_name} <${mailConfig.data[0].sender_email}>`,
       subject: `INVOICE ${doc_no}`,
       text: "text",
+      headers: {
+        'Importance': 'High',
+        'Priority': 'urgent',
+        'X-MSMail-Priority': 'High',
+        'X-Priority': '1'
+      },
       attachments: [
         ...(result[0].file_name_sign
           ? [signedFileAttachment]
@@ -1366,6 +1380,7 @@ export class MailService {
 
       try {
         const info = await smtptransporter.sendMail(mailOptions);
+        console.log(info)
         if (info.accepted.includes(email)) {
           send_statuses[i] = 'S';
           status_codes[i] = 200;
@@ -1432,7 +1447,7 @@ export class MailService {
       );
     }
 
-      for (let i = 0; i < bcc.length; i++) {
+    for (let i = 0; i < bcc.length; i++) {
       console.log("send date : " + send_dates[i])
       await this.insertToInvMsgLog(
         result[0].entity_cd,
@@ -1790,9 +1805,9 @@ export class MailService {
     const bccs: Array<any> = await this.fjiDatabase.$queryRaw`
       SELECT bcc FROM mgr.email_configuration
     `
-    const bcc = bccs[0].bcc?
-    bccs[0].bcc.split(';').map((email: string) => email.trim())
-    : [];
+    const bcc = bccs[0].bcc ?
+      bccs[0].bcc.split(';').map((email: string) => email.trim())
+      : [];
     const baseUrl = process.env.FTP_BASE_URL
     const upper_file_type = result[0].invoice_tipe.toUpperCase();
     const mailConfig = await this.getEmailConfig()
@@ -1862,6 +1877,13 @@ export class MailService {
       subject: `INVOICE ${doc_no}`,
       text: "Please find the attached invoice ",
       html: this.generateNewEmailTemplate(emailBody),
+      priority: 'high',
+      headers: {
+        'Importance': 'High',
+        'Priority': 'urgent',
+        'X-MSMail-Priority': 'High',
+        'X-Priority': '1'
+      },
       attachments: [
         ...(result[0].file_name_sign
           ? [
@@ -1960,9 +1982,9 @@ export class MailService {
     const bccs: Array<any> = await this.fjiDatabase.$queryRaw`
       SELECT bcc FROM mgr.email_configuration
     `
-    const bcc = bccs[0].bcc?
-    bccs[0].bcc.split(';').map((email: string) => email.trim())
-    : [];
+    const bcc = bccs[0].bcc ?
+      bccs[0].bcc.split(';').map((email: string) => email.trim())
+      : [];
     const baseUrl = process.env.FTP_BASE_URL
     const mailConfig = await this.getEmailConfig()
     const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
@@ -2009,6 +2031,13 @@ export class MailService {
       subject: `OFFICIAL RECEIPT ${doc_no}`,
       text: "Please find the attached receipt ",
       html: this.generateNewEmailTemplateOr(emailBody),
+      priority: 'high',
+      headers: {
+        'Importance': 'High',
+        'Priority': 'urgent',
+        'X-MSMail-Priority': 'High',
+        'X-Priority': '1'
+      },
       attachments: [
         ...(result[0].file_name_sign
           ? [
@@ -2230,8 +2259,8 @@ export class MailService {
     }
   }
 
-  async completeInvoice(body: Record<any,any>){
-    const {doc_no, process_id} = body
+  async completeInvoice(body: Record<any, any>) {
+    const { doc_no, process_id } = body
     try {
       await this.fjiDatabase.$executeRaw(Prisma.sql`
         UPDATE mgr.ar_blast_inv 
@@ -2254,8 +2283,8 @@ export class MailService {
       data: []
     }
   }
-  async cancelCompleteInvoice(body: Record<any,any>){
-    const {doc_no, process_id} = body
+  async cancelCompleteInvoice(body: Record<any, any>) {
+    const { doc_no, process_id } = body
     try {
       await this.fjiDatabase.$executeRaw(Prisma.sql`
         UPDATE mgr.ar_blast_inv 
@@ -2280,8 +2309,8 @@ export class MailService {
     }
   }
 
-  async completeReceipt(body: Record<any,any>){
-    const {doc_no, process_id} = body
+  async completeReceipt(body: Record<any, any>) {
+    const { doc_no, process_id } = body
     try {
       await this.fjiDatabase.$executeRaw(Prisma.sql`
         UPDATE mgr.ar_blast_or 
@@ -2303,8 +2332,8 @@ export class MailService {
       data: []
     }
   }
-  async cancelCompleteReceipt(body: Record<any,any>){
-    const {doc_no, process_id} = body
+  async cancelCompleteReceipt(body: Record<any, any>) {
+    const { doc_no, process_id } = body
     try {
       await this.fjiDatabase.$executeRaw(Prisma.sql`
         UPDATE mgr.ar_blast_or 

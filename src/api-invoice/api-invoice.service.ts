@@ -2230,7 +2230,7 @@ export class ApiInvoiceService {
         AND status_process_sign = 'Y'
         AND file_status_sign = 'S' 
         AND send_id IS NULL
-        AND send_status <> 'C'
+        AND (send_status <> 'C' OR send_status IS NULL)
         AND abia.doc_date >= ${start_date}
         AND abia.doc_date <= ${end_date}
       ORDER BY rowID desc

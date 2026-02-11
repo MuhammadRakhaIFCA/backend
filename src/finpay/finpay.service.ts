@@ -264,6 +264,7 @@ export class FinpayService {
             }
           })
         } catch (error) {
+            console.log(error)
           throw new InternalServerErrorException({
             statusCode: 500,
             message: 'fail to get email quota',
