@@ -11,6 +11,7 @@ import { EditUserDto } from './dto/edit-user.dto';
 import { FjiDatabaseService } from 'src/database/database-fji.service';
 import { MailService } from 'src/mail/mail.service';
 import { Request } from 'express';
+import * as moment from 'moment'
 
 @Injectable()
 export class FjiService {
@@ -28,7 +29,13 @@ export class FjiService {
             const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                 SELECT * FROM mgr.m_user
             `);
-
+            const dbTimeResult: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            SELECT GETDATE() AS currentTime
+        `);
+            const dbTime = moment(dbTimeResult[0].currentTime);
+            const localTime = moment();
+            const offsetHours = dbTime.diff(localTime, 'hours');
+            console.log("time difference : " + offsetHours);
             const sanitizedResult = result.map((user: any) => {
                 const { password, ...rest } = user;
                 return rest;
@@ -597,14 +604,14 @@ export class FjiService {
               job_task = 'Stamp & Blast'
           `)) as Array<any>;
 
-          orMaker = (await this.fjiDatabase.$queryRawUnsafe(`
+            orMaker = (await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_assign_approval_level 
               WHERE email = '${email}' 
               AND type_cd = 'OR' 
               AND 
               job_task = 'Maker'
           `)) as Array<any>;
-          orBlaster = (await this.fjiDatabase.$queryRawUnsafe(`
+            orBlaster = (await this.fjiDatabase.$queryRawUnsafe(`
             SELECT * FROM mgr.v_assign_approval_level 
               WHERE email = '${email}' 
               AND type_cd = 'OR' 
@@ -681,23 +688,23 @@ export class FjiService {
 
     async getTypeByEmail(email: string) {
         try {
-          const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
                     SELECT * FROM mgr.v_assign_approval_level
                     WHERE email = '${email}'
                         AND job_task = 'Maker'
                 `);
-    
-          return {
-            statusCode: 200,
-            message: 'type get',
-            data: result,
-          };
+
+            return {
+                statusCode: 200,
+                message: 'type get',
+                data: result,
+            };
         } catch (error) {
-          throw new NotFoundException({
-            statusCode: 404,
-            message: 'fail to get type',
-            data: [],
-          });
-        }
-      }
+            throw new NotFoundException({
+                statusCode: 404,
+                message: 'fail to get type',
+                data: [],
+            });
+        }
+    }
 }
