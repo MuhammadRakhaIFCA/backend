@@ -1874,8 +1874,10 @@ export class PdfgenerateService {
                 doc.rect(10, tableYStart, 550, 1).stroke();
             }
 
-            const start = moment(data.startDate[idx]).subtract(offsetHours, 'hours');
-            const end = moment(data.endDate[idx]).subtract(offsetHours, 'hours');
+            // const start = moment(data.startDate[idx]).subtract(offsetHours, 'hours');
+            // const end = moment(data.endDate[idx]).subtract(offsetHours, 'hours');
+            const start = moment(data.startDate[idx]);
+            const end = moment(data.endDate[idx]);
 
             const diffInMinutes = end.diff(start, 'minutes');
             const timeConsumption = `${Math.floor(diffInMinutes / 60)}:${(diffInMinutes % 60).toString().padStart(2, '0')}`;
