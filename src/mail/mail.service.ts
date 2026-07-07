@@ -487,7 +487,9 @@ export class MailService {
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
-      if (info.accepted.includes(email)) {
+      if (
+        info.accepted.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
         send_status = 'S';
         status_code = 200;
         response_message = 'Email sent successfully';
@@ -497,7 +499,9 @@ export class MailService {
         status_code = 202;
         response_message = 'Email is pending';
       }
-      else if (info.rejected.includes(email)) {
+      else if (
+        info.rejected.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
         send_status = 'F';
         status_code = 400;
         response_message = 'Email not accepted by server';
@@ -1043,7 +1047,9 @@ export class MailService {
 
       try {
         const info = await smtptransporter.sendMail(mailOptions);
-        if (info.accepted.includes(email)) {
+        if (
+          info.accepted.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+        ) {
           send_statuses[i] = 'S';
           status_codes[i] = 200;
           response_messages[i] = 'Email sent successfully';
@@ -1051,7 +1057,9 @@ export class MailService {
           send_statuses[i] = 'P';
           status_codes[i] = 202;
           response_messages[i] = 'Email is pending';
-        } else if (info.rejected.includes(email)) {
+        } else if (
+        info.rejected.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
           send_statuses[i] = 'F';
           status_codes[i] = 400;
           response_messages[i] = 'Email not accepted by server';
@@ -1222,7 +1230,7 @@ export class MailService {
       }
 
     } catch (error) {
-                  console.log(error)
+      console.log(error)
       throw new InternalServerErrorException({
         statusCode: 500,
         message: 'fail to get email quota',
@@ -1381,7 +1389,9 @@ export class MailService {
       try {
         const info = await smtptransporter.sendMail(mailOptions);
         console.log(info)
-        if (info.accepted.includes(email)) {
+        if (
+          info.accepted.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+        ) {
           send_statuses[i] = 'S';
           status_codes[i] = 200;
           response_messages[i] = 'Email sent successfully';
@@ -1391,7 +1401,9 @@ export class MailService {
           status_codes[i] = 202;
           response_messages[i] = 'Email is pending';
           mailersend_id[i] = info.response.match(/queued as ([a-zA-Z0-9]+)/)?.[1] || '';
-        } else if (info.rejected.includes(email)) {
+        } else if (
+        info.rejected.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
           send_statuses[i] = 'F';
           status_codes[i] = 400;
           response_messages[i] = 'Email not accepted by server';
@@ -1931,12 +1943,16 @@ export class MailService {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
       console.log(info)
-      if (info.accepted.includes(email)) {
+      if (
+        info.accepted.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
         send_status = 'S';
         status_code = 200;
         response_message = 'Email sent successfully';
       }
-      else if (info.rejected.includes(email)) {
+      else if (
+        info.rejected.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
         send_status = 'F';
         status_code = 400;
         response_message = 'Email not accepted by server';
@@ -1956,6 +1972,7 @@ export class MailService {
         AND doc_no = ${doc_no}
         `)
     } catch (error) {
+      console.log(error)
       throw error
     }
 
@@ -2076,12 +2093,16 @@ export class MailService {
     try {
       const smtptransporter = await this.getSmtpTransporter()
       const info = await smtptransporter.sendMail(mailOptions);
-      if (info.accepted.includes(email)) {
+      if (
+        info.accepted.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
         send_status = 'S';
         status_code = 200;
         response_message = 'Email sent successfully';
       }
-      else if (info.rejected.includes(email)) {
+      else if (
+        info.rejected.map((e: string) => e.toLowerCase()).includes(email.toLowerCase())
+      ) {
         send_status = 'F';
         status_code = 400;
         response_message = 'Email not accepted by server';
@@ -2467,6 +2488,7 @@ export class MailService {
         })
       }
     } catch (error) {
+      console.log(error)
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -2500,6 +2522,7 @@ export class MailService {
           where doc_no = '${doc_no}'
           AND status_code <> 200
           AND send_id = '${send_id}'
+          AND type = 'to'
         `)
 
       if (failedSent[0].count === 0) {
@@ -2544,6 +2567,7 @@ export class MailService {
           where doc_no = '${doc_no}'
           AND status_code <> 200
           AND send_id = '${send_id}'
+          AND type = 'to'
         `)
 
       if (failedSent[0].count === 0) {
@@ -2554,6 +2578,7 @@ export class MailService {
         `)
       }
     } catch (error) {
+      console.log(error)
       if (error instanceof BadRequestException) {
         throw error;
       }
