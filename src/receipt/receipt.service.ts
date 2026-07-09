@@ -117,7 +117,7 @@ export class ReceiptService {
                 AND aal.email = '${audit_user}' 
                 AND aal.job_task = 'Stamp & Blast'
                 AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
-                AND (send_status <> 'C' OR send_status IS NULL)
+                AND (send_status NOT IN ('C', 'R') OR send_status IS NULL)
             `)
             if (!result || result.length === 0) {
                 console.log(result.length)
@@ -488,6 +488,13 @@ export class ReceiptService {
                 WHERE (send_status NOT IN ('R','C') OR send_status IS NULL)
                     AND (status_process_sign <> 'C' OR status_process_sign IS NULL)
                 )
+                AND doc_no NOT IN (
+                    SELECT ai.doc_no FROM mgr.ar_blast_inv_approval ai 
+                    LEFT JOIN mgr.ar_blast_or a 
+                      ON a.process_id = ai.process_id
+                    WHERE (ai.status_approve <> 'C' OR ai.status_approve IS NULL)
+                      AND a.rowID IS NULL
+                  )
             )
               )
             `)
@@ -1562,8 +1569,6 @@ export class ReceiptService {
         ON abia.entity_cd = prj.entity_cd
         AND abia.project_no = prj.project_no
         WHERE send_status = 'R'
-        AND send_date IS NOT NULL
-        AND send_id IS NOT NULL
         AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
         ORDER BY rowID desc
     `);
@@ -1584,7 +1589,7 @@ export class ReceiptService {
         WHERE status_process_sign = 'N'
         AND send_id IS NULL
         AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
-        AND send_status <> 'C'
+        AND send_status NOT IN ('C', 'R')
         ORDER BY rowID desc
     `);
     const orNotStampedWithStatus = orNotStamped.map((row) => ({ ...row, status: 'no stamp' }));
@@ -1758,7 +1763,7 @@ export class ReceiptService {
         AND status_process_sign = 'Y'
         AND file_status_sign = 'S' 
         AND send_id IS NULL
-        AND send_status <> 'C'
+        AND send_status NOT IN ('C', 'R')
         AND abia.doc_date BETWEEN ${start_date} AND ${end_date}
         ORDER BY rowID desc
     `);
