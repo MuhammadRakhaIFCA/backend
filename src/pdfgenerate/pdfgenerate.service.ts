@@ -809,6 +809,7 @@ export class PdfgenerateService {
             and bill_date  = '${docDate}'
             and project_no = '${project_no}'
             and entity_cd = '${entity_cd}'
+            ORDER BY start_date ASC
             `);
         // const startDate = result.map((item: any) => moment(item.start_date).format('DD/MM/YYYY HH:mm'))
         // const endDate = result.map((item: any) => moment(item.end_date).format('DD/MM/YYYY HH:mm'))
