@@ -1877,6 +1877,8 @@ export class ApiInvoiceService {
                     AND aal.job_task = 'Stamp & Blast'
                     AND aal.email = '${audit_user}'
                     AND abia.invoice_tipe <> 'proforma'
+                    AND abia.status_process_sign <> 'C'
+                    AND abia.send_status <> 'R' 
                 ORDER BY gen_date desc
             `);
       if (!result || result.length === 0) {
