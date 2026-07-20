@@ -329,7 +329,7 @@ export class ReceiptService {
                     AND aal.job_task = 'Stamp & Blast'
                     AND aal.email = '${audit_user}'
                     AND ISNULL(abo.status_process_sign, '') <> 'C'
-                    AND ISNULL(abo.send_status, '') <> 'R
+                    AND ISNULL(abo.send_status, '') <> 'R'
                 ORDER BY gen_date desc
             `)
             if (!result || result.length === 0) {

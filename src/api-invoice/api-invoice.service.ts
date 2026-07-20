@@ -1878,7 +1878,7 @@ export class ApiInvoiceService {
                     AND aal.email = '${audit_user}'
                     AND abia.invoice_tipe <> 'proforma'
                     AND ISNULL(abia.status_process_sign, '') <> 'C'
-                    AND ISNULL(abia.send_status, '') <> 'R
+                    AND ISNULL(abia.send_status, '') <> 'R'
                 ORDER BY gen_date desc
             `);
       if (!result || result.length === 0) {
