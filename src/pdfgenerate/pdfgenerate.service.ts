@@ -2077,11 +2077,11 @@ export class PdfgenerateService {
         else {
             doc.text(data.debtorName, { width: 260 })
         }
-        doc.moveDown()
-            .font('Times-Roman')
-            .text(data.address1, { width: 260 })
-            .text(data.address2, { width: 260 })
-            .text(`${data.address3}`, { width: 200 })
+        // doc.moveDown()
+            doc.font('Times-Roman')
+            .text(`${data.address1} ${data.address2}, ${data.address3}`, { width: 260 })
+            // .text(data.address2, { width: 260 })
+            // .text(`${data.address3}`, { width: 200 })
 
         const docDate = moment(data.docDate).format('DD/MM/YYYY')
         const dueDate = moment(data.dueDate).format('DD/MM/YYYY')
@@ -2119,9 +2119,9 @@ export class PdfgenerateService {
             .text('Description', 20, 240, { width: 340, align: 'center' })
             .text('Amount', 360, 240, { width: 200, align: 'center' })
             .text(`Charge Name : `, 30, 270).moveDown()
-            .text('Period :', 30, 290, { lineGap: 5 }).text('VAT : ', 30, 305)
+            .text('Period :', 30, 290, { lineGap: 5 }).text('VAT : ', 30, 310)
             .text(data.taxDesc, 100, 270).moveDown()
-            .text(`${startDate} - ${endDate}`, 100, 290, { lineGap: 2 }).text(`${data.taxRate} %`, 100, 305)
+            .text(`${startDate} - ${endDate}`, 100, 290, { lineGap: 2 }).text(`${data.taxRate} %`, 100, 310)
             .text('Amount Should be paid', 210, 365)
         doc
             .text(data.currencyCd, 368, 270)
