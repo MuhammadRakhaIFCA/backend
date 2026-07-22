@@ -950,108 +950,108 @@ export class PdfgenerateService {
             if (!isFirst) {
                 doc.addPage({ size: 'a4', margin: 0 });
             }
-        isFirst = false;
-        const pdfBody = {
-            docNo: doc_no,
-            name: item?.name,
-            address1: item?.address1 || '',
-            address2: item?.address2 || '',
-            address3: item?.address3 || '',
-            postCd: item?.post_cd || '',
-            docDate: moment(item?.doc_date).format('DD/MM/YYYY'),
-            readDate: moment(item?.read_date).format('DD/MM/YYYY'),
-            startDate: moment(item?.start_date).format('DD/MM/YYYY'),
-            endDate: moment(item?.end_date).format('DD/MM/YYYY'),
-            currency: item?.currency_cd,
-            descs: item?.descs,
-            trxType: item?.trx_type,
-            categoryCd: item?.category_cd,
-            meterId: item?.meter_id,
-            calculationMethod: item?.calculation_method,
-            capacity: item?.capacity,
-            capacityRate: item?.capacity_rate,
-            currRead: item?.curr_read,
-            lastRead: item?.last_read,
-            multiplier: item?.multiplier,
-            usage: item?.usage,
-            usageRate1: item?.usage_rate1,
-            usage11: item?.usage_11,
-            currReadHigh: item?.curr_read_high,
-            lastReadHigh: item?.last_read_high,
-            highMultiplier: item?.high_multiplier,
-            usageHigh: item?.usage_high,
-            usageRate2: item?.usage_rate2,
-            usage21: item?.usage_21,
-            minimumUsage: item?.minimum_usage,
-            baseAmt1: item?.base_amt1,
-            genRate: item?.gen_rate,
-            genAmt1: item?.gen_amt1,
-            deductMarkupP: item?.deduct_markup_p,
-            deductMarkupN: item?.deduct_markup_n,
-            apportionPercent: item?.apportion_percent || 0,
-            asReduction: item?.as_reduction,
-            trxAmt: item?.trx_amt,
-            flashHours: item?.flash_hours,
-            kwh: item?.kwh,
-            usageKwh11: item?.usage_kwh_11,
-            usageKwh21: item?.usage_kwh_21,
-            minUsageHour: item?.min_usage_hour,
-            rounding: item?.rounding,
-            formid: item?.formid || '',
-            currencyCd: item?.currency_cd,
-            filenames2
-        };
-        // const pdfBody = {
-        //     docNo: doc_no,
-        //     name: 'CGS INTERNATIONAL SEKURITAS INDONESIA,PT.',
-        //     address1: 'INDONESIA STOCK EXCHANGE BUILDING (20-04)',
-        //     address2: 'JL.JEND.SUDIRMAN KAV.52-53',
-        //     address3: 'JAKARTA SELATAN',
-        //     postCd: '12190',
-        //     docDate: '03/07/2026',
-        //     readDate: '26/06/2026',
-        //     startDate: '01/06/2026',
-        //     endDate: '30/06/2026',
-        //     currency: 'RP',
-        //     descs: 'Electricity Consumption',
-        //     trxType: '1302',
-        //     categoryCd: 'E2/164.00-00',
-        //     meterId: 'DPA-TOB20',
-        //     calculationMethod: 5,
-        //     capacity: 164.0,
-        //     capacityRate: 0.0,
-        //     currRead: 21603.9,
-        //     lastRead: 21603.9,
-        //     multiplier: 60.0,
-        //     usage: 0.0,
-        //     usageRate1: 1634.0,
-        //     usage11: 16078560.0,
-        //     currReadHigh: 35242.5,
-        //     lastReadHigh: 35039.1,
-        //     highMultiplier: 60.0,
-        //     usageHigh: 12204.0,
-        //     usageRate2: 1634.0,
-        //     usage21: 3862776.0,
-        //     minimumUsage: 0.0,
-        //     baseAmt1: 19941336.0,
-        //     genRate: 3.0,
-        //     genAmt1: 598240.08,
-        //     deductMarkupP: null,
-        //     deductMarkupN: null,
-        //     apportionPercent: 100.0,
-        //     asReduction: 'N',
-        //     trxAmt: 20539576.0,
-        //     flashHours: 74.41,
-        //     kwh: 9840.0,
-        //     usageKwh11: 9840.0,
-        //     usageKwh21: 2364.0,
-        //     minUsageHour: 40.0,
-        //     rounding: 20539576.0,
-        //     formid: 'FJI-FIN-FR-001-004/REV.0.0/27.02.2023',
-        //     currencyCd: 'RP',
-        //     filenames2,
-        // };
-        this.generatePdfFirstJakarta6(doc, pdfBody);
+            isFirst = false;
+            const pdfBody = {
+                docNo: doc_no,
+                name: item?.name,
+                address1: item?.address1 || '',
+                address2: item?.address2 || '',
+                address3: item?.address3 || '',
+                postCd: item?.post_cd || '',
+                docDate: moment(item?.doc_date).format('DD/MM/YYYY'),
+                readDate: moment(item?.read_date).format('DD/MM/YYYY'),
+                startDate: moment(item?.start_date).format('DD/MM/YYYY'),
+                endDate: moment(item?.end_date).format('DD/MM/YYYY'),
+                currency: item?.currency_cd,
+                descs: item?.descs,
+                trxType: item?.trx_type,
+                categoryCd: item?.category_cd,
+                meterId: item?.meter_id,
+                calculationMethod: item?.calculation_method,
+                capacity: item?.capacity,
+                capacityRate: item?.capacity_rate,
+                currRead: item?.curr_read,
+                lastRead: item?.last_read,
+                multiplier: item?.multiplier,
+                usage: item?.usage,
+                usageRate1: item?.usage_rate1,
+                usage11: item?.usage_11,
+                currReadHigh: item?.curr_read_high,
+                lastReadHigh: item?.last_read_high,
+                highMultiplier: item?.high_multiplier,
+                usageHigh: item?.usage_high,
+                usageRate2: item?.usage_rate2,
+                usage21: item?.usage_21,
+                minimumUsage: item?.minimum_usage,
+                baseAmt1: item?.base_amt1,
+                genRate: item?.gen_rate,
+                genAmt1: item?.gen_amt1,
+                deductMarkupP: item?.deduct_markup_p,
+                deductMarkupN: item?.deduct_markup_n,
+                apportionPercent: item?.apportion_percent || 0,
+                asReduction: item?.as_reduction,
+                trxAmt: item?.trx_amt,
+                flashHours: item?.flash_hours,
+                kwh: item?.kwh,
+                usageKwh11: item?.usage_kwh_11,
+                usageKwh21: item?.usage_kwh_21,
+                minUsageHour: item?.min_usage_hour,
+                rounding: item?.rounding,
+                formid: item?.formid || '',
+                currencyCd: item?.currency_cd,
+                filenames2
+            };
+            // const pdfBody = {
+            //     docNo: doc_no,
+            //     name: 'CGS INTERNATIONAL SEKURITAS INDONESIA,PT.',
+            //     address1: 'INDONESIA STOCK EXCHANGE BUILDING (20-04)',
+            //     address2: 'JL.JEND.SUDIRMAN KAV.52-53',
+            //     address3: 'JAKARTA SELATAN',
+            //     postCd: '12190',
+            //     docDate: '03/07/2026',
+            //     readDate: '26/06/2026',
+            //     startDate: '01/06/2026',
+            //     endDate: '30/06/2026',
+            //     currency: 'RP',
+            //     descs: 'Electricity Consumption',
+            //     trxType: '1302',
+            //     categoryCd: 'E2/164.00-00',
+            //     meterId: 'DPA-TOB20',
+            //     calculationMethod: 5,
+            //     capacity: 164.0,
+            //     capacityRate: 0.0,
+            //     currRead: 21603.9,
+            //     lastRead: 21603.9,
+            //     multiplier: 60.0,
+            //     usage: 0.0,
+            //     usageRate1: 1634.0,
+            //     usage11: 16078560.0,
+            //     currReadHigh: 35242.5,
+            //     lastReadHigh: 35039.1,
+            //     highMultiplier: 60.0,
+            //     usageHigh: 12204.0,
+            //     usageRate2: 1634.0,
+            //     usage21: 3862776.0,
+            //     minimumUsage: 0.0,
+            //     baseAmt1: 19941336.0,
+            //     genRate: 3.0,
+            //     genAmt1: 598240.08,
+            //     deductMarkupP: null,
+            //     deductMarkupN: null,
+            //     apportionPercent: 100.0,
+            //     asReduction: 'N',
+            //     trxAmt: 20539576.0,
+            //     flashHours: 74.41,
+            //     kwh: 9840.0,
+            //     usageKwh11: 9840.0,
+            //     usageKwh21: 2364.0,
+            //     minUsageHour: 40.0,
+            //     rounding: 20539576.0,
+            //     formid: 'FJI-FIN-FR-001-004/REV.0.0/27.02.2023',
+            //     currencyCd: 'RP',
+            //     filenames2,
+            // };
+            this.generatePdfFirstJakarta6(doc, pdfBody);
         }
 
         doc.end();
@@ -2078,10 +2078,10 @@ export class PdfgenerateService {
             doc.text(data.debtorName, { width: 260 })
         }
         // doc.moveDown()
-            doc.font('Times-Roman')
+        doc.font('Times-Roman')
             .text(`${data.address1} ${data.address2}, ${data.address3}`, { width: 260 })
-            // .text(data.address2, { width: 260 })
-            // .text(`${data.address3}`, { width: 200 })
+        // .text(data.address2, { width: 260 })
+        // .text(`${data.address3}`, { width: 200 })
 
         const docDate = moment(data.docDate).format('DD/MM/YYYY')
         const dueDate = moment(data.dueDate).format('DD/MM/YYYY')
@@ -2137,12 +2137,38 @@ export class PdfgenerateService {
         const formattedTaxAmount = (taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })
         const formattedTotal = (docAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })
 
-        doc.text(formattedBaseAmount, 460, 270)
-            .text(formattedTaxAmount, 460, 310)
-            .text(formattedTotal, 460, 368)
-            .text('Total Transfer', 440, 394)
-            .text(formattedTotal, 460, 430)
-            .text(formattedTotal, 460, 470)
+        const rightX = 360;
+        const rightWidth = 180;
+
+        doc.text(formattedBaseAmount, rightX, 270, {
+            width: rightWidth,
+            align: 'right',
+        });
+
+        doc.text(formattedTaxAmount, rightX, 310, {
+            width: rightWidth,
+            align: 'right',
+        });
+
+        doc.text(formattedTotal, rightX, 368, {
+            width: rightWidth,
+            align: 'right',
+        });
+
+        doc.text('Total Transfer', rightX, 394, {
+            width: rightWidth,
+            align: 'right',
+        });
+
+        doc.text(formattedTotal, rightX, 430, {
+            width: rightWidth,
+            align: 'right',
+        });
+
+        doc.text(formattedTotal, rightX, 470, {
+            width: rightWidth,
+            align: 'right',
+        });
 
         doc.text('Please Transfer the amount to our account at :', 30, 400, { underline: true })
             .text(`${data.bankNameRp}   ${data.acctRp}`, 30, 430)
