@@ -1277,12 +1277,12 @@ export class PdfgenerateService {
             read_date,
         });
         const result: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
-                SELECT * FROM mgr.v_ar_monthly_elec_web
-                WHERE entity_cd = '${entity_cd}' 
-                    AND project_no = '${project_no}'
-                    AND debtor_acct = '${debtor_acct}' 
-                    AND read_date = '${read_date}'
-            `)
+                        SELECT * FROM mgr.v_ar_monthly_elec_web
+                        WHERE entity_cd = '${entity_cd}' 
+                            AND project_no = '${project_no}'
+                            AND debtor_acct = '${debtor_acct}' 
+                            AND read_date = '${read_date}'
+                    `)
         const currentDate = moment().format("DD/MM/YYYY")
         const currentTime = moment().format("HH:mm:ss")
         const docDate = moment(result[0].doc_date).format("MMMM YYYY")
@@ -1305,6 +1305,29 @@ export class PdfgenerateService {
         const writeStream = fs.createWriteStream(filePath);
         doc.pipe(writeStream);
 
+        // --- HELPER UNTUK FORMAT MINUS KE DALAM KURUNG (ACCOUNTING FORMAT) ---
+        const fmt = (val: any) => {
+            let num = Number(val);
+            if (isNaN(num)) return "0.00";
+            if (num === 0) num = 0; // <-- FIX: Netralisir -0 menjadi 0 biasa
+
+            if (num < 0) {
+                return `(${this.formattedNumber(Math.abs(num))})`;
+            }
+            return this.formattedNumber(num);
+        };
+
+        const fmtTotal = (val: number) => {
+            if (isNaN(val)) return "0.00";
+            if (val === 0) val = 0; // <-- FIX: Netralisir -0 menjadi 0 biasa
+
+            if (val < 0) {
+                return `(${Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+            }
+            return val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        // ---------------------------------------------------------------------
+
         doc.fontSize(5)
             .text(result[0].entity_name, 30, 30, { align: 'center', width: 780 })
             .text(currentDate, 30, 30, { align: 'left', width: 780 })
@@ -1324,94 +1347,148 @@ export class PdfgenerateService {
             .text(readDate, 110, 110)
             .text(result[0].project_descs, 110, 120)
 
+            // --- HEADER ALL COLUMNS (Diberi width & align PASTI) ---
+            .text('No', 30, 150, { width: 15, align: 'left' })
+            .text('ID#', 45, 150, { width: 35, align: 'left' })
+            .text('Name', 80, 150, { width: 85, align: 'left' })
+            .text('Doc Date', 165, 150, { width: 40, align: 'center' })
+            .text('Meter ID', 205, 150, { width: 45, align: 'center' })
 
-            .text('No', 30, 150)
-            .text('ID#', 55, 150)
-            .text('Name', 100, 150)
-            .text('Doc Date', 200, 150)
-            .text('Meter ID', 245, 150)
-            .text('Standing Charge', 290, 140)
-            .text('/ TTLB', 300, 150)
-            .text('Finish', 340, 150)
-            .text('Start', 380, 150)
-            .text('PF', 420, 150)
-            .text('Meter', 446, 140)
-            .text('Usage', 445, 150)
-            .text('Rate', 485, 150)
-            .text('Consumption', 520, 150)
-            .text('Billing Apportionment', 580, 150)
-            .text('Rounded', 658, 140)
-            .text('To', 665, 150)
-            .text('After Withholding', 720, 140)
-            .text('Gross-Up', 730, 150)
+            .text('Standing Charge', 250, 140, { width: 40, align: 'center' })
+            .text('/ TTLB', 250, 150, { width: 40, align: 'center' })
+
+            .text('Finish', 290, 150, { width: 40, align: 'center' })
+            .text('Start', 330, 150, { width: 40, align: 'center' })
+            .text('PF', 370, 150, { width: 20, align: 'center' })
+
+            .text('Meter', 390, 140, { width: 40, align: 'center' })
+            .text('Usage', 390, 150, { width: 40, align: 'center' })
+
+            .text('Rate', 430, 150, { width: 35, align: 'center' })
+
+            .text('Consumption', 470, 150, { width: 40, align: 'center' })
+
+            .text('Consumption', 510, 140, { width: 40, align: 'center' })
+            .text('Blok 1', 510, 150, { width: 40, align: 'center' })
+
+            .text('Consumption', 550, 140, { width: 40, align: 'center' })
+            .text('Blok 2', 550, 150, { width: 40, align: 'center' })
+
+            .text('Retribution', 590, 140, { width: 40, align: 'center' })
+            .text('Charge', 590, 150, { width: 40, align: 'center' })
+
+            .text('Billing', 630, 140, { width: 70, align: 'center' })
+            .text('Apportionment', 630, 150, { width: 70, align: 'center' })
+
+            .text('Rounded', 700, 140, { width: 35, align: 'center' })
+            .text('To', 700, 150, { width: 35, align: 'center' })
+
+            .text('After Withholding', 735, 140, { width: 70, align: 'center' })
+            .text('Gross-Up', 735, 150, { width: 70, align: 'center' })
+            // --------------------------------------------------------
 
             .rect(30, 165, 780, 1).stroke()
+
         let y = 180
         let totalTtlb = 0
-        let totalConsumption = 0
+        let totalConsumptionOri = 0
+        let totalConsumptionBlok1 = 0
+        let totalConsumption2 = 0
+        let totalRetribution = 0
         let totalBillingApportionment = 0
         let totalRounding = 0
         let totalTrxAmt = 0
+
         for (let i = 0; i < result.length; i++) {
-            let ttlb: any;
-            let usage11: any
-            let billingApportionment: any
-            let rounding: any
-            if (result[i].as_reduction === 'N') {
-                ttlb = Number(result[i].capacity_rate).toFixed(2)
-                usage11 = Number(result[i].usage_11).toFixed(2)
-                billingApportionment = (
-                    Number(result[i].apportion_percent) / 100
-                    * (Number(result[i].base_amt1) + Number(result[i].gen_amt1))
-                ).toFixed(2)
-                rounding = Number(result[i].rounding).toFixed(2)
+            // Kita tampung sebagai Tipe Number murni agar mudah dimanipulasi
+            let ttlb = Number(result[i].capacity_rate);
+            let usage11 = Number(result[i].usage_11);
+            let usage21 = Number(result[i].usage_21);
+            let retributionCharge = Number(result[i].gen_amt1);
+            let billingApportionment = (Number(result[i].apportion_percent) / 100) * (Number(result[i].base_amt1) + Number(result[i].gen_amt1));
+            let rounding = Number(result[i].rounding);
+
+            // LOGIKA AS_REDUCTION (Dikali -1)
+            // Cek as_reduction. Jika iya (bukan 'N'), semua komponen dikali -1
+            if (result[i].as_reduction !== 'N') {
+                ttlb *= -1;
+                usage11 *= -1;
+                usage21 *= -1;
+                retributionCharge *= -1;
+                billingApportionment *= -1;
+                rounding *= -1;
             }
-            else {
-                ttlb = (Number(result[i].capacity_rate) - 1).toFixed(2)
-                usage11 = (Number(result[i].usage_11) - 1).toFixed(2)
-                billingApportionment = (
-                    Number(result[i].apportion_percent) / 100
-                    * (Number(result[i].base_amt1) + Number(result[i].gen_amt1) - 1)
-                ).toFixed(2)
-                rounding = (Number(result[i].rounding) - 1).toFixed(2)
+
+            // LOGIKA CONSUMPTION SPLIT
+            let valConsumptionNum = 0;
+            let valBlok1Num = 0;
+            if (Number(result[i].min_usage_hour) <= Number(result[i].flash_hours)) {
+                valConsumptionNum = usage11;
+            } else {
+                valBlok1Num = usage11;
             }
-            totalTtlb += Number(ttlb)
-            totalConsumption += Number(usage11)
-            totalBillingApportionment += Number(billingApportionment)
-            totalRounding += Number(rounding)
-            totalTrxAmt += Number(result[i].trx_amt)
-            doc.text(i + 1, 35, y)
-                .text(debtor_acct, 50, y)
-                .text(result[i].name, 80, y)
-                .text(moment(result[i].doc_date).format("DD/MM/YYYY"), 200, y)
-                .text(result[i].meter_id, 240, y)
-                .text(ttlb, 275, y, { width: 40, align: "right" })
-                .text(this.formattedNumber(result[i].curr_read), 320, y, { width: 40, align: "right" })
-                .text(this.formattedNumber(result[i].last_read), 360, y, { width: 40, align: "right" })
-                .text(this.formattedNumber(result[i].multiplier), 420, y)
-                .text(this.formattedNumber(result[i].usage), 430, y, { width: 40, align: "right" })
-                .text(this.formattedNumber(result[i].usage_rate1), 480, y)
-                .text(this.formattedNumber(usage11), 510, y, { width: 40, align: "right" })
-                .text(`${this.formattedNumber(result[i].apportion_percent)} % = `, 570, y)
-                .text(`${this.formattedNumber(billingApportionment)}`, 600, y, { width: 40, align: "right" })
-                .text(this.formattedNumber(rounding), 640, y, { width: 40, align: "right" })
-                .text(`${this.formattedNumber(result[i].deduct_markup_p)} % = ${result[i].currency_cd}`, 690, y, { width: 40, align: "right" })
-                .text(this.formattedNumber(result[i].trx_amt), 740, y, { width: 40, align: "right" })
-            y += 15
+
+            // AKUMULASI TOTAL
+            totalTtlb += ttlb;
+            totalConsumptionOri += valConsumptionNum;
+            totalConsumptionBlok1 += valBlok1Num;
+            totalConsumption2 += usage21;
+            totalRetribution += retributionCharge;
+            totalBillingApportionment += billingApportionment;
+            totalRounding += rounding;
+            totalTrxAmt += Number(result[i].trx_amt);
+
+            // --- HITUNG TINGGI ROW DINAMIS ---
+            const nameStr = result[i].name || '';
+            const nameHeight = doc.heightOfString(nameStr, { width: 85, align: 'left' });
+            const rowHeight = Math.max(nameHeight, 10);
+            // ---------------------------------
+
+            // --- ISI DATA (Terapkan helper fmt() untuk semua value angkanya) ---
+            doc.text(i + 1, 30, y, { width: 15, align: 'left' })
+                .text(debtor_acct, 45, y, { width: 35, align: 'left' })
+                .text(nameStr, 80, y, { width: 85, align: 'left' })
+                .text(moment(result[i].doc_date).format("DD/MM/YYYY"), 165, y, { width: 40, align: 'center' })
+                .text(result[i].meter_id, 205, y, { width: 45, align: 'center' })
+
+                .text(fmt(ttlb), 250, y, { width: 40, align: 'center' })
+                .text(fmt(result[i].curr_read), 290, y, { width: 40, align: 'center' })
+                .text(fmt(result[i].last_read), 330, y, { width: 40, align: 'center' })
+                .text(fmt(result[i].multiplier), 370, y, { width: 20, align: 'center' })
+                .text(fmt(result[i].usage), 390, y, { width: 40, align: 'center' })
+                .text(fmt(result[i].usage_rate1), 430, y, { width: 35, align: 'center' })
+
+                .text(fmt(valConsumptionNum), 470, y, { width: 40, align: 'center' })
+                .text(fmt(valBlok1Num), 510, y, { width: 40, align: 'center' })
+                .text(fmt(usage21), 550, y, { width: 40, align: 'center' })
+                .text(fmt(retributionCharge), 590, y, { width: 40, align: 'center' })
+                .text(`${this.formattedNumber(result[i].apportion_percent)} % = ${fmt(billingApportionment)}`, 630, y, { width: 70, align: 'center' })
+                .text(fmt(rounding), 700, y, { width: 35, align: 'center' })
+                .text(`${this.formattedNumber(result[i].deduct_markup_p)} % = ${result[i].currency_cd} ${fmt(result[i].trx_amt)}`, 735, y, { width: 70, align: 'center' })
+            // -------------------------------------------------------------------
+
+            y += rowHeight + 5;
         }
+
         doc.rect(30, y, 780, 1).stroke()
         y += 10
+
         console.log("totalTtlb : " + totalTtlb)
-        console.log("totalConsumption : " + totalConsumption)
+        console.log("totalConsumptionOri : " + totalConsumptionOri)
+        console.log("totalConsumptionBlok1 : " + totalConsumptionBlok1)
+        console.log("totalConsumption2 (Blok 2) : " + totalConsumption2)
+        console.log("totalRetribution : " + totalRetribution)
         console.log("totalBillingApportionment : " + totalBillingApportionment)
-        doc.text(totalTtlb.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 280, y, { width: 40, align: "right" })
-            .text(totalConsumption.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 510, y, { width: 40, align: "right" })
-            .text(`${totalBillingApportionment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 600, y, { width: 40, align: "right" })
-            .text(totalRounding.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 640, y, { width: 40, align: "right" })
-            .text(result[0].currency_cd, 690, y, { width: 40, align: "right" })
-            .text(totalTrxAmt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 740, y, { width: 40, align: "right" })
 
-
+        // --- TOTAL (Terapkan helper fmtTotal() untuk akumulasi) ---
+        doc.text(fmtTotal(totalTtlb), 250, y, { width: 40, align: "center" })
+            .text(fmtTotal(totalConsumptionOri), 470, y, { width: 40, align: 'center' })
+            .text(fmtTotal(totalConsumptionBlok1), 510, y, { width: 40, align: 'center' })
+            .text(fmtTotal(totalConsumption2), 550, y, { width: 40, align: 'center' })
+            .text(fmtTotal(totalRetribution), 590, y, { width: 40, align: 'center' })
+            .text(fmtTotal(totalBillingApportionment), 630, y, { width: 70, align: 'center' })
+            .text(fmtTotal(totalRounding), 700, y, { width: 35, align: 'center' })
+            .text(`${result[0].currency_cd} ${fmtTotal(totalTrxAmt)}`, 735, y, { width: 70, align: 'center' })
 
         doc.end();
 
@@ -1442,8 +1519,7 @@ export class PdfgenerateService {
         }
     }
 
-
-    formattedNumber(string: string) {
+    formattedNumber(string: string | number) {
         return Number(string).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
 
