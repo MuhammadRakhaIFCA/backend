@@ -301,7 +301,8 @@ export class ApiInvoiceService {
     meter_type: string,
     name: string,
     related_class: string,
-    read_date: string
+    read_date: string,
+    with_alloc: string = 'd'
   ) {
     if (
       this.isEmpty(doc_no) ||
@@ -399,6 +400,7 @@ export class ApiInvoiceService {
       bill_type,
       meter_type,
       formid: result[0].formid,
+      withAlloc: with_alloc,
       type: "schedule",
       revision_count,
       filenames
@@ -536,7 +538,7 @@ export class ApiInvoiceService {
     };
   }
 
-  async generateManual(doc_no: string, name: string, related_class: string) {
+  async generateManual(doc_no: string, name: string, related_class: string, with_alloc: string = 'd') {
     if (
       this.isEmpty(doc_no) ||
       this.isEmpty(name) ||
@@ -621,6 +623,7 @@ export class ApiInvoiceService {
       group_cd: result[0].group_cd,
       inv_group: result[0].inv_group,
       formid: result[0].formid,
+      withAlloc: with_alloc,
       type: "manual",
       revision_count,
       fileName

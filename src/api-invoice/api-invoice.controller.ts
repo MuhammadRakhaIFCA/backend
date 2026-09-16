@@ -89,8 +89,9 @@ export class ApiInvoiceController {
     @Query('name') name: string,
     @Query('related_class') related_class: string,
     @Query('read_date') read_date: string,
+    @Query('with_alloc') with_alloc: string,
   ) {
-    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name, related_class, read_date);
+    return this.apiInvoiceService.generateSchedule(doc_no, bill_type, meter_type, name, related_class, read_date, with_alloc);
   }
   @Get('invoice-approve')
   async approve(
@@ -116,8 +117,9 @@ export class ApiInvoiceController {
     @Query('doc_no') doc_no: string,
     @Query('related_class') related_class: string,
     @Query('name') name: string,
+    @Query('with_alloc') with_alloc: string,
   ) {
-    return this.apiInvoiceService.generateManual(doc_no, name, related_class);
+    return this.apiInvoiceService.generateManual(doc_no, name, related_class, with_alloc);
   }
   @Get('invoice-proforma-generate')
   async generateProforma(

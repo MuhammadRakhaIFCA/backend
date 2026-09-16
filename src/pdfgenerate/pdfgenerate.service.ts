@@ -190,6 +190,7 @@ export class PdfgenerateService {
         const pphRate = Number(data.pph_rate)
         const taxRate = Number(data.tax_rate)
         const allocAmt = Number(data.alloc_amt)
+        const withAlloc = data.withAlloc
         const formattedBaseAmt = baseAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formattedTaxAmt = taxAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formattedTaxRate = taxRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -299,7 +300,9 @@ export class PdfgenerateService {
         if (pphRate > 0) {
             doc.text(`PPH ${formattedPphRate}%`, 350, tableYStart + 35)
         }
-        if (allocAmt > 0) {
+        console.log("with alloc", withAlloc)
+        console.log("aloc amt", allocAmt)
+        if ((allocAmt > 0 && (withAlloc == 'd' || withAlloc == 'y'))) {
             doc.fontSize(12)
                 .text(data.currency_cd, 435, tableYStart + 180, { width: 130, align: 'left' })
                 .text(`(${formattedAllocAmt})`, 435, tableYStart + 180, { width: 130, align: 'right' })

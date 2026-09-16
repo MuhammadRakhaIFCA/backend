@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { PdfgenerateService } from './pdfgenerate.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -94,5 +94,10 @@ export class PdfgenerateController {
   @Post('test')
   async autoGenerate(@Body() body: Record<any, any>) {
     return await this.pdfgenerateService.testAutoGenerate(body)
+  }
+
+  @Get('test-reference-elec')
+  async generateReferenceE(){
+    return this.pdfgenerateService.generateReferenceE('a', 'a', 'a', 'testelec.pdf')
   }
 }
