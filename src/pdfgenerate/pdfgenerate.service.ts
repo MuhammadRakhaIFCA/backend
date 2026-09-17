@@ -302,19 +302,21 @@ export class PdfgenerateService {
         }
         console.log("with alloc", withAlloc)
         console.log("aloc amt", allocAmt)
-        if ((allocAmt > 0 && (withAlloc == 'd' || withAlloc == 'y'))) {
+        let minusAllocAmt = 0
+        if ((Number(allocAmt) > 0 && (withAlloc == 'd' || withAlloc == 'y'))) {
             doc.fontSize(12)
                 .text(data.currency_cd, 435, tableYStart + 180, { width: 130, align: 'left' })
                 .text(`(${formattedAllocAmt})`, 435, tableYStart + 180, { width: 130, align: 'right' })
                 //.fontSize(14)
                 .text('Less Over Payment/Refund Secr.Deposit/Other', 35, tableYStart + 180)
+                minusAllocAmt = allocAmt
         }
         doc.fontSize(9)
             .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
             .text('(Pengajuan keberatan terhadap invoice ini dilakukan paling lambat 7 hari sejak tanggal invoice diterima)', 35, tableYStart + 210)
 
-
-        const total = Math.round((baseAmt + taxAmt - allocAmt) * 100) / 100
+        console.log(baseAmt, taxAmt, minusAllocAmt)
+        const total = Math.round((baseAmt + taxAmt - minusAllocAmt) * 100) / 100
         const formattedTotal = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 
