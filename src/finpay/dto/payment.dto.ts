@@ -126,4 +126,7 @@ export class PaymentDto {
 
     @IsOptional()
     type_topup: string;
+
+    @IsOptional()
+    company_name?: string;
 }

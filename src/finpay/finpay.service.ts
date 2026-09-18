@@ -25,13 +25,15 @@ export class FinpayService {
             .join('')}`;
         dto.order.id = order_id
         dto.order.timeout = "43200"
-        const { firstName, lastName } = this.splitName(dto.customer.name)
+        // const { firstName, lastName } = this.splitName(dto.customer.name)
+        const { firstName, lastName } = this.splitName(dto.company_name)
         dto.customer.firstName = firstName;
         if (lastName) {
             dto.customer.lastName = lastName;
         } else {
             dto.customer.lastName = '-'
         }
+        delete dto.company_name;
         const { customer, order, type_topup } = dto
         const { callbackUrl } = dto.url
         if (process.env.FINPAY_TYPE === "development") {
@@ -206,8 +208,8 @@ export class FinpayService {
 
     async getTransaction(type_topup: string) {
         try {
-            let response:Array<any>
-            if(type_topup !== "all"){
+            let response: Array<any>
+            if (type_topup !== "all") {
                 response = await this.fjiDatabase.$queryRawUnsafe(`
                     SELECT * FROM mgr.finpay_transaction
                     WHERE type_topup = '${type_topup}'
@@ -234,44 +236,44 @@ export class FinpayService {
         }
     }
 
-    async getEmailQuota(company_cd: string){
+    async getEmailQuota(company_cd: string) {
         try {
-          const completedTransaction: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
+            const completedTransaction: Array<any> = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT * FROM mgr.finpay_transaction
               WHERE status_payment = 'COMPLETED'
               AND type_topup = 'E'
               AND company_cd = '${company_cd}'
             `)
-          const invoiceEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
+            const invoiceEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT count(rowID) as count FROM mgr.ar_blast_inv_log_msg
             `)
-          const receiptEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
+            const receiptEmailSent = await this.fjiDatabase.$queryRawUnsafe(`
               SELECT count(rowID) as count FROM mgr.ar_blast_or_log_msg
             `)
-            const totalTopup = completedTransaction.length > 0 
-            ? completedTransaction.reduce((sum, item) => sum + Number(item.order_qty), 0)
-            : 0;
-          
-            const totalEmailSent = 
+            const totalTopup = completedTransaction.length > 0
+                ? completedTransaction.reduce((sum, item) => sum + Number(item.order_qty), 0)
+                : 0;
+
+            const totalEmailSent =
                 (invoiceEmailSent[0]?.count || 0) + (receiptEmailSent[0]?.count || 0);
-    
-          return ({
-            statusCode: 200,
-            message: "success getting email quota",
-            data: {
-              totalEmailSent,
-              totalTopup
-            }
-          })
+
+            return ({
+                statusCode: 200,
+                message: "success getting email quota",
+                data: {
+                    totalEmailSent,
+                    totalTopup
+                }
+            })
         } catch (error) {
             console.log(error)
-          throw new InternalServerErrorException({
-            statusCode: 500,
-            message: 'fail to get email quota',
-            data: error
-          })
+            throw new InternalServerErrorException({
+                statusCode: 500,
+                message: 'fail to get email quota',
+                data: error
+            })
         }
-      }
+    }
 
     private validateSignature(payload: NotificationCallbackDto, receivedSignature: string) {
         const { signature, ...fields } = payload;
@@ -290,11 +292,21 @@ export class FinpayService {
         }
     }
 
-    private splitName(name: string): { firstName: string; lastName: string } {
-        const parts = name.trim().split(/\s+/);
-        if (parts.length === 1) {
-            return { firstName: parts[0], lastName: '-' };
+    private splitName(name?: string): { firstName: string; lastName: string } {
+        if (!name?.trim()) {
+            return { firstName: '-', lastName: '-' };
         }
-        return { firstName: parts[0], lastName: parts[parts.length - 1] };
+        const parts = name.trim().split(/\s+/);
+
+        if (parts.length === 1) {
+            return {
+                firstName: parts[0],
+                lastName: '-',
+            };
+        }
+        return {
+            firstName: parts[0],
+            lastName: parts.slice(1).join(' '),
+        };
     }
 }

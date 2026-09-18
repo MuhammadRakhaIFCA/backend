@@ -28,4 +28,9 @@ export class FinpayController {
   async getEmailQuota() {
     return await this.finpayService.getEmailQuota('GQCINV')
   }
+
+  // @Get('test-split/:name')
+  // async testSplitName(@Param('name') name: string) {
+  //   return this.finpayService.splitName(name)
+  // }
 }
