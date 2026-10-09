@@ -196,6 +196,11 @@ export class PdfgenerateService {
         const formattedTaxRate = taxRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formattedPphRate = pphRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formattedAllocAmt = allocAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const descsInfo = String(data.descs_info ?? '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .trim();
+
         //header kiri
         const rootFolder = path.resolve(__dirname, '..', '..', process.env.ROOT_PDF_FOLDER)
         const imagePath = path.resolve(__dirname, '../../public/images/first-jakarta-logo.png');
@@ -285,7 +290,9 @@ export class PdfgenerateService {
         doc.text(`Period : ${data.line1}`, 35, tableYStart + 50)
         if (data.descs_info !== undefined && data.descs_info !== null) {
             //tableYStart += 15
-            doc.text(`${data.descs_info}`, 35, tableYStart + 65)
+            doc.text(`${descsInfo}`, 35, tableYStart + 65, {
+                width: 380,
+            });
         }
 
 
@@ -309,7 +316,7 @@ export class PdfgenerateService {
                 .text(`(${formattedAllocAmt})`, 435, tableYStart + 180, { width: 130, align: 'right' })
                 //.fontSize(14)
                 .text('Less Over Payment/Refund Secr.Deposit/Other', 35, tableYStart + 180)
-                minusAllocAmt = allocAmt
+            minusAllocAmt = allocAmt
         }
         doc.fontSize(9)
             .text('Any objection to this invoice should be submitted within 7 days after the date of the invoice received', 35, tableYStart + 200)
