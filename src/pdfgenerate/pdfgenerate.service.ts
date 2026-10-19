@@ -2969,17 +2969,7 @@ export class PdfgenerateService {
         })
     }
 
-
-
-    private numberToWords(amount: number): string {
-        const ones = [
-            '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-        ];
-        const teens = [
-            'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-            'Seventeen', 'Eighteen', 'Nineteen',
-        ];
-        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    numberToWords(amount: number): string {
         const thousands = ['', 'Thousand', 'Million', 'Billion'];
 
         if (amount === 0) return '';
@@ -2993,10 +2983,17 @@ export class PdfgenerateService {
         // Convert the integer part
         while (integerAmount > 0) {
             const chunk = integerAmount % 1000;
+
             if (chunk > 0) {
                 const chunkWords = this.convertChunk(chunk);
-                words = chunkWords + (thousands[i] ? ' ' + thousands[i] : '') + (words ? ' and ' : '') + words;
+
+                words =
+                    chunkWords +
+                    (thousands[i] ? ' ' + thousands[i] : '') +
+                    (words ? ' and ' : '') +
+                    words;
             }
+
             integerAmount = Math.floor(integerAmount / 1000);
             i++;
         }
@@ -3005,8 +3002,10 @@ export class PdfgenerateService {
 
         // Convert the decimal part if present
         if (decimalPart && parseInt(decimalPart, 10) > 0) {
-            const decimalWords = this.convertChunk(parseInt(decimalPart, 10));
-            words += ` point ${decimalWords} Cent${parseInt(decimalPart, 10) > 1 ? 's' : ''}`;
+            const decimalAmount = parseInt(decimalPart, 10);
+            const decimalWords = this.convertChunk(decimalAmount);
+
+            words += ` point ${decimalWords} Cent${decimalAmount > 1 ? 's' : ''}`;
         }
 
         return words.trim();
@@ -3014,13 +3013,42 @@ export class PdfgenerateService {
 
     private convertChunk(chunk: number): string {
         const ones = [
-            '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            '',
+            'One',
+            'Two',
+            'Three',
+            'Four',
+            'Five',
+            'Six',
+            'Seven',
+            'Eight',
+            'Nine',
         ];
+
         const teens = [
-            'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-            'Seventeen', 'Eighteen', 'Nineteen',
+            'Eleven',
+            'Twelve',
+            'Thirteen',
+            'Fourteen',
+            'Fifteen',
+            'Sixteen',
+            'Seventeen',
+            'Eighteen',
+            'Nineteen',
         ];
-        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        const tens = [
+            '',
+            '',
+            'Twenty',
+            'Thirty',
+            'Forty',
+            'Fifty',
+            'Sixty',
+            'Seventy',
+            'Eighty',
+            'Ninety',
+        ];
 
         let words = '';
 
@@ -3029,9 +3057,11 @@ export class PdfgenerateService {
             chunk %= 100;
         }
 
-        if (chunk >= 11 && chunk <= 19) {
+        if (chunk === 10) {
+            words += 'Ten ';
+        } else if (chunk >= 11 && chunk <= 19) {
             words += teens[chunk - 11] + ' ';
-        } else if (chunk >= 20 || chunk === 10) {
+        } else if (chunk >= 20) {
             words += tens[Math.floor(chunk / 10)] + ' ';
             chunk %= 10;
         }
@@ -3042,8 +3072,6 @@ export class PdfgenerateService {
 
         return words.trim();
     }
-
-
 
 }
 
